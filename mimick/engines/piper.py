@@ -59,7 +59,7 @@ def load_catalogue(refresh: bool = False) -> dict:
     """The list of available voices, cached on disk so it works offline."""
     if not refresh and CATALOGUE_CACHE.exists():
         try:
-            return json.loads(CATALOGUE_CACHE.read_text())
+            return json.loads(CATALOGUE_CACHE.read_text(encoding="utf-8"))
         except ValueError:
             pass
     try:
@@ -68,7 +68,7 @@ def load_catalogue(refresh: bool = False) -> dict:
     except (urllib.error.URLError, OSError, ValueError) as exc:
         if CATALOGUE_CACHE.exists():
             try:
-                return json.loads(CATALOGUE_CACHE.read_text())
+                return json.loads(CATALOGUE_CACHE.read_text(encoding="utf-8"))
             except ValueError:
                 pass
         raise EngineError(
@@ -76,7 +76,7 @@ def load_catalogue(refresh: bool = False) -> dict:
             f"connection is needed to download voices the first time.\n\n({exc})"
         ) from exc
     CATALOGUE_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    CATALOGUE_CACHE.write_text(json.dumps(data))
+    CATALOGUE_CACHE.write_text(json.dumps(data), encoding="utf-8")
     return data
 
 

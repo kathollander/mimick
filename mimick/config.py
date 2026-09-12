@@ -54,7 +54,7 @@ class Settings:
 
     def _load(self) -> None:
         try:
-            raw = json.loads(SETTINGS_PATH.read_text())
+            raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return
         if isinstance(raw, dict):
@@ -65,7 +65,7 @@ class Settings:
     def save(self) -> None:
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         tmp = SETTINGS_PATH.with_suffix(".tmp")
-        tmp.write_text(json.dumps(self._data, indent=2))
+        tmp.write_text(json.dumps(self._data, indent=2), encoding="utf-8")
         tmp.replace(SETTINGS_PATH)
 
     def get(self, key: str, default: Any = None) -> Any:
