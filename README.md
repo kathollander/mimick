@@ -1,12 +1,17 @@
 # Mimick
 
-**Linux's answer to Edge Read Aloud** — and it runs on Windows too. Opens a
-PDF, reads it out in a natural voice, and highlights each word as it says it.
+**Linux's answer to Edge Read Aloud.** Opens a PDF, reads it out in a natural
+voice, and highlights each word as it says it. There is a Windows installer
+too, but see the warning below before you trust it.
 
 > ### Heads up: this is brand new, and AI-written
 >
 > Mimick was written with AI, by Claude Code with me steering, and **may have
 > major flaws and bugs.** Keep backups of anything precious.
+>
+> **Windows is untested.** The Windows installer was written and reasoned
+> through on Linux and has never been run on an actual Windows machine. It may
+> simply not work. Linux is the version that is used daily.
 >
 > [Bug reports](#found-a-bug) very welcome.
 
@@ -38,7 +43,9 @@ something breaks — that repairs a broken setup.
 
 Enter your password if asked. Mimick lands in your applications menu.
 
-**Windows.** Right-click this folder and choose **Open in Terminal**, then:
+**Windows — untested, see above.** Nobody has yet run this on Windows. If you
+are willing to be the first, right-click this folder, choose **Open in
+Terminal**, then:
 
 ```
 powershell -ExecutionPolicy Bypass -File install.ps1
@@ -182,9 +189,13 @@ plus Wayland or X11, or your Windows version.
   to half a second on a tricky sentence. It resets at every full stop, so it
   never wanders far.
 - **Footnote markers** arrive stuck to the previous word and get read with it.
-- **Windows support is new and barely tested.** It was developed on Linux and
-  reasoned through carefully, but the installer has not yet been run on a real
-  Windows machine. Reports from the first people to try it are genuinely useful.
+- **Windows has never actually been run.** It was developed on Linux and
+  reasoned through carefully — the dependencies are checked to have Windows
+  wheels, and the PowerShell is checked by PSScriptAnalyzer — but no part of it
+  has been run on Windows. The installer, the Start Menu shortcut and the
+  ffmpeg download are all unverified, and audio timing in particular may be
+  wrong, so the highlight could lag the voice. Reports from the first people to
+  try it are genuinely useful.
 - **Otherwise only tested on Ubuntu 25.10, GNOME, Wayland.**
 
 ## Licence
