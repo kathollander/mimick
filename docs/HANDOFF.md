@@ -215,7 +215,13 @@ PSScriptAnalyzer, the ffmpeg download, the Start Menu shortcut, the registry
 entries, `asyncio.run` per sentence on a Proactor event loop in the Edge
 engine, and **audio latency**. That last one is the real risk — word-sync
 highlighting assumes the playhead matches what is audible, and if WASAPI buffers
-more deeply than ALSA the highlight will lag the voice. Only an ear can tell.
+more deeply than ALSA the highlight will lag the voice. Only an ear can tell,
+and `sd.OutputStream` takes a latency hint if it turns out to.
+
+The branch has been sent to one Windows user. The two things worth asking
+anyone who runs it: **does the highlight keep up with the voice**, and **is
+there a console window** behind the app or flashing between sentences. Neither
+shows up in a check tool.
 
 ## State on disk
 
@@ -248,11 +254,24 @@ Also on the 12th, **v0.2.0 added Windows** — see the Windows section above. It
 is written but unverified on the platform it targets, which makes it the single
 biggest untested surface in the project.
 
+**Where v0.2.0 currently lives.** On the `windows` branch, pushed to GitHub but
+**not merged and not tagged**. `main` is still v0.1.0 and untouched, so nobody
+arriving at the repo normally sees any of this. The branch was pushed so a
+friend on Windows could download it as a zip and be the first person to run it:
+
+```
+https://github.com/kathollander/mimick/archive/refs/heads/windows.zip
+```
+
+Release notes for v0.2.0 are drafted in [`release-v0.2.0.md`](release-v0.2.0.md),
+ready to paste into a GitHub release once the branch is merged and tagged. That
+file is a scratch draft, not documentation — delete it after the release.
+
 Not done: see [`ROADMAP.md`](ROADMAP.md). The release checklist there is the
 next thing to work through. The two most valuable tasks are **trying it on more
-real documents** — `tools/check_reading.py` makes that quick — and **testing
-the installer on a machine that is not this one**, which is the only part of
-the install path still unverified.
+real documents** — `tools/check_reading.py` makes that quick — and **hearing
+back from the first Windows run**, which is the only part of the install path
+still unverified on either platform.
 
 Published at **<https://github.com/kathollander/mimick>** (public, AGPL-3.0),
 pushed on 12 September 2026. Commit as `kathollander <kathoacct@pm.me>`, which

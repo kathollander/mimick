@@ -121,6 +121,11 @@ What is still outstanding before it is worth calling a release:
       a console window behind the app or flashing between sentences; does the
       ffmpeg download land somewhere `ffmpeg_command()` finds it; does MP3
       conversion work; does "Open with" appear for PDFs.
+      *In progress* — the `windows` branch is with one Windows user.
+- [ ] **Merge and tag v0.2.0** once that comes back. The branch is pushed but
+      not merged; `main` is still v0.1.0. Notes are drafted in
+      `docs/release-v0.2.0.md`; tick GitHub's pre-release box, and delete the
+      draft afterwards.
 - [ ] **Listen for highlight drift on Windows.** The word-sync highlight assumes
       the playhead matches what is audible. If WASAPI buffers more deeply than
       ALSA, the highlight will lag the voice — audible, but invisible to any
