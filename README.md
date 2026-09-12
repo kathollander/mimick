@@ -55,13 +55,16 @@ your own user folder. Your system Python is untouched.
 Open a PDF (`Ctrl`+`O`, or right-click → *Open With*), then press **Space**.
 
 Click any sentence to read from there, or drag across a passage and press
-**Enter** to read just that. Speed is top left, voice top right.
+**Enter** to read just that. **Right-click anywhere** for *Start reading from
+here* — handy when clicking to read is switched off. Speed is top left, voice
+top right.
 
 | Key | Does |
 | --- | --- |
 | `Space` | Start reading, or pause |
 | `Enter` | Read the selection, then stop |
 | `←` `→` | Back or forward a sentence |
+| `Ctrl`+`C` | Copy the selected text |
 | `Ctrl`+`H` / `Ctrl`+`M` | Highlight / highlight with a note |
 | `Ctrl`+`J` / `Ctrl`+`K` | Next / previous note |
 | `Ctrl`+`R` | Show what will be read |

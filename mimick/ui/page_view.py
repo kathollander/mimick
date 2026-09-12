@@ -37,6 +37,8 @@ NOTE_PAD = 18          # space between the page edge and the notes
 CARD_PAD = 10          # padding inside a note card
 CARD_GAP = 8           # smallest gap between stacked cards
 CARD_MIN_HEIGHT = 34
+HEADING_GAP = 2        # between a note's heading and its body
+NOTES_WHEEL_STEP = 90  # how far one wheel notch moves the notes column
 
 
 class PageView(QAbstractScrollArea):
@@ -48,6 +50,10 @@ class PageView(QAbstractScrollArea):
     annotation_clicked = Signal(object)      # a highlight or its note card was clicked
     annotation_activated = Signal(object)    # double-clicked: open it for editing
     region_clicked = Signal(object)          # a layout region, while the plan is shown
+    # A right-click on the page: where it landed, and the highlight under it if
+    # there was one. The window builds the menu, because what belongs on it
+    # depends on the player and the selection, which live there.
+    context_requested = Signal(int, float, float, object)   # page, x, y, annotation|None
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -65,6 +71,9 @@ class PageView(QAbstractScrollArea):
         self._store = None                   # AnnotationStore, once a file is open
         self._show_notes = True
         self._active_note = None
+        # The notes panel is its own column: it shows one page's notes at a
+        # time, stacked from the top, and scrolls independently of the page.
+        self._notes_scroll = 0
         self._note_family = ""               # empty means the interface font
         self._note_size = 9.0                # points at 100% zoom
         # Which kinds of mark appear in the panel: plain highlights (quotes
@@ -268,6 +277,11 @@ class PageView(QAbstractScrollArea):
 
     def _relayout(self) -> None:
         """Work out where every page sits at the current zoom."""
+        # Cards are measured in a font that scales with the zoom, so the column
+        # gets taller or shorter here and a scroll position from before may now
+        # be past its end.
+        self._notes_scroll = min(
+            self._notes_scroll, self._max_notes_scroll(self._notes_page()))
         self._sizes, self._offsets = [], []
         if self._document is None:
             self._content_width = 420
@@ -355,6 +369,8 @@ class PageView(QAbstractScrollArea):
         page = self._page_at(top + (bottom - top) // 3)
         if page != self._current_page:
             self._current_page = page
+            # A different page means a different set of notes, from the top.
+            self._notes_scroll = 0
             self.page_changed.emit(page)
         self._trim_cache()
 
@@ -439,7 +455,23 @@ class PageView(QAbstractScrollArea):
         if kind == QEvent.Type.MouseButtonDblClick:
             self._on_double_click(event)
             return True
+        if kind == QEvent.Type.ContextMenu:
+            return self._on_context_menu(event)
         return super().viewportEvent(event)
+
+    def _on_context_menu(self, event) -> bool:
+        """Right-click on the page: say what is under the cursor and let go."""
+        if self._document is None:
+            return False
+        point = event.pos()
+        if self._show_notes and point.x() >= self._margin_starts_at():
+            return False          # the notes column has nothing to offer yet
+        located = self._locate(point)
+        if located is None:
+            return False
+        self.context_requested.emit(*located, self._annotation_at(point))
+        event.accept()
+        return True
 
     def _paint(self, event) -> None:
         painter = QPainter(self.viewport())
@@ -497,20 +529,69 @@ class PageView(QAbstractScrollArea):
             painter.setPen(QColor(theme.BORDER))
             painter.drawLine(panel.left(), 0, panel.left(), panel.height())
             painter.setPen(Qt.PenStyle.NoPen)
-            self._paint_note_layer(painter, pages)
+            self._paint_note_layer(painter)
 
-    def _paint_note_layer(self, painter: QPainter, pages) -> None:
-        """Draw every visible card, clipped clear of the docked header and footer."""
+    def _paint_note_layer(self, painter: QPainter) -> None:
+        """Draw the current page's cards, clipped clear of the docked widgets."""
         body = self._panel_body()
         if body.height() <= 0:
             return
+        page = self._notes_page()
         painter.save()
         # Full width so the connector lines still reach the page, but limited
         # vertically so nothing spills under the docked widgets.
         painter.setClipRect(QRect(0, body.top(), self.viewport().width(), body.height()))
-        for page in pages:
-            self._draw_note_cards(painter, page)
+        self._draw_note_cards(painter, page)
         painter.restore()
+        self._draw_scroll_hints(painter, page)
+
+    def _draw_scroll_hints(self, painter: QPainter, page: int) -> None:
+        """Show that the column carries on above or below what is on screen.
+
+        Without this a page with more notes than fit simply looks like it has
+        fewer, because the panel's scrolling is its own and nothing else on
+        screen moves when you use it.
+        """
+        limit = self._max_notes_scroll(page)
+        if limit <= 0:
+            return
+        body = self._panel_body()
+        middle = self._margin_starts_at() + NOTE_GUTTER // 2
+        painter.save()
+        pen = QPen(QColor(theme.TEXT_DIM), 1.6)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        if self._notes_scroll > 0:
+            y = body.top() + 5
+            painter.drawLine(middle - 5, y + 3, middle, y)
+            painter.drawLine(middle, y, middle + 5, y + 3)
+        if self._notes_scroll < limit:
+            y = body.bottom() - 5
+            painter.drawLine(middle - 5, y - 3, middle, y)
+            painter.drawLine(middle, y, middle + 5, y - 3)
+        painter.restore()
+
+    def wheelEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        """The notes column scrolls on its own; the page scrolls as usual."""
+        if self._show_notes and event.position().x() >= self._margin_starts_at():
+            page = self._notes_page()
+            limit = self._max_notes_scroll(page)
+            if limit > 0:
+                delta = event.angleDelta().y() or event.angleDelta().x()
+                if delta:
+                    step = int(delta / 120 * NOTES_WHEEL_STEP)
+                    moved = max(0, min(self._notes_scroll - step, limit))
+                    if moved != self._notes_scroll:
+                        self._notes_scroll = moved
+                        self.viewport().update()
+                    event.accept()
+                    return
+            # Nothing to scroll here: swallow it rather than moving the page
+            # out from under the notes the reader is pointing at.
+            event.accept()
+            return
+        super().wheelEvent(event)
 
     def _page_rects(self, first: int, last: int, page: int) -> list[tuple[float, float, float, float]]:
         if self._document is None:
@@ -555,7 +636,33 @@ class PageView(QAbstractScrollArea):
 
     def set_active_note(self, item) -> None:
         self._active_note = item
+        if item is not None:
+            self._reveal_card(item)
         self.refresh_annotations()
+
+    def _reveal_card(self, item) -> None:
+        """Scroll the notes column so a card is on screen, if it is not already.
+
+        Selecting a highlight on the page has to bring its card into the panel:
+        the column is only as tall as the window, and on a page with a dozen
+        notes the one you just clicked is as likely as not below the fold.
+        """
+        page = self._notes_page()
+        if item.page != page:
+            return
+        body = self._panel_body()
+        for placed, rect in self._layout_notes(page):
+            if placed is not item:
+                continue
+            if rect.top() < body.top() + CARD_GAP:
+                shift = rect.top() - (body.top() + CARD_GAP)
+            elif rect.bottom() > body.bottom() - CARD_GAP:
+                shift = rect.bottom() - (body.bottom() - CARD_GAP)
+            else:
+                return
+            limit = self._max_notes_scroll(page)
+            self._notes_scroll = max(0, min(self._notes_scroll + shift, limit))
+            return
 
     def scroll_to_annotation(self, item) -> None:
         """Bring a highlight into view, a third of the way down."""
@@ -563,6 +670,8 @@ class PageView(QAbstractScrollArea):
             return
         top = self._offsets[item.page] + int(item.top * self._zoom)
         bar = self.verticalScrollBar()
+        # Moving the page settles which notes the panel shows and puts the
+        # column back to the top, so the card is placed after this, not before.
         bar.setValue(max(0, min(top - self.viewport().height() // 3, bar.maximum())))
         self.set_active_note(item)
 
@@ -582,11 +691,30 @@ class PageView(QAbstractScrollArea):
         font.setPointSizeF(max(6.0, min(scaled, 40.0)))
         return font
 
-    def _layout_notes(self, page: int) -> list[tuple[object, QRect]]:
-        """Place this page's note cards in the panel, stacked so none overlap.
+    def _heading_font(self) -> QFont:
+        font = QFont(self._annotation_font())
+        font.setBold(True)
+        return font
 
-        Rectangles come back in viewport coordinates: the panel is pinned to the
-        right edge horizontally, while the cards track their page vertically.
+    @staticmethod
+    def _wrapped_height(font: QFont, width: int, text: str) -> int:
+        """How tall `text` is once wrapped to `width`, in this font."""
+        if not text:
+            return 0
+        return QFontMetrics(font).boundingRect(
+            QRect(0, 0, width, 10_000), int(Qt.TextFlag.TextWordWrap), text,
+        ).height()
+
+    def _notes_page(self) -> int:
+        """The page whose notes the panel is showing: the one you are reading."""
+        return self._current_page
+
+    def _card_sizes(self, page: int) -> list[tuple[object, int]]:
+        """Each card on a page and how tall it needs to be, in stacking order.
+
+        Order is the order the highlights appear down the page, so the column
+        reads the same way the page does even though the cards no longer line
+        up with the passages they belong to.
         """
         if self._store is None or not self._show_notes:
             return []
@@ -599,27 +727,53 @@ class PageView(QAbstractScrollArea):
         if not items:
             return []
 
-        metrics = QFontMetrics(self._annotation_font())
-        width = NOTE_GUTTER - NOTE_PAD * 2
-        text_width = width - CARD_PAD * 2
+        font = self._annotation_font()
+        heading_font = self._heading_font()
+        text_width = NOTE_GUTTER - NOTE_PAD * 2 - CARD_PAD * 2
+
+        sizes: list[tuple[object, int]] = []
+        for item in sorted(items, key=lambda a: a.top):
+            # The heading is bold and wraps on its own, so it has to be
+            # measured in its own font -- measuring it as the first line of the
+            # body made the card too short and the title ran off the edge.
+            needed = self._wrapped_height(font, text_width, item.note or item.preview)
+            if item.heading:
+                needed += self._wrapped_height(
+                    heading_font, text_width, item.heading) + HEADING_GAP
+            sizes.append((item, max(needed + CARD_PAD * 2, CARD_MIN_HEIGHT)))
+        return sizes
+
+    def _notes_extent(self, page: int) -> int:
+        """How tall the whole stack of a page's cards is, gaps included."""
+        sizes = self._card_sizes(page)
+        if not sizes:
+            return 0
+        return sum(height for _, height in sizes) + CARD_GAP * (len(sizes) + 1)
+
+    def _max_notes_scroll(self, page: int) -> int:
+        return max(0, self._notes_extent(page) - self._panel_body().height())
+
+    def _layout_notes(self, page: int) -> list[tuple[object, QRect]]:
+        """Place a page's note cards in the panel, in viewport coordinates.
+
+        The stack starts at the top of the column and works down, rather than
+        each card floating beside the passage it belongs to. Two notes a line
+        apart used to shove each other down the page and a note near the foot
+        of a long page sat below the window entirely; the connector line is
+        what ties a card to its highlight now, not its height on the screen.
+        """
+        sizes = self._card_sizes(page)
+        if not sizes:
+            return []
+        body = self._panel_body()
         left = self._margin_starts_at() + NOTE_PAD
-        origin_y = self._offsets[page] - self.verticalScrollBar().value()
+        width = NOTE_GUTTER - NOTE_PAD * 2
 
         placed: list[tuple[object, QRect]] = []
-        cursor = max(origin_y, self._panel_header_height() + CARD_GAP)
-        for item in sorted(items, key=lambda a: a.top):
-            body = item.note or item.preview
-            if item.heading:
-                body = f"{item.heading}\n{body}"
-            bounds = metrics.boundingRect(
-                QRect(0, 0, text_width, 10_000),
-                int(Qt.TextFlag.TextWordWrap), body,
-            )
-            height = max(bounds.height() + CARD_PAD * 2, CARD_MIN_HEIGHT)
-            wanted = origin_y + int(item.top * self._zoom)
-            top = max(wanted, cursor)
-            placed.append((item, QRect(left, top, width, height)))
-            cursor = top + height + CARD_GAP
+        cursor = body.top() + CARD_GAP - self._notes_scroll
+        for item, height in sizes:
+            placed.append((item, QRect(left, cursor, width, height)))
+            cursor += height + CARD_GAP
         return placed
 
     def _draw_page_highlights(self, painter: QPainter, page: int) -> None:
@@ -670,12 +824,15 @@ class PageView(QAbstractScrollArea):
             text_area = card.adjusted(CARD_PAD, CARD_PAD, -CARD_PAD, -CARD_PAD)
             heading = item.heading
             if heading:
-                bold = QFont(font)
-                bold.setBold(True)
+                bold = self._heading_font()
+                tall = self._wrapped_height(bold, text_area.width(), heading)
                 painter.setFont(bold)
                 painter.setPen(QColor(theme.TEXT))
-                painter.drawText(text_area, int(Qt.TextFlag.TextSingleLine), heading)
-                text_area = text_area.adjusted(0, QFontMetrics(bold).height() + 2, 0, 0)
+                painter.drawText(
+                    QRect(text_area.left(), text_area.top(), text_area.width(), tall),
+                    int(Qt.TextFlag.TextWordWrap), heading,
+                )
+                text_area = text_area.adjusted(0, tall + HEADING_GAP, 0, 0)
                 painter.setFont(font)
             if item.note:
                 painter.setPen(QColor(theme.TEXT))
@@ -693,12 +850,12 @@ class PageView(QAbstractScrollArea):
         if self._store is None:
             return None
         if self._show_notes and point.x() >= self._margin_starts_at():
-            band = QRect(0, self.verticalScrollBar().value(),
-                         self._column_width, self.viewport().height())
-            for page in self._visible_pages(band):
-                for item, rect in self._layout_notes(page):
-                    if rect.contains(point):
-                        return item
+            body = self._panel_body()
+            if not body.contains(point):
+                return None
+            for item, rect in self._layout_notes(self._notes_page()):
+                if rect.contains(point):
+                    return item
             return None
         located = self._locate(point)
         if located is None:

@@ -417,10 +417,22 @@ class Document:
         return result
 
     def selection_text(self, first: int, last: int) -> str:
+        """The selected words as written, for the clipboard and for note quotes.
+
+        Citations stay in -- this is a quotation from the document, not a
+        transcript of the voice -- but a word the typesetter broke across a
+        line is put back together, so "can- not" is copied as "cannot".
+        """
         first, last = max(0, min(first, last)), min(max(first, last), len(self.words) - 1)
         if first > last:
             return ""
-        return " ".join(word.text for word in self.words[first : last + 1])
+        parts: list[str] = []
+        for word in self.words[first : last + 1]:
+            if word.joins_next and word.text.endswith("-"):
+                parts.append(word.text[:-1])
+            else:
+                parts.append(word.text + " ")
+        return "".join(parts).strip()
 
     # -- lookups used by the UI -------------------------------------------
 

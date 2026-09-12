@@ -22,7 +22,9 @@ GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
                              "Display → Click to read."),
         ("Drag across text", "Select a passage"),
         ("Double-click", "Select the whole sentence"),
+        ("Right-click", "Start reading from that point, whichever mode you are in"),
         ("Ctrl+A", "Select every word on the page"),
+        ("Ctrl+C", "Copy the selected text"),
         ("Esc", "Clear the selection"),
     ]),
     ("Moving around", [
@@ -41,7 +43,7 @@ GROUPS: list[tuple[str, list[tuple[str, str]]]] = [
     ]),
     ("Files", [
         ("Ctrl+O", "Open a PDF"),
-        ("Ctrl+S", "Save — writes your notes into this PDF"),
+        ("Ctrl+S", "Save now — notes also save themselves as you work"),
         ("Ctrl+Shift+S", "Save As — writes a separate annotated copy"),
     ]),
     ("Showing and hiding", [

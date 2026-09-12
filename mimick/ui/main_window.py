@@ -171,6 +171,7 @@ class MainWindow(QMainWindow):
         self.page_view.annotation_clicked.connect(self._on_annotation_clicked)
         self.page_view.annotation_activated.connect(self.edit_note)
         self.page_view.region_clicked.connect(self._on_region_clicked)
+        self.page_view.context_requested.connect(self._on_page_context_menu)
         layout.addWidget(self.page_view, 1)
 
         layout.addWidget(self._build_controls())
@@ -550,6 +551,13 @@ class MainWindow(QMainWindow):
         display_menu.addAction(act_reset_zoom)
 
         self.notes_menu = notes_menu = self.menuBar().addMenu("&Notes")
+        self.act_copy = QAction("&Copy selection", self)
+        self.act_copy.setToolTip("Put the selected words on the clipboard")
+        self.act_copy.setShortcut(QKeySequence.StandardKey.Copy)
+        self.act_copy.triggered.connect(self.copy_selection)
+        notes_menu.addAction(self.act_copy)
+        notes_menu.addSeparator()
+
         self.act_highlight = QAction("&Highlight selection", self)
         self.act_highlight.setShortcut(QKeySequence("Ctrl+H"))
         self.act_highlight.triggered.connect(self.highlight_selection)
@@ -1066,6 +1074,7 @@ class MainWindow(QMainWindow):
 
     def _on_selection_changed(self, first: int, last: int) -> None:
         has_selection = first >= 0
+        self.act_copy.setEnabled(has_selection and self.document is not None)
         if has_selection and self.document is not None:
             count = last - first + 1
             self._set_status(f"{count} words selected \u2014 press Enter to read them")
@@ -1171,9 +1180,20 @@ class MainWindow(QMainWindow):
     def _on_page_clicked(self, page: int, x: float, y: float) -> None:
         if self.document is None or self._click_mode != MODE_CLICK:
             return
+        self.read_from_point(page, x, y)
+
+    def read_from_point(self, page: int, x: float, y: float) -> bool:
+        """Start reading at the sentence under a point. False if it missed the text.
+
+        Separate from the click handler because right-click reaches it too, and
+        has to work in select mode -- where clicking deliberately does not read,
+        which left no way at all to say "carry on from here".
+        """
+        if self.document is None:
+            return False
         index = self.document.sentence_at_point(page, x, y)
         if index is None:
-            return      # the click missed the text, so do nothing
+            return False      # the click missed the text, so do nothing
         self.stop_all_audio()
         if self._reading_selection or self._active_sentences is not self.document.sentences:
             self._reading_selection = False
@@ -1182,6 +1202,52 @@ class MainWindow(QMainWindow):
                                   self._current_voice(), self._current_speed())
         self._sync_player()
         self.player.seek(index, autoplay=True)
+        return True
+
+    def _on_page_context_menu(self, page: int, x: float, y: float, annotation) -> None:
+        menu = self.build_page_menu(page, x, y, annotation)
+        if menu is not None:
+            menu.exec(QCursor.pos())
+
+    def build_page_menu(self, page: int, x: float, y: float, annotation):
+        """The right-click menu for a point on the page, or None if there is none.
+
+        Built separately from showing it so what it offers can be checked
+        without putting a modal menu on the screen.
+        """
+        if self.document is None:
+            return None
+        menu = QMenu(self)
+        sentence = self.document.sentence_at_point(page, x, y)
+        has_voice = bool(self._current_voice())
+
+        start = menu.addAction("Start reading from here")
+        start.setEnabled(sentence is not None and has_voice)
+        start.triggered.connect(lambda: self.read_from_point(page, x, y))
+
+        selection = self.page_view.selection
+        if selection is not None:
+            read = menu.addAction("Read the selection")
+            read.setEnabled(has_voice)
+            read.triggered.connect(self.read_selection)
+        menu.addSeparator()
+
+        if selection is not None:
+            copy = menu.addAction("Copy")
+            copy.triggered.connect(self.copy_selection)
+            if self.store is not None:
+                highlight = menu.addAction("Highlight")
+                highlight.triggered.connect(self.highlight_selection)
+                note = menu.addAction("Highlight and write a note\u2026")
+                note.triggered.connect(self.note_selection)
+        elif annotation is not None and self.store is not None:
+            edit = menu.addAction("Edit this note\u2026")
+            edit.triggered.connect(lambda: self.edit_note(annotation))
+        else:
+            nothing = menu.addAction("Select some text to copy or highlight it")
+            nothing.setEnabled(False)
+
+        return menu
 
     # -- navigation --------------------------------------------------------
 
@@ -1579,6 +1645,22 @@ class MainWindow(QMainWindow):
         else:
             self.page_view.set_note_style(family, size)
 
+    def copy_selection(self) -> None:
+        """Put the selected words on the clipboard, as they appear on the page.
+
+        The words as written, not as spoken -- see Document.selection_text.
+        """
+        chosen = self.page_view.selection
+        if self.document is None or chosen is None:
+            self._set_status("Select some text first \u2014 drag across it, or press Ctrl+A")
+            return
+        text = self.document.selection_text(*chosen)
+        if not text:
+            return
+        QApplication.clipboard().setText(text)
+        words = chosen[1] - chosen[0] + 1
+        self._set_status(f"Copied {words} word{'s' if words != 1 else ''}")
+
     def highlight_selection(self, with_note: bool = False) -> None:
         """Highlight whatever is selected, optionally opening the note editor."""
         if self.document is None or self.store is None:
@@ -1813,6 +1895,7 @@ class MainWindow(QMainWindow):
             widget.setEnabled(can_annotate)
         for action in (self.act_highlight, self.act_note, self.act_save_copy):
             action.setEnabled(can_annotate)
+        self.act_copy.setEnabled(has_document and self.page_view.selection is not None)
 
         count = len(self.store.items) if self.store else 0
         dirty = bool(self.store and self.store.dirty)
