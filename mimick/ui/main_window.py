@@ -6,19 +6,20 @@ from pathlib import Path
 
 import sounddevice as sd
 
-from PySide6.QtCore import (QCoreApplication, QEvent, Qt, QThread, QTimer,
-                            Signal, Slot)
-from PySide6.QtGui import QAction, QKeySequence, QShortcut
+from PySide6.QtCore import (QCoreApplication, QEvent, QEventLoop, Qt, QThread,
+                            QTime, QTimer, Signal, Slot)
+from PySide6.QtGui import QAction, QCursor, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox, QDialog, QFileDialog, QFrame, QHBoxLayout, QLabel, QMainWindow,
     QApplication, QMenu, QMessageBox, QProgressDialog, QPushButton, QSizePolicy,
     QSlider, QSpinBox, QVBoxLayout, QWidget,
 )
 
-from ..annotations import COLOURS, AnnotationStore
+from ..annotations import (COLOURS, AnnotationStore, companion_for,
+                           existing_companion, fallback_companion_for)
 from ..apps import reveal
 from .. import layout
-from ..config import Settings
+from ..config import NOTES_DIR, Settings
 from ..document import Document
 from ..engines import Engine, EngineError, Voice, build_engine
 from ..engines import kokoro as kokoro_engine
@@ -34,6 +35,13 @@ from . import theme
 from .page_view import PageView
 
 SPEEDS = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
+# How long after the last change the notes are written. Long enough that
+# highlighting three sentences in a row is one save, short enough that closing
+# the lid straight afterwards does not lose anything.
+AUTOSAVE_DELAY_MS = 1200
+# How long the window stays up after a save on the way out, so the confirmation
+# in the corner is actually readable rather than a flicker.
+CLOSING_PAUSE_MS = 900
 PREVIEW_TEXT = "This is how I sound when I read your documents aloud."
 
 # How a click on the page behaves.
@@ -118,6 +126,15 @@ class MainWindow(QMainWindow):
         self._resume_after_voices: int | None = None
         self.store: AnnotationStore | None = None
         self._click_mode = self.settings.get("click_mode", MODE_CLICK)
+        # Where this document's notes are written, and a debounce so a burst of
+        # highlighting is one save rather than twenty.
+        self._notes_path: Path | None = None
+        self._autosave_failed = False
+        self._closing_save_shown = False
+        self._autosave = QTimer(self)
+        self._autosave.setSingleShot(True)
+        self._autosave.setInterval(AUTOSAVE_DELAY_MS)
+        self._autosave.timeout.connect(self.save_annotations)
 
         self.setWindowTitle("Mimick")
         self.resize(1040, 900)
@@ -322,8 +339,10 @@ class MainWindow(QMainWindow):
         bottom.addWidget(self.note_count_label)
         bottom.addStretch(1)
         self.save_notes_button = QPushButton("Save notes")
-        self.save_notes_button.setToolTip("Write highlights and notes into the PDF  (Ctrl+S)")
-        self.save_notes_button.clicked.connect(self.save_annotations)
+        self.save_notes_button.setToolTip(
+            "Save your highlights and notes now \u2014 they also save "
+            "themselves to a copy as you work  (Ctrl+S)")
+        self.save_notes_button.clicked.connect(lambda _checked=False: self.save_annotations())
         bottom.addWidget(self.save_notes_button)
 
         self.notes_header, self.notes_footer = header, footer
@@ -424,9 +443,12 @@ class MainWindow(QMainWindow):
         file_menu.addAction(self.act_export)
         file_menu.addSeparator()
         self.act_save = QAction("&Save", self)
-        self.act_save.setToolTip("Write your highlights and notes into this PDF")
+        self.act_save.setToolTip(
+            "Save your highlights and notes now \u2014 they also save "
+            "themselves to a copy as you work")
         self.act_save.setShortcut(QKeySequence.StandardKey.Save)
-        self.act_save.triggered.connect(self.save_annotations)
+        # triggered carries a checked flag; it must not land in `quiet`.
+        self.act_save.triggered.connect(lambda _checked=False: self.save_annotations())
         file_menu.addAction(self.act_save)
 
         self.act_save_copy = QAction("Save &As\u2026", self)
@@ -657,6 +679,13 @@ class MainWindow(QMainWindow):
         if not self._offer_to_save():
             return
         self.player.stop()
+        # Notes made last time live in the companion file, so that is the one to
+        # open -- otherwise opening the original again would show a document
+        # with no highlights on it and quietly start a second set.
+        original = Path(path)
+        found = existing_companion(original, NOTES_DIR)
+        if found is not None:
+            path = found
         try:
             document = Document(
                 path,
@@ -693,8 +722,13 @@ class MainWindow(QMainWindow):
         if previous is not None:
             previous.close()
 
+        self._notes_path = companion_for(path)
+        self._autosave_failed = False
+
         self._apply_region_choices()
-        self.settings.note_recent(path)
+        # Recent files list the document the reader asked for. Opening it again
+        # finds the companion again, so the entry keeps working either way.
+        self.settings.note_recent(original)
         self._refresh_recent()
 
         self.setWindowTitle(f"{document.title} — Mimick")
@@ -717,6 +751,8 @@ class MainWindow(QMainWindow):
             self._set_status(f"Picked up where you left off — sentence {resume_at + 1}")
         else:
             self._set_status(f"{len(document.sentences)} sentences · press Space to start")
+        if found is not None:
+            self._set_status(f"Opened your annotated copy, {found.name}")
         self._update_enabled()
 
     def _refresh_recent(self) -> None:
@@ -1603,7 +1639,7 @@ class MainWindow(QMainWindow):
             self.store.set_note(item, dialog.note, dialog.title)
             if not _same_colour(dialog.colour, item.colour):
                 self.store.set_colour(item, dialog.colour)
-            self._set_status("Note saved \u2014 Ctrl+S writes it into the PDF")
+            self._set_status("Note saved")
         self.page_view.refresh_annotations()
         self._update_enabled()
 
@@ -1622,27 +1658,80 @@ class MainWindow(QMainWindow):
         self.page_view.scroll_to_annotation(items[index])
         self._on_annotation_clicked(items[index])
 
-    def save_annotations(self) -> bool:
-        """Write highlights and notes back into the PDF. Returns False on failure."""
-        if self.store is None or self.document is None:
+    def save_annotations(self, quiet: bool = False) -> bool:
+        """Write highlights and notes to this document's companion file.
+
+        The PDF you opened is never written to. Everything goes to the file
+        named by ``_notes_path``: either the companion beside the original, or
+        -- when the open document *is* that companion -- the open file itself,
+        which ``save_as`` then writes incrementally.
+        """
+        if self.store is None or self.document is None or self._notes_path is None:
             return True
         if not self.store.dirty:
-            self._set_status("No changes to save")
+            if not quiet:
+                self._set_status("No changes to save \u2014 everything is written")
             return True
-        if not self.store.can_save_in_place():
-            return self.save_annotations_copy()
+
+        target, wrote = self._notes_path, None
         try:
-            self.store.save()
-        except Exception as exc:
-            self._warn(
-                "Could not save into that PDF",
-                f"Mimick could not write your notes into {self.document.path.name}.\n\n"
-                f"You can still use \u201cSave a copy with notes\u201d instead.\n\n({exc})",
-            )
-            return False
-        self._set_status(f"Saved into {self.document.path.name}")
+            wrote = self.store.save_as(target)
+        except Exception as first:
+            # The original's folder may be read-only. Fall back to Mimick's own
+            # notes folder once, and stay there for the rest of the session.
+            fallback = fallback_companion_for(self.document.path, NOTES_DIR)
+            if target == fallback:
+                return self._autosave_gave_up(first)
+            try:
+                NOTES_DIR.mkdir(parents=True, exist_ok=True)
+                wrote = self.store.save_as(fallback)
+            except Exception as second:
+                return self._autosave_gave_up(second)
+            self._notes_path = target = fallback
+            self._autosave_failed = False
+            self._update_enabled()
+            # Said instead of the usual confirmation, not before it: where the
+            # notes went is the part worth reading when it is not the folder
+            # the reader would look in.
+            self._set_status(f"{self.document.path.name} is in a read-only folder "
+                             f"\u2014 notes saved to {fallback.parent}")
+            return True
+
+        self._autosave_failed = False
+        if wrote is not None:
+            # Always announced, autosave included: a save you did not ask for
+            # is only reassuring if you can see it happen. The clock matters
+            # because the message stays up -- without it, a save from an hour
+            # ago reads exactly like one from a second ago.
+            when = QTime.currentTime().toString("HH:mm")
+            self._set_status(f"Notes saved to {target.name} \u00b7 {when}")
         self._update_enabled()
         return True
+
+    def _autosave_gave_up(self, exc: Exception) -> bool:
+        """Report a failed save once, and stop retrying it every few seconds."""
+        if not self._autosave_failed:
+            self._autosave_failed = True
+            self._warn(
+                "Could not save your notes",
+                "Mimick could not write your highlights and notes to "
+                f"{self._notes_path.name if self._notes_path else 'the notes file'}.\n\n"
+                "Your notes are still here in the window. Use File \u2192 Save As "
+                "to put them somewhere writable.\n\n"
+                f"({exc})",
+            )
+        return False
+
+    def _flush_autosave(self) -> None:
+        """Write anything pending right now, rather than on the timer."""
+        if self._autosave.isActive():
+            self._autosave.stop()
+        if self.store is not None and self.store.dirty and not self._autosave_failed:
+            # Only ever set, never cleared: _offer_to_save flushes before
+            # closeEvent does, and a second flush with nothing left to write
+            # must not undo the record that the first one saved something.
+            if self.save_annotations(quiet=True):
+                self._closing_save_shown = True
 
     def save_annotations_copy(self) -> bool:
         if self.store is None or self.document is None:
@@ -1668,13 +1757,23 @@ class MainWindow(QMainWindow):
         return True
 
     def _offer_to_save(self) -> bool:
-        """Ask about unsaved notes. False means the reader cancelled."""
+        """Settle any outstanding notes. False means the reader cancelled.
+
+        There is normally nothing to ask about: notes are written to the
+        companion file a moment after each change, so this just flushes what
+        the debounce is still holding. The question only comes back when
+        saving has actually been failing, where losing the notes is real.
+        """
         if self.store is None or not self.store.dirty:
             return True
+        if not self._autosave_failed:
+            self._flush_autosave()
+            return True
         answer = QMessageBox.question(
-            self, "Save your notes?",
-            f"You have unsaved highlights or notes in {self.document.path.name}.\n\n"
-            "Save them into the PDF?",
+            self, "Your notes could not be saved",
+            f"Mimick could not write your highlights and notes for "
+            f"{self.document.path.name}.\n\nClosing now loses them. Choose "
+            "somewhere to save them instead?",
             QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard
             | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Save,
@@ -1682,7 +1781,7 @@ class MainWindow(QMainWindow):
         if answer == QMessageBox.StandardButton.Cancel:
             return False
         if answer == QMessageBox.StandardButton.Save:
-            return self.save_annotations()
+            return self.save_annotations_copy()
         return True
 
     # -- help --------------------------------------------------------------
@@ -1717,6 +1816,10 @@ class MainWindow(QMainWindow):
 
         count = len(self.store.items) if self.store else 0
         dirty = bool(self.store and self.store.dirty)
+        # Every path that changes a note ends up here, so this is the one place
+        # that has to notice there is something to write.
+        if dirty and self._notes_path is not None and not self._autosave_failed:
+            self._autosave.start()
         self.act_save.setEnabled(can_annotate and dirty)
         self.save_notes_button.setEnabled(dirty)
         for widget in (self.prev_note_button, self.next_note_button):
@@ -1744,9 +1847,19 @@ class MainWindow(QMainWindow):
         box.exec()
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._closing_save_shown = False
         if not self._offer_to_save():
             event.ignore()
             return
+        # Anything the debounce is still holding is written before the window
+        # goes, and the confirmation is left up long enough to read -- closing
+        # an app that saves for you should visibly finish saving.
+        self._flush_autosave()
+        if self._closing_save_shown:
+            QApplication.processEvents()        # paint the confirmation first
+            loop = QEventLoop()
+            QTimer.singleShot(CLOSING_PAUSE_MS, loop.quit)
+            loop.exec()
         if self._export_worker is not None:
             self._export_worker.cancel()
         self.stop_all_audio()

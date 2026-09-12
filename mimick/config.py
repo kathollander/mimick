@@ -16,6 +16,8 @@ from .system import default_cache_dir, default_config_dir
 # MIMICK_CONFIG_DIR / MIMICK_CACHE_DIR let a test run against throwaway
 # directories instead of the settings and downloads you actually use.
 CONFIG_DIR = Path(os.environ.get("MIMICK_CONFIG_DIR") or default_config_dir())
+# Annotated copies for documents whose own folder cannot be written to.
+NOTES_DIR = CONFIG_DIR / "notes"
 CACHE_DIR = Path(os.environ.get("MIMICK_CACHE_DIR") or default_cache_dir())
 SETTINGS_PATH = CONFIG_DIR / "settings.json"
 

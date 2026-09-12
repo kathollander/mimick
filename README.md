@@ -6,8 +6,7 @@ PDF, reads it out in a natural voice, and highlights each word as it says it.
 > ### Heads up: this is brand new, and AI-written
 >
 > Mimick was written with AI, by Claude Code with me steering, and **may have
-> major flaws and bugs.** Keep backups of anything precious, and use **Save
-> As** rather than **Save** on documents you can't replace.
+> major flaws and bugs.** Keep backups of anything precious.
 >
 > [Bug reports](#found-a-bug) very welcome.
 
@@ -80,7 +79,11 @@ A note is stored *inside* its highlight, which is how PDFs work — so every not
 belongs to a highlight, and other readers show it as that highlight's comment.
 Set your name under **Notes → Note appearance** and it's saved as the author.
 
-**File → Save** writes into the open PDF; **Save As** leaves the original alone.
+**Your notes save themselves.** Mimick never writes to the PDF you opened: a
+second or so after each change, your highlights and notes go to a copy beside
+it named `Whatever (notes).pdf`. Open the original again and Mimick opens that
+copy, so your notes are waiting. `Ctrl`+`S` saves straight away rather than
+waiting; **Save As** puts a copy wherever you like.
 
 ## What gets read, and what doesn't
 

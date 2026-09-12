@@ -209,7 +209,12 @@ class Document:
         # masthead and declarations, and the reference list. One switch, because
         # it is one idea -- read the document, not the paperwork around it.
         self.clean_text = clean_text
-        self.doc = pymupdf.open(self.path)
+        # Read into memory rather than leaving MuPDF holding the file open.
+        # Notes are saved by writing a whole new PDF and moving it into place,
+        # and that move has to be safe even when the file being replaced is the
+        # one this document came from -- which it is, every time you reopen a
+        # document you have already annotated.
+        self.doc = pymupdf.open(stream=self.path.read_bytes(), filetype="pdf")
         self.sentences: list[Sentence] = []
         self.words: list[Word] = []                 # every word, in reading order
         self.page_words: dict[int, list[Word]] = {}

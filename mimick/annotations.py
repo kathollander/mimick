@@ -28,6 +28,51 @@ DEFAULT_COLOUR = COLOURS[0][1]
 _RANGE_KEY = "MimickRange"
 _RANGE_PREFIX = "mimick-range:"      # how older files stored it
 
+# Mimick never writes into the PDF you opened. Highlights and notes go to a
+# companion file beside it, named the same way the Save a copy dialog has
+# always suggested, so a document you were given back is still the document you
+# were given. The companion is an ordinary PDF: the notes in it are real PDF
+# annotations, and any reader can open it.
+NOTES_SUFFIX = " (notes)"
+
+
+def is_companion(path) -> bool:
+    """Whether a path is itself one of Mimick's annotated copies."""
+    return Path(path).stem.endswith(NOTES_SUFFIX)
+
+
+def companion_for(path) -> Path:
+    """The annotated copy belonging to a document, beside the original.
+
+    Opening a companion returns itself, so a second round of notes is written
+    back to the same file rather than to "X (notes) (notes).pdf".
+    """
+    path = Path(path)
+    if is_companion(path):
+        return path
+    return path.with_name(path.stem + NOTES_SUFFIX + (path.suffix or ".pdf"))
+
+
+def fallback_companion_for(path, notes_dir) -> Path:
+    """Where the copy goes when the original's own folder cannot be written to.
+
+    A PDF opened from a read-only place -- a mounted share, a downloads folder
+    on a locked-down machine, the sample documents inside an installed copy --
+    still has to be annotatable.
+    """
+    return Path(notes_dir) / companion_for(path).name
+
+
+def existing_companion(path, notes_dir) -> Path | None:
+    """An annotated copy already written for this document, if there is one."""
+    path = Path(path)
+    if is_companion(path):
+        return None
+    for candidate in (companion_for(path), fallback_companion_for(path, notes_dir)):
+        if candidate.exists() and candidate != path:
+            return candidate
+    return None
+
 
 @dataclass
 class Annotation:
@@ -86,6 +131,25 @@ def _write_range(document, xref: int, first: int, last: int) -> None:
         document.doc.xref_set_key(xref, _RANGE_KEY, f"({first}-{last})")
     except Exception:
         pass          # the highlight still works, it just cannot be re-linked
+
+
+def _verify(path: Path, pages: int, notes: int) -> None:
+    """Check a just-written PDF before it is allowed to replace a good one."""
+    try:
+        with pymupdf.open(path) as written:
+            found_pages = written.page_count
+            found_notes = sum(
+                len(list(written.load_page(number).annots(
+                    types=(pymupdf.PDF_ANNOT_HIGHLIGHT,))))
+                for number in range(found_pages)
+            )
+    except Exception as exc:
+        raise OSError(f"the PDF Mimick just wrote will not open again ({exc})") from exc
+    if found_pages != pages or found_notes != notes:
+        raise OSError(
+            f"the PDF Mimick just wrote came back with {found_pages} pages and "
+            f"{found_notes} highlights, not {pages} and {notes}"
+        )
 
 
 class AnnotationStore:
@@ -225,43 +289,47 @@ class AnnotationStore:
 
     # -- persistence -------------------------------------------------------
 
-    def save(self) -> None:
-        """Write the annotations back into the PDF, in place."""
-        if not self.dirty:
-            return
-        self._document.doc.saveIncr()
-        self.dirty = False
-
-    def can_save_in_place(self) -> bool:
-        """Incremental saving needs a real, writable PDF."""
-        doc = self._document.doc
-        return bool(doc.name) and not doc.is_encrypted
+    # There is deliberately no save-in-place. Notes go to the companion file;
+    # ``save_as`` writes incrementally when that companion is what is open.
 
     def save_as(self, path) -> bool:
-        """Write a copy. True if a copy was written, False if saved in place.
+        """Write the document to ``path``. True if that is a file of its own.
 
-        Saving *over* the open document has to become an incremental save.
-        PyMuPDF guards against this by comparing the two filenames as strings,
-        which misses any other spelling of the same file -- a redundant
-        separator, or simply different capitalisation, since Windows filenames
-        are case-insensitive. Left to it, ``save`` rewrites the PDF it is
-        currently reading and truncates it. Save a copy is exactly what the
-        README tells people to use on documents they cannot replace, so this
-        compares the files themselves rather than their names.
+        **Incremental saving is deliberately not used.** ``saveIncr`` appends a
+        revision to whatever happens to be on disk, and is silently wrong if
+        that file is not byte-for-byte what this document was opened from -- a
+        second copy of Mimick writing the same notes file, a write cut short,
+        anything that rewrote it in between. What comes out is a PDF whose new
+        revision points its ``/Prev`` at itself, so the chain never reaches the
+        original objects: readers that repair it show the first revision only,
+        and every note added after the first save silently disappears. That is
+        not a risk worth running on a file written every few seconds.
+
+        Instead the whole PDF is written beside the target, checked that it
+        opens and still has its pages and annotations, and only then moved into
+        place. The move is atomic, so an interruption leaves the previous good
+        file exactly as it was rather than a half-written one.
         """
         target = Path(path)
-        if self._is_open_document(target):
-            if not self.can_save_in_place():
-                raise ValueError(
-                    "That is the document itself, and it cannot be written "
-                    "into. Choose a different name."
-                )
-            self._document.doc.saveIncr()
-            self.dirty = False
-            return False
-        self._document.doc.save(str(target))
+        target.parent.mkdir(parents=True, exist_ok=True)
+        temporary = target.with_name(target.name + ".mimick-part")
+        doc = self._document.doc
+        expected_pages = doc.page_count
+        expected_notes = sum(
+            len(list(doc.load_page(number).annots(types=(pymupdf.PDF_ANNOT_HIGHLIGHT,))))
+            for number in range(expected_pages)
+        )
+        try:
+            doc.save(str(temporary), garbage=3, deflate=True)
+            _verify(temporary, expected_pages, expected_notes)
+            os.replace(temporary, target)
+        finally:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
         self.dirty = False
-        return True
+        return not self._is_open_document(target)
 
     def _is_open_document(self, target: Path) -> bool:
         """Is ``target`` the very file this document was opened from?"""
