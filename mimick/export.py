@@ -9,7 +9,6 @@ guessed -- see ``docs/ROADMAP.md`` for how to re-measure them.
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -19,6 +18,7 @@ from PySide6.QtCore import QObject, Signal
 
 from .document import Sentence
 from .engines import Engine, EngineError
+from .system import ffmpeg_command, ffmpeg_missing_message, no_window_kwargs
 
 # Measured: 15.1 characters of source text per second of speech at 1x.
 CHARS_PER_SECOND_SPEECH = 15.1
@@ -85,9 +85,8 @@ class ExportWorker(QObject):
     # -- the job -----------------------------------------------------------
 
     def run(self) -> None:
-        if not shutil.which("ffmpeg"):
-            self.failed.emit("ffmpeg is needed to save audio files.\n\n"
-                             "Install it with:  sudo apt install ffmpeg")
+        if ffmpeg_command() is None:
+            self.failed.emit(ffmpeg_missing_message("save audio files"))
             return
         total = len(self._sentences)
         if not total:
@@ -161,15 +160,19 @@ class ExportWorker(QObject):
 
     def _encode(self, raw_path: Path, sample_rate: int) -> None:
         self._destination.parent.mkdir(parents=True, exist_ok=True)
+        ffmpeg = ffmpeg_command()
+        if ffmpeg is None:
+            raise RuntimeError(ffmpeg_missing_message("save audio files"))
         result = subprocess.run(
             [
-                "ffmpeg", "-y", "-v", "error",
+                ffmpeg, "-y", "-v", "error",
                 "-f", "s16le", "-ar", str(sample_rate), "-ac", "1", "-i", str(raw_path),
                 "-codec:a", "libmp3lame", "-q:a", "4",
                 str(self._destination),
             ],
             capture_output=True,
             check=False,
+            **no_window_kwargs(),
         )
         if result.returncode != 0:
             raise RuntimeError(result.stderr.decode("utf-8", "replace").strip())

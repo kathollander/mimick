@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from dataclasses import dataclass, field
 
 import numpy as np
+
+from ..system import ffmpeg_command, ffmpeg_missing_message, no_window_kwargs
 
 
 @dataclass
@@ -90,19 +91,21 @@ def decode_audio(data: bytes, sample_rate: int) -> np.ndarray:
     """Decode compressed audio to mono int16 at ``sample_rate`` using ffmpeg."""
     if not data:
         return np.zeros(0, dtype=np.int16)
-    if not shutil.which("ffmpeg"):
-        raise EngineError(
-            "ffmpeg was not found. Install it with:  sudo apt install ffmpeg"
-        )
+    ffmpeg = ffmpeg_command()
+    if ffmpeg is None:
+        raise EngineError(ffmpeg_missing_message("play this voice"))
+    # This runs once per sentence while reading aloud, so it must stay silent
+    # and windowless -- see mimick/system.py.
     result = subprocess.run(
         [
-            "ffmpeg", "-v", "error", "-i", "pipe:0",
+            ffmpeg, "-v", "error", "-i", "pipe:0",
             "-f", "s16le", "-acodec", "pcm_s16le",
             "-ar", str(sample_rate), "-ac", "1", "pipe:1",
         ],
         input=data,
         capture_output=True,
         check=False,
+        **no_window_kwargs(),
     )
     if result.returncode != 0:
         message = result.stderr.decode("utf-8", "replace").strip()

@@ -1,4 +1,8 @@
-"""Settings and per-document reading positions, stored under ~/.config/mimick."""
+"""Settings and per-document reading positions.
+
+Stored under ``~/.config/mimick`` on Linux and ``%APPDATA%\\Mimick`` on
+Windows; :mod:`mimick.system` decides which.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +11,12 @@ import os
 from pathlib import Path
 from typing import Any
 
+from .system import default_cache_dir, default_config_dir
+
 # MIMICK_CONFIG_DIR / MIMICK_CACHE_DIR let a test run against throwaway
 # directories instead of the settings and downloads you actually use.
-CONFIG_DIR = Path(os.environ.get("MIMICK_CONFIG_DIR")
-                  or Path.home() / ".config" / "mimick")
-CACHE_DIR = Path(os.environ.get("MIMICK_CACHE_DIR")
-                 or Path.home() / ".cache" / "mimick")
+CONFIG_DIR = Path(os.environ.get("MIMICK_CONFIG_DIR") or default_config_dir())
+CACHE_DIR = Path(os.environ.get("MIMICK_CACHE_DIR") or default_cache_dir())
 SETTINGS_PATH = CONFIG_DIR / "settings.json"
 
 DEFAULTS: dict[str, Any] = {
