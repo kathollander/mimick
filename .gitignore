@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Conversions produced while testing. The sample PDF is kept, the audio is not:
+# it is large, it is regenerated in seconds, and nobody needs it in a clone.
+Testing/*.mp3
