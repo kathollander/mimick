@@ -5,18 +5,12 @@ voices, read any pdf out loud slow or fast with no hassle.
 
 > ### Heads up: this is brand new, and AI-written
 >
-> Mimick was built in **a single evening**, by Claude Code, with me steering.
-> It works — I've been reading with it — but it has not had the months of
-> real-world use that shakes out the awkward stuff. **Expect bugs.**
+> Mimick was written with AI, by Claude Code with me steering, and **may have
+> major flaws and bugs.** It works — I've been reading with it — but it has not
+> had the months of real-world use that shake the awkward stuff out.
 >
-> The first evening of testing turned up a deadlock that froze the whole app
-> mid-conversion, a crash that broke the notes panel outright, and a dialog that
-> refused to close. The second turned up a one-word mistake in the playback code
-> that made **Read aloud do nothing at all** — no sound, no error message, no
-> clue — and a reference list being read out in full at the end of every paper.
-> All fixed, and all found by using it. That's the rate you should expect from
-> something this fresh, so please keep backups of anything precious and use
-> **Save As** rather than **Save** on documents you can't replace.
+> Please keep backups of anything precious, and use **Save As** rather than
+> **Save** on documents you can't replace.
 >
 > [Bug reports](#found-a-bug) very welcome.
 
