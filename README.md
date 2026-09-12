@@ -133,7 +133,8 @@ in `~/.cache/mimick`; delete those for a clean slate.
 
 ## Found a bug?
 
-**Open an issue.** Mimick is days old, so you're likely the first to hit it.
+**Open an issue.** Mimick is made by a vibe coder, so yeah, you'll probably
+find bugs.
 
 What helps: what you did in order, the PDF if you can share it, any error text
 (run `~/.local/bin/mimick` from a terminal to see it), and your distro plus
@@ -144,7 +145,12 @@ Wayland or X11.
 - **Layout analysis is guesswork.** Some documents will come out wrong. `Ctrl`+`R`
   fixes them by hand — please report any that need a lot of it.
 - **Scanned PDFs can't be read** until they've been through OCR.
-- **Offline highlighting is approximate.**
+- **Offline highlighting drifts.** The online voices report the exact moment
+  they say each word. Piper doesn't, so the timing is guessed from how long
+  each word is — which is close, but a short word can be slow to say and a long
+  one quick. Expect the highlight to sit about a fifth of a second off, and up
+  to half a second on a tricky sentence. It resets at every full stop, so it
+  never wanders far.
 - **Footnote markers** arrive stuck to the previous word and get read with it.
 - **Only tested on Ubuntu 25.10, GNOME, Wayland.**
 
