@@ -39,13 +39,20 @@ Write-Host ''
 # --- 1. Python ---------------------------------------------------------------
 Write-Bold 'Step 1 of 5  .  Looking for Python'
 
-# The "py" launcher is tried first because it never resolves to the Microsoft
-# Store stub -- a zero-byte python.exe on PATH that opens the Store instead of
-# running anything, which is the usual reason a Windows install fails here.
+# Newest first, but only versions Mimick's components are known to have
+# Windows wheels for: every requirement resolves to a binary wheel on 3.10
+# through 3.14, and 3.15 has no PySide6 yet. Picking a Python that is too new
+# fails much later, in pip, with a message about PySide6 rather than Python.
+$Known = @('-3.14', '-3.13', '-3.12', '-3.11', '-3.10')
+
+# The "py" launcher is tried before "python" because it never resolves to the
+# Microsoft Store stub -- a zero-byte python.exe on PATH that opens the Store
+# instead of running anything, which is the usual reason a Windows install
+# fails here.
 $Python = $null
 $pyLauncher = Get-Command 'py' -ErrorAction SilentlyContinue
 if ($pyLauncher) {
-    foreach ($want in @('-3.13', '-3.12', '-3.11', '-3.10', '-3')) {
+    foreach ($want in ($Known + '-3')) {
         try {
             $found = & py $want -c 'import sys; print(sys.executable)' 2>$null
             if ($LASTEXITCODE -eq 0 -and $found) { $Python = $found.Trim(); break }
@@ -76,6 +83,13 @@ if ($ver -lt [version]'3.10') {
     Write-Fatal "Mimick needs Python 3.10 or newer. Found $verText at $Python.`nInstall a current version from https://www.python.org/downloads/"
 }
 Write-Ok "Python $verText"
+if ($ver -gt [version]'3.14') {
+    # Not fatal -- wheels appear for a new Python over its first months, so
+    # this may simply work. It just should not fail as a surprise in step 3.
+    Write-Host "  [!] Python $verText is newer than anything Mimick has been checked against." -ForegroundColor Yellow
+    Write-Host '      If step 3 fails to find a component, install Python 3.13 from' -ForegroundColor Yellow
+    Write-Host '      python.org alongside it and run this installer again.' -ForegroundColor Yellow
+}
 
 # --- 2. the environment ------------------------------------------------------
 Write-Host ''

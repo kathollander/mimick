@@ -186,9 +186,22 @@ Two Windows traps worth knowing before debugging an install:
 - **`pythonw.exe`, not `python.exe`,** for the shortcut and the file
   association, or a console window sits behind Mimick the whole time it is open.
 
+The dependencies are the one part that is not guesswork. Every requirement
+resolves to a Windows binary wheel, with no compiler needed, on Python 3.10
+through 3.14; 3.15 has no PySide6 yet. `piper-tts` 1.8 bundles `espeakbridge`
+and its espeak-ng data inside the wheel, so offline voices need nothing from
+the system. To re-check after a dependency bump:
+
+```bash
+.venv/bin/python -m pip install --dry-run --ignore-installed \
+    --only-binary=:all: --platform win_amd64 --python-version 3.13 \
+    --target /tmp/x -r requirements.txt
+```
+
 What is genuinely untested: the PowerShell itself beyond parsing and
 PSScriptAnalyzer, the ffmpeg download, the Start Menu shortcut, the registry
-entries, and **audio latency**. That last one is the real risk — word-sync
+entries, `asyncio.run` per sentence on a Proactor event loop in the Edge
+engine, and **audio latency**. That last one is the real risk — word-sync
 highlighting assumes the playhead matches what is audible, and if WASAPI buffers
 more deeply than ALSA the highlight will lag the voice. Only an ear can tell.
 
