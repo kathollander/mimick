@@ -131,6 +131,17 @@ same rule is why `speech.normalise` may rewrite a word but must never drop one:
 and the export dialog could not reuse a selection made against the open
 document. Both builds give 8,395 words with identical rectangles.
 
+**10. The applications-menu launcher is not the terminal launcher.**
+`python -m mimick` resolves the package through the *working directory*. In a
+terminal that is the project folder, so it works; from the menu it is `$HOME`,
+so it died instantly with `No module named mimick` and no window -- the app
+simply did not open. The package is not installed into the venv (there is no
+`pyproject.toml`), so `install.sh` writes a launcher that sets `PYTHONPATH`.
+Setting the path rather than `cd`-ing keeps a relative filename argument
+resolving against wherever the user actually is. **Test the installed launcher
+from `$HOME`, not from the project folder** -- from the project folder the bug
+is invisible.
+
 ## State on disk
 
 - `~/.config/mimick/settings.json` — voice, speed, zoom, reading positions,

@@ -79,9 +79,16 @@ bold "Step 4 of 4  ·  Adding Mimick to your applications"
 mkdir -p "$APPS" "$ICONS" "$BIN"
 cp -f "$HERE/assets/mimick.svg" "$ICONS/mimick.svg"
 
+# PYTHONPATH, not a cd: "python -m mimick" finds the package through the
+# *working directory*, which is the project folder in a terminal but your home
+# folder when the applications menu launches it -- so without this the menu
+# entry died instantly with "No module named mimick" and no window. Setting the
+# path rather than changing directory leaves a relative filename argument
+# resolving against wherever you actually are.
 cat > "$BIN/mimick" <<LAUNCH
 #!/usr/bin/env bash
-exec "$VENV/bin/python" -m mimick "\$@"
+exec env PYTHONPATH="$HERE\${PYTHONPATH:+:\$PYTHONPATH}" \\
+    "$VENV/bin/python" -m mimick "\$@"
 LAUNCH
 chmod +x "$BIN/mimick"
 
