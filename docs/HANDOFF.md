@@ -186,6 +186,18 @@ Two Windows traps worth knowing before debugging an install:
 - **`pythonw.exe`, not `python.exe`,** for the shortcut and the file
   association, or a console window sits behind Mimick the whole time it is open.
 
+The PowerShell can at least be checked from Linux, which caught two real
+problems. Download the PowerShell tarball, then:
+
+```bash
+pwsh -NoProfile -Command 'Invoke-ScriptAnalyzer -Path ./install.ps1 -Severity Error,Warning -ExcludeRule PSAvoidUsingWriteHost'
+```
+
+`[Parser]::ParseFile(...)` catches syntax errors, and much of the script's
+logic — the version gate, the here-strings, the uninstaller's `PATH` surgery —
+runs on Linux unchanged. Only the registry, `WScript.Shell` and the download
+genuinely need Windows.
+
 The dependencies are the one part that is not guesswork. Every requirement
 resolves to a Windows binary wheel, with no compiler needed, on Python 3.10
 through 3.14; 3.15 has no PySide6 yet. `piper-tts` 1.8 bundles `espeakbridge`
