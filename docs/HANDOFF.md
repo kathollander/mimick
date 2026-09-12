@@ -1,8 +1,8 @@
 # Handoff
 
 Everything a fresh session needs to pick Mimick up. Written 11 September 2026,
-the evening the project was built; updated 12 September, the evening it was
-published.
+the evening the project was built; updated 12 September, the day it was
+published and v0.2.0 released.
 
 ## What Mimick is
 
@@ -22,6 +22,11 @@ the traps in this codebase.
 ./install.sh                 # venv + deps + desktop entry; safe to re-run
 .venv/bin/python -m mimick "Testing/Big Ideas from Atleo and Boron 2022.pdf"
 ```
+
+A fresh clone's `Testing/` has only that one document in it; the two-column
+paper most of the reading work was done against is not ours to redistribute.
+Any two-column PDF will do, and it is worth having one — a single-column
+document exercises none of that code.
 
 That second line only works **from the project folder** -- see trap 10. To
 exercise what a user actually gets, run the installed launcher from somewhere
@@ -52,8 +57,8 @@ QT_QPA_PLATFORM=offscreen MIMICK_CONFIG_DIR=/tmp/mimick-test \
 | `mimick/player.py` | Playback: prefetch queue, transport, word-timing alignment. |
 | `mimick/engines/` | `edge.py` (online, word timings), `piper.py` (offline), `kokoro.py`. |
 | `mimick/export.py` | MP3 conversion; streams PCM to a temp file, two workers. |
-| `mimick/annotations.py` | Highlights and notes as real PDF annotations. |
-| `mimick/ui/page_view.py` | The canvas: its own scroll area, page cache, notes panel, plan overlay. |
+| `mimick/annotations.py` | Highlights and notes as real PDF annotations. Also where a document's notes get written, and how. |
+| `mimick/ui/page_view.py` | The canvas: its own scroll area, page cache, notes panel, plan overlay. The panel scrolls separately from the page. |
 | `mimick/ui/main_window.py` | Everything else. The big one. |
 | `tools/` | `check_shortcuts.py`, `check_reading.py`. Run both after changes. |
 
@@ -61,10 +66,16 @@ QT_QPA_PLATFORM=offscreen MIMICK_CONFIG_DIR=/tmp/mimick-test \
 and labels them, then marks the reference list and everything after it →
 `Document._build_sentences` walks regions in reading order, taking words from
 readable ones and passing each through `speech.normalise` → runs break at region
-boundaries (except a paragraph carrying to the next page) → a run that is
-labelled boilerplate is dropped whole → `chunk_into_sentences` splits on
-punctuation and drops runs that are not language → `citations.mark_words` plus a
-strip of the assembled text removes in-text citations.
+boundaries, except where one region stops mid-sentence and the next starts
+mid-sentence, which is a column or a page carrying on → a run that is labelled
+boilerplate is dropped whole → `chunk_into_sentences` splits on punctuation, but
+never while a bracket is open, and drops runs that are not language →
+`citations.mark_words` plus a strip of the assembled text removes in-text
+citations.
+
+**Region order is the cut's order.** `layout.analyse` must not sort its regions
+by position afterwards — see trap 12. Word order follows region order, which is
+why `set_region_reads` can rebuild safely (trap 9).
 
 **There is one text pipeline, not two.** Live reading and MP3 conversion both
 consume `Document.sentences`; the export dialog filters that list by page range,
@@ -77,6 +88,17 @@ outlives the PDF it came from). Anything done to the spoken text therefore has t
 `skip_citations` both gate behaviour inside `Document` for exactly that reason.
 Reading a *selection* goes through `Document.sentences_from_range`, which is
 easy to forget — it silently ignored citation skipping until it was fixed.
+
+**Notes are never written into the document you opened.** They go to a
+companion file, `<name> (notes).pdf`, beside it -- or, if that folder is
+read-only, to `~/.config/mimick/notes/`. Opening the original opens the
+companion when one exists, so `Document.path` is usually the companion and
+`companion_for` returns itself for it. `MainWindow._notes_path` is where this
+document's notes go; a debounced `QTimer` writes them a moment after each
+change, and `_update_enabled` is the single place that notices there is
+something to write. `AnnotationStore.save_as` is the only writer: whole PDF to a
+temporary file, verified, then `os.replace`. Never reintroduce `saveIncr` --
+trap 11 explains what it costs.
 
 ## Traps that cost real time tonight
 
@@ -283,17 +305,16 @@ click-to-read switched off. Notes now save themselves to a companion file --
 see trap 11 for the bug that found, and `annotations.save_as` for the shape a
 safe save has to take.
 
-Also on the 12th, **v0.2.0 added Windows** — see the Windows section above. It
-is written but unverified on the platform it targets, which makes it the single
-biggest untested surface in the project.
-
 **v0.2.0 is released.** Merged to `main`, tagged `v0.2.0`, and published at
 <https://github.com/kathollander/mimick/releases/tag/v0.2.0> on 12 September
 2026. `main` is now what anyone arriving at the repo gets, and it was checked
 by exporting the tag to a clean folder and running it from there rather than
 from the working tree. The release notes draft has been deleted, as planned.
 
-Windows is still the untested surface, and the README now says so in the
+**Windows remains the single biggest untested surface in the project** — see
+the Windows section above; nothing in it has met the platform it targets. The
+release went out anyway, because the reading and notes fixes mattered to the
+people already using it on Linux, and the README now says so plainly in the
 heads-up box at the top rather than burying it in known issues.
 
 Not done: see [`ROADMAP.md`](ROADMAP.md). The release checklist there is the
@@ -306,6 +327,8 @@ Published at **<https://github.com/kathollander/mimick>** (public, AGPL-3.0),
 pushed on 12 September 2026. Commit as `kathollander <kathoacct@pm.me>`, which
 is what the initial LICENSE commit used.
 
-`Testing/*.mp3` is git-ignored: conversions run to 26 MB and regenerate in
-seconds. The sample PDF is kept — it is MDPI, CC BY 4.0, and the docs and both
+Git-ignored in `Testing/`: `*.mp3` (conversions run to 26 MB and regenerate in
+seconds), `* (notes).pdf` (the annotated copies Mimick now writes as you work),
+and the *For the Learning of Mathematics* paper, which unlike the MDPI sample is
+not openly licensed. The MDPI article is kept — CC BY 4.0, and the docs and both
 check tools point at it.

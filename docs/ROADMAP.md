@@ -56,6 +56,28 @@ Where Mimick is, and where it's going.
 
 Written on Linux and **not yet run on Windows** — see the release checklist.
 
+**Reading**
+- Two-column pages read down each column rather than across the page
+- A sentence that runs from the foot of one column into the head of the next is
+  spoken as one
+- Citations listing several works, names with a tight comma, reprint dates and
+  bracketed date-with-page are all passed over
+- A sentence is never cut inside a bracket, so a citation cannot be half-spoken
+- A sentence that mentions a website is read; only runs that are mostly link
+  are skipped
+
+**Notes**
+- Notes save themselves to a copy beside the document; the original is never
+  written to, and reopening it opens the copy
+- Saves are whole-file, verified, and moved into place atomically
+- `Ctrl`+`C` copies the selection, rejoining words broken across a line
+- The notes panel is a page-at-a-time column that scrolls on its own
+- Note titles wrap instead of being cut off
+- Right-click for *Start reading from here*, which works with click-to-read off
+
+Released 12 September 2026:
+<https://github.com/kathollander/mimick/releases/tag/v0.2.0>
+
 ## Testing notes
 
 `MIMICK_CONFIG_DIR` and `MIMICK_CACHE_DIR` redirect settings and downloads to
@@ -68,6 +90,16 @@ reports the share of words it would read plus any sentences that look stitched
 together. It found two real defects the first time it ran — unrejoined
 hyphenation and adjacent regions bleeding into one another — so point it at new
 documents before trusting them.
+
+**A fresh clone's `Testing/` holds only the MDPI sample.** The two-column paper
+that found most of the reading bugs is a *For the Learning of Mathematics*
+article, which is not ours to redistribute, so it is git-ignored. Any
+two-column PDF will do to retest that work, and it is worth having one:
+single-column documents exercise none of it.
+
+**Notes are written as you work**, so a test that makes a highlight leaves a
+`(notes).pdf` behind next to whatever it opened. Those are git-ignored too, but
+copy the PDF somewhere throwaway rather than annotating the samples in place.
 
 `tools/check_shortcuts.py` verifies every key the shortcuts window lists is
 really bound, so that window cannot drift from the app. Run it after touching
@@ -93,10 +125,9 @@ A note on editing this codebase: some string literals hold escape sequences
 those characters fails silently. Read the actual text first, and prefer edits
 anchored to line numbers or to plain-ASCII substrings.
 
-## Before tagging v0.1.0
+## Before the next release
 
-Published on 12 September 2026 at <https://github.com/kathollander/mimick>.
-What is still outstanding before it is worth calling a release:
+v0.1.0 and v0.2.0 are both out; `main` is v0.2.0. What is still outstanding:
 
 - [ ] **Try it on more real documents.** Scans, books with footnotes, slide
       decks, anything with tables or captions. The MDPI article in `Testing/`
@@ -122,10 +153,10 @@ What is still outstanding before it is worth calling a release:
       ffmpeg download land somewhere `ffmpeg_command()` finds it; does MP3
       conversion work; does "Open with" appear for PDFs.
       *In progress* — the `windows` branch is with one Windows user.
-- [ ] **Merge and tag v0.2.0** once that comes back. The branch is pushed but
-      not merged; `main` is still v0.1.0. Notes are drafted in
-      `docs/release-v0.2.0.md`; tick GitHub's pre-release box, and delete the
-      draft afterwards.
+- [x] **Merge and tag v0.2.0.** Done on 12 September 2026 without waiting for
+      the Windows report, because the reading and notes fixes mattered to the
+      people already using it on Linux. The README now warns about Windows in
+      the heads-up box at the top rather than in known issues.
 - [ ] **Listen for highlight drift on Windows.** The word-sync highlight assumes
       the playhead matches what is audible. If WASAPI buffers more deeply than
       ALSA, the highlight will lag the voice — audible, but invisible to any
@@ -138,10 +169,25 @@ What is still outstanding before it is worth calling a release:
       which works from any directory and needs no wrapper; `install.sh` could
       do the same in one line, and should, once someone can retest the Linux
       launcher and the applications-menu entry against it.
-- [ ] Tag `v0.1.0` once the above is done.
+- [x] Tag `v0.1.0`, and `v0.2.0`.
 
 Already in place: `LICENSE` (AGPL-3.0, required by MuPDF), `.gitignore`,
 `install.sh` / `uninstall.sh`, and the README.
+
+## Small known bugs
+
+Found by use and left alone, deliberately — each is cosmetic or rare, and
+listed so the next session does not have to rediscover it.
+
+- **A hyphenated surname broken across lines keeps its space.** "Piatek-
+  Jimenez" is spoken with a pause. `_mark_hyphenation` only rejoins when the
+  following word is lower-case, which is what stops it eating genuine
+  hyphenated compounds; telling the two apart needs more than case.
+  `check_reading.py` flags it.
+- **Save As on an already-annotated copy suggests `X (notes) (notes).pdf`.**
+  The suggestion is built from the open document's name, which is by then the
+  companion. `annotations.companion_for` already handles this correctly and
+  should be what builds the suggestion.
 
 ## Next up
 
