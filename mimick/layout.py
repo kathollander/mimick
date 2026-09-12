@@ -225,7 +225,8 @@ def analyse(document, skip_references: bool = True) -> dict[int, list[Region]]:
     result: dict[int, list[Region]] = {}
 
     for number, blocks in pages.items():
-        regions: list[Region] = []
+        body_regions: list[Region] = []
+        furniture_regions: list[Region] = []
         furniture, body = [], []
         for block in blocks:
             scrap = len(" ".join(block[4].split())) <= FURNITURE_SCRAP_CHARS
@@ -238,7 +239,7 @@ def analyse(document, skip_references: bool = True) -> dict[int, list[Region]]:
                 body.append(block)
 
         for block in furniture:
-            regions.append(Region(
+            furniture_regions.append(Region(
                 page=number,
                 rect=(block[0], block[1], block[2], block[3]),
                 kind=FURNITURE,
@@ -276,13 +277,18 @@ def analyse(document, skip_references: bool = True) -> dict[int, list[Region]]:
                     kind = ASIDE
                     reason = ("a narrow column beside the text, usually citation "
                               "or licence boilerplate")
-            regions.append(Region(
+            body_regions.append(Region(
                 page=number, rect=group["rect"], kind=kind, reason=reason,
                 chars=group["chars"], text=group["text"],
             ))
 
-        # Reading order: down the page, then across.
-        regions.sort(key=lambda r: (r.kind == FURNITURE, r.rect[1], r.rect[0]))
+        # Reading order is the order the cut produced, not the order the
+        # regions happen to sit in. Sorting by top edge reads a two-column
+        # page across rather than down: the bottom of the left column is
+        # below the top of the right one, so the reader left the column
+        # mid-sentence and came back to it a section later.
+        furniture_regions.sort(key=lambda r: (r.rect[1], r.rect[0]))
+        regions = body_regions + furniture_regions
         for position, region in enumerate(regions):
             region.order = position
         result[number] = regions

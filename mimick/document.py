@@ -258,8 +258,16 @@ class Document:
                 run, previous = [], None
                 continue
             if previous is not None and word.region != previous.region:
-                carries_on = (word.page != previous.page
-                              and not _ends_sentence(previous.text))
+                # A region that stops mid-sentence is being continued by the
+                # next one: the foot of a column carrying into the head of the
+                # one beside it, or into the next page. Breaking the run there
+                # splits the sentence and the voice pauses in the middle of it.
+                # Within a page the next region also has to *start* mid
+                # sentence, or a heading -- which ends without punctuation too
+                # -- is glued onto the paragraph underneath it.
+                carries_on = not _ends_sentence(previous.text) and (
+                    word.page != previous.page or word.text[:1].islower()
+                )
                 if not carries_on:
                     self._emit_run(run)
                     run = []
