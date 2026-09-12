@@ -287,18 +287,14 @@ Also on the 12th, **v0.2.0 added Windows** — see the Windows section above. It
 is written but unverified on the platform it targets, which makes it the single
 biggest untested surface in the project.
 
-**Where v0.2.0 currently lives.** On the `windows` branch, pushed to GitHub but
-**not merged and not tagged**. `main` is still v0.1.0 and untouched, so nobody
-arriving at the repo normally sees any of this. The branch was pushed so a
-friend on Windows could download it as a zip and be the first person to run it:
+**v0.2.0 is released.** Merged to `main`, tagged `v0.2.0`, and published at
+<https://github.com/kathollander/mimick/releases/tag/v0.2.0> on 12 September
+2026. `main` is now what anyone arriving at the repo gets, and it was checked
+by exporting the tag to a clean folder and running it from there rather than
+from the working tree. The release notes draft has been deleted, as planned.
 
-```
-https://github.com/kathollander/mimick/archive/refs/heads/windows.zip
-```
-
-Release notes for v0.2.0 are drafted in [`release-v0.2.0.md`](release-v0.2.0.md),
-ready to paste into a GitHub release once the branch is merged and tagged. That
-file is a scratch draft, not documentation — delete it after the release.
+Windows is still the untested surface, and the README now says so in the
+heads-up box at the top rather than burying it in known issues.
 
 Not done: see [`ROADMAP.md`](ROADMAP.md). The release checklist there is the
 next thing to work through. The two most valuable tasks are **trying it on more
