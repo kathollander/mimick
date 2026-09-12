@@ -1,7 +1,8 @@
 # Handoff
 
 Everything a fresh session needs to pick Mimick up. Written 11 September 2026,
-at the end of the evening the project was built.
+the evening the project was built; updated 12 September, the evening it was
+published.
 
 ## What Mimick is
 
@@ -20,6 +21,14 @@ the traps in this codebase.
 ```bash
 ./install.sh                 # venv + deps + desktop entry; safe to re-run
 .venv/bin/python -m mimick "Testing/Big Ideas from Atleo and Boron 2022.pdf"
+```
+
+That second line only works **from the project folder** -- see trap 10. To
+exercise what a user actually gets, run the installed launcher from somewhere
+else:
+
+```bash
+cd ~ && ~/.local/bin/mimick
 ```
 
 **Always set `MIMICK_CONFIG_DIR` when testing**, or the test overwrites the
@@ -159,9 +168,16 @@ the reading cleanup — reference lists, masthead and declarations left out,
 ligatures and stranded accents repaired — switchable in **Display** and
 overridable for a single conversion in the Convert to MP3 window.
 
+Fixed on the 12th, all found by using the app rather than by reading it: read
+aloud produced no sound at all (trap 6), the applications-menu entry did not
+start (trap 10), citations split across a sentence boundary were half-spoken
+(trap 5), and the reference list was read out in full.
+
 Not done: see [`ROADMAP.md`](ROADMAP.md). The release checklist there is the
-next thing to work through. The single most valuable task is **trying it on more
-real documents** — `tools/check_reading.py` makes that quick.
+next thing to work through. The two most valuable tasks are **trying it on more
+real documents** — `tools/check_reading.py` makes that quick — and **testing
+the installer on a machine that is not this one**, which is the only part of
+the install path still unverified.
 
 Published at **<https://github.com/kathollander/mimick>** (public, AGPL-3.0),
 pushed on 12 September 2026. Commit as `kathollander <kathoacct@pm.me>`, which

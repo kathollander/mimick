@@ -81,10 +81,10 @@ A note on editing this codebase: some string literals hold escape sequences
 those characters fails silently. Read the actual text first, and prefer edits
 anchored to line numbers or to plain-ASCII substrings.
 
-## Before releasing on GitHub
+## Before tagging v0.1.0
 
-The gap this fills is real — there is no good read-aloud PDF reader on Linux —
-so this is worth publishing. What it needs first:
+Published on 12 September 2026 at <https://github.com/kathollander/mimick>.
+What is still outstanding before it is worth calling a release:
 
 - [ ] **Try it on more real documents.** Scans, books with footnotes, slide
       decks, anything with tables or captions. The MDPI article in `Testing/`
@@ -96,11 +96,17 @@ so this is worth publishing. What it needs first:
       is the thing people need to see to understand what this is.
 - [ ] **Test the installer on a clean machine.** Ideally a fresh Ubuntu VM, and
       at least one non-Ubuntu distro, so the apt-specific parts are known
-      rather than assumed.
+      rather than assumed. This is now the largest untested surface: the
+      launcher and the repository contents are verified from a fresh clone,
+      but the apt and pip steps have only ever run on the machine that built
+      the project.
 - [x] **Decide the repository name** — `mimick`, and the project keeps the name.
 - [x] Issue templates (`.github/ISSUE_TEMPLATE/`).
 - [x] Publish to `github.com/kathollander/mimick` (public).
 - [ ] Add `CONTRIBUTING.md`.
+- [ ] **Consider a `pyproject.toml`.** The package is not installed into the
+      venv, so the launcher has to set `PYTHONPATH` and everything breaks if
+      the project folder moves. Installing it properly would fix both.
 - [ ] Tag `v0.1.0` once the above is done.
 
 Already in place: `LICENSE` (AGPL-3.0, required by MuPDF), `.gitignore`,
