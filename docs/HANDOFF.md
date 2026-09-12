@@ -152,6 +152,27 @@ resolving against wherever the user actually is. **Test the installed launcher
 from `$HOME`, not from the project folder** -- from the project folder the bug
 is invisible.
 
+**11. Never save a PDF incrementally on a timer.** `saveIncr` appends a
+revision to whatever is on disk and is silently wrong if that file is not
+byte-for-byte what the document was opened from. The result points its `/Prev`
+at itself, so the chain never reaches the original objects: Mimick refuses the
+file outright, Okular repairs it and shows the first revision only, and every
+note after the first save looks lost. It is not lost -- patch `/Prev` to the
+previous xref offset and it all comes back -- but nobody knows that at the
+time. Saves now write the whole PDF to a temporary file, check it opens with
+the right pages and highlights, and `os.replace` it into place. Documents are
+opened from bytes, not a path, so that replace is safe even when the file being
+replaced is the one being read.
+
+**12. Region order is not the order regions are in.** `layout.analyse` ran the
+XY-cut, which produces regions in reading order, and then sorted them by top
+edge -- which on a two-column page reads across instead of down, because the
+foot of the left column is below the head of the right one. If you touch the
+layout, keep the cut's order. The same rule is why `_pages_on_screen` exists in
+`page_view`: the render margin draws a page either side of the visible band,
+which is right for pixmaps and wrong for anything that must match what the
+reader is looking at.
+
 ## Windows
 
 Added on 12 September 2026 and **not yet run on a real Windows machine** — it
@@ -234,6 +255,8 @@ Paths below are Linux; on Windows `~/.config/mimick` is `%APPDATA%\Mimick` and
 - `~/.cache/mimick/piper/` — downloaded voices (~60 MB each).
 - `~/.cache/mimick/piper-samples/` — preview clips (~90 KB each).
 - `~/.cache/mimick/ffmpeg/` — Windows only; the copy `install.ps1` downloads.
+- `~/.config/mimick/notes/` — annotated copies for documents whose own folder
+  cannot be written to. Everything else gets its copy beside the original.
 
 ## Where it stands
 
@@ -249,6 +272,16 @@ Fixed on the 12th, all found by using the app rather than by reading it: read
 aloud produced no sound at all (trap 6), the applications-menu entry did not
 start (trap 10), citations split across a sentence boundary were half-spoken
 (trap 5), and the reference list was read out in full.
+
+Later on the 12th, again all found by use: two-column pages were read across
+rather than down (trap 12); citations naming several works, or with a comma
+tight against the name, were spoken; a sentence mentioning a website was
+dropped whole; `Ctrl`+`C` did nothing because it had never been written; note
+titles were cut off rather than wrapped; the notes panel stacked every visible
+page's cards into one list; there was no way to say "read from here" with
+click-to-read switched off. Notes now save themselves to a companion file --
+see trap 11 for the bug that found, and `annotations.save_as` for the shape a
+safe save has to take.
 
 Also on the 12th, **v0.2.0 added Windows** — see the Windows section above. It
 is written but unverified on the platform it targets, which makes it the single
