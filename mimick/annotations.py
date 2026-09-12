@@ -7,7 +7,9 @@ programs show up here.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import pymupdf
 
@@ -235,9 +237,47 @@ class AnnotationStore:
         doc = self._document.doc
         return bool(doc.name) and not doc.is_encrypted
 
-    def save_as(self, path) -> None:
-        self._document.doc.save(str(path))
+    def save_as(self, path) -> bool:
+        """Write a copy. True if a copy was written, False if saved in place.
+
+        Saving *over* the open document has to become an incremental save.
+        PyMuPDF guards against this by comparing the two filenames as strings,
+        which misses any other spelling of the same file -- a redundant
+        separator, or simply different capitalisation, since Windows filenames
+        are case-insensitive. Left to it, ``save`` rewrites the PDF it is
+        currently reading and truncates it. Save a copy is exactly what the
+        README tells people to use on documents they cannot replace, so this
+        compares the files themselves rather than their names.
+        """
+        target = Path(path)
+        if self._is_open_document(target):
+            if not self.can_save_in_place():
+                raise ValueError(
+                    "That is the document itself, and it cannot be written "
+                    "into. Choose a different name."
+                )
+            self._document.doc.saveIncr()
+            self.dirty = False
+            return False
+        self._document.doc.save(str(target))
         self.dirty = False
+        return True
+
+    def _is_open_document(self, target: Path) -> bool:
+        """Is ``target`` the very file this document was opened from?"""
+        source = getattr(self._document, "path", None)
+        if source is None:
+            return False
+        source = Path(source)
+        try:
+            if source.exists() and target.exists():
+                return os.path.samefile(source, target)
+        except OSError:
+            pass
+        # Falls back to a normalised comparison when one of them is missing,
+        # which is the ordinary case: a new copy does not exist yet.
+        return (os.path.normcase(os.path.abspath(source))
+                == os.path.normcase(os.path.abspath(target)))
 
     # -- lookups -----------------------------------------------------------
 

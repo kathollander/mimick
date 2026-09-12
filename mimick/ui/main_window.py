@@ -1655,11 +1655,15 @@ class MainWindow(QMainWindow):
         if not path.lower().endswith(".pdf"):
             path += ".pdf"
         try:
-            self.store.save_as(path)
+            wrote_copy = self.store.save_as(path)
         except Exception as exc:
             self._warn("Could not save the copy", str(exc))
             return False
-        self._set_status(f"Saved a copy: {Path(path).name}")
+        if wrote_copy:
+            self._set_status(f"Saved a copy: {Path(path).name}")
+        else:
+            # They picked the open document itself, so it was saved in place.
+            self._set_status(f"Saved into {Path(path).name}")
         self._update_enabled()
         return True
 
