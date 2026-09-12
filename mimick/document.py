@@ -27,6 +27,13 @@ _WORD_CHARS = re.compile(r"[^\w']+", re.UNICODE)
 # Long sentences are split so playback starts sooner and stays responsive.
 MAX_SENTENCE_CHARS = 320
 _SOFT_BREAK = re.compile(r"[;:,][\"')\]]*$")
+# A sentence is never cut while a bracket is open, because a citation is full of
+# the punctuation the splitter breaks on: "(Moreau, Mendick & Epstein, 2010,
+# p. 10)" was cut after "Epstein," and neither half then looked like a citation,
+# so the voice read the names out. The ceiling is there so one stray unclosed
+# bracket cannot swallow a whole page into a single sentence.
+_OPENS, _CLOSES = "([{", ")]}"
+MAX_HELD_OPEN_CHARS = MAX_SENTENCE_CHARS * 2
 
 
 @dataclass
@@ -110,7 +117,18 @@ def _merge_rects(rects: list[tuple[float, float, float, float]]) -> list[tuple[f
 # fragments tables and figure axes leave behind. This catches them wherever they
 # appear, whatever the layout analysis made of the region.
 _WEB = re.compile(r"https?://|www\.|doi\.org|doi:\s*10\.", re.IGNORECASE)
+# The address itself, so it can be taken out and what is left weighed up.
+_ADDRESS = re.compile(
+    r"(?:https?://|www\.)\S+|\bdoi:\s*10\.\S+|\bdoi\.org/\S+", re.IGNORECASE)
 _LONG_WORD = re.compile(r"[^\W\d_]{3,}", re.UNICODE)
+
+# A run carrying a web address is dropped only when the address is most of what
+# it says. A sentence that happens to mention a site -- "Documentaries of this
+# approach can be found at www.example.org, on such topics as..." -- is an
+# ordinary sentence and was being thrown away whole; a reference-list line or a
+# bare "Available online: https://... (accessed 3 May 2022)" is not.
+LINK_SHARE = 0.35          # of the characters
+LINK_MIN_WORDS = 5         # real words left once the address is removed
 
 
 def is_readable_run(text: str, clean: bool = True) -> bool:
@@ -118,7 +136,7 @@ def is_readable_run(text: str, clean: bool = True) -> bool:
     flat = " ".join(text.split())
     if not flat:
         return False
-    if _WEB.search(flat):
+    if _WEB.search(flat) and _is_mostly_link(flat):
         return False
     if clean and speech.is_front_matter(flat):
         return False
@@ -126,18 +144,38 @@ def is_readable_run(text: str, clean: bool = True) -> bool:
     return bool(_LONG_WORD.search(flat))
 
 
+def _is_mostly_link(flat: str) -> bool:
+    """Whether a run is a link with trimmings, rather than a sentence with a link."""
+    without = _ADDRESS.sub(" ", flat)
+    removed = len(flat) - len(without.replace("  ", " "))
+    if removed <= 0:
+        # _WEB matched something _ADDRESS could not carve out -- a bare "doi.org"
+        # with no path, say. Judge it on what is there, as before.
+        return len(_LONG_WORD.findall(flat)) < LINK_MIN_WORDS
+    return (removed / len(flat) >= LINK_SHARE
+            or len(_LONG_WORD.findall(without)) < LINK_MIN_WORDS)
+
+
 def chunk_into_sentences(words: list["Word"], clean: bool = True) -> list[list["Word"]]:
     """Cut a run of words into sentence-sized pieces."""
     chunks: list[list[Word]] = []
     pending: list[Word] = []
+    depth = 0
     for word in words:
         pending.append(word)
+        depth = max(0, depth + sum(c in _OPENS for c in word.text)
+                    - sum(c in _CLOSES for c in word.text))
+        length = len(" ".join(w.text for w in pending))
+        if depth and length <= MAX_HELD_OPEN_CHARS:
+            continue
         if _ends_sentence(word.text):
             chunks.append(pending)
             pending = []
-        elif len(" ".join(w.text for w in pending)) > MAX_SENTENCE_CHARS and _SOFT_BREAK.search(word.text):
+            depth = 0
+        elif length > MAX_SENTENCE_CHARS and _SOFT_BREAK.search(word.text):
             chunks.append(pending)
             pending = []
+            depth = 0
     if pending:
         chunks.append(pending)
     return [

@@ -14,24 +14,42 @@ import re
 
 # A name as it appears in a citation: Smith, O'Brien, van der Berg, Wet'suwet'en.
 _NAME = r"[A-ZÀ-Ü][\w'’‐-―-]*"
-_JOIN = r"(?:\s+(?:et\s+al\.|and|&|,)\s*)"
-_YEAR = r"(?:1[5-9]|20)\d{2}[a-z]?"
+# The comma may follow the name with no space -- "Moreau, Mendick & Epstein" --
+# so it cannot be lumped in with the words, which do need one.
+_JOIN = r"(?:\s*,\s*|\s+(?:et\s+al\.|and|&)\s*)"
+_NAMES = rf"{_NAME}(?:{_JOIN}{_NAME}?)*"
+# A reprint carries both dates: Piaget's (2008/1972).
+_ONE_YEAR = r"(?:1[5-9]|20)\d{2}[a-z]?"
+_YEAR = rf"{_ONE_YEAR}(?:\s*/\s*{_ONE_YEAR})?"
 _PAGES = r"p{1,2}\.\s*\d+(?:\s*[‐-―-]\s*\d+)?"
+_LEAD = r"(?:see\s+|cf\.\s+|e\.g\.,?\s+)?"
+
+# One work inside a citation. Several may be listed, separated by semicolons:
+# "(Egan, 2002; Walkerdine, 1984)" is one citation naming two of them, and
+# matching only the first left the rest to be read aloud.
+_WORK = rf"{_LEAD}{_NAMES},?\s*{_YEAR}(?:\s*[,;]\s*{_PAGES})?"
+_WORK_NO_COMMA = (rf"{_LEAD}{_NAMES}\s+(?:{_YEAR}|\d{{1,4}})"
+                  rf"(?:\s*[,:]\s*\d+(?:\s*[‐-―-]\s*\d+)?)?")
+
+
+def _listed(work: str) -> str:
+    """One work, or several of them separated by semicolons, in brackets."""
+    return rf"\(\s*{work}(?:\s*;\s*{work})*\s*\)"
+
 
 PATTERNS = [
     # Vancouver, IEEE, Nature: [12]  [1,2]  [3-5]  [12], [13]
     re.compile(r"\[\s*\d+(?:\s*[,;]\s*\d+|\s*[‐-―-]\s*\d+)*\s*\]"),
-    # APA with "et al.": (Smith et al., 2019)  (Smith et al. 2019, p. 4)
+    # APA with "et al." and no year: (Smith et al.)
     re.compile(rf"\(\s*{_NAME}\s+et\s+al\.?,?\s*{_YEAR}?"
                rf"(?:\s*[,;]\s*{_PAGES})?\s*\)"),
     # APA, Harvard, Chicago author-date: (Smith, 2020)  (Smith & Jones, 2020, p. 45)
-    re.compile(rf"\(\s*(?:see\s+|cf\.\s+|e\.g\.,?\s+)?{_NAME}(?:{_JOIN}{_NAME}?)*,?\s*{_YEAR}"
-               rf"(?:\s*[,;]\s*{_PAGES})?\s*\)"),
+    re.compile(_listed(_WORK)),
     # Chicago and MLA without a comma: (Smith 2020, 45)  (Smith 45)
-    re.compile(rf"\(\s*{_NAME}(?:{_JOIN}{_NAME}?)*\s+(?:{_YEAR}|\d{{1,4}})"
-               rf"(?:\s*[,:]\s*\d+(?:\s*[‐-―-]\s*\d+)?)?\s*\)"),
-    # A bare page or year reference: (p. 293)  (pp. 12-15)  (2020)
-    re.compile(rf"\(\s*(?:{_PAGES}|{_YEAR})\s*\)"),
+    re.compile(_listed(_WORK_NO_COMMA)),
+    # A reference with the author already named in the sentence, so only the
+    # date and page are bracketed: (p. 293)  (pp. 12-15)  (2020)  (1992, p. 33)
+    re.compile(_listed(rf"(?:{_YEAR}(?:\s*,\s*{_PAGES})?|{_PAGES})")),
     # ibid., op. cit., and friends
     re.compile(r"\(\s*(?:ibid\.?|op\.\s*cit\.?|loc\.\s*cit\.?)[^)]{0,20}\)", re.IGNORECASE),
 ]
