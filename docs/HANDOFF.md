@@ -6,9 +6,9 @@ published.
 
 ## What Mimick is
 
-A PDF reader for Linux that reads aloud in natural voices, highlighting each
-word as it speaks it. It exists because Linux had no equivalent of Edge's Read
-Aloud. Written by Claude Code, arranged by Kat Hollander
+A PDF reader that reads aloud in natural voices, highlighting each word as it
+speaks it. It exists because Linux had no equivalent of Edge's Read Aloud; it
+runs on Windows as well as of v0.2.0. Written by Claude Code, arranged by Kat Hollander
 ([github.com/kathollander](https://github.com/kathollander)). AGPL-3.0, because
 MuPDF is.
 
@@ -44,6 +44,7 @@ QT_QPA_PLATFORM=offscreen MIMICK_CONFIG_DIR=/tmp/mimick-test \
 
 | File | Holds |
 | --- | --- |
+| `mimick/system.py` | Every platform difference: folder locations, ffmpeg, console-window suppression. |
 | `mimick/document.py` | PDF → words → sentences. Word order, hyphen rejoining, run breaking. |
 | `mimick/layout.py` | Recursive XY-cut. Decides which regions are body, aside or furniture. |
 | `mimick/citations.py` | Regexes for in-text citations, so `[51]` is not read aloud. |
@@ -151,12 +152,57 @@ resolving against wherever the user actually is. **Test the installed launcher
 from `$HOME`, not from the project folder** -- from the project folder the bug
 is invisible.
 
+## Windows
+
+Added on 12 September 2026 and **not yet run on a real Windows machine** — it
+was written and reasoned through on Linux. Treat every claim below as designed
+rather than observed.
+
+`mimick/system.py` holds every platform difference; nothing else in the
+codebase should learn what operating system it is on. Three things differ:
+
+- **Folders.** `%APPDATA%\Mimick` for settings, `%LOCALAPPDATA%\Mimick\Cache`
+  for voices — 60 MB downloads have no business in a roaming profile.
+- **ffmpeg.** No system copy exists, so `install.ps1` downloads a static build
+  into the cache folder and `ffmpeg_command()` looks there as well as on `PATH`.
+- **Console windows.** Windows opens one for every child process of a windowed
+  app. `decode_audio` runs *once per sentence* during playback, so every ffmpeg
+  call passes `no_window_kwargs()` or a black box blinks on screen throughout
+  the reading. **Any new subprocess must pass it too.**
+
+**`install.ps1` avoids trap 10 differently from `install.sh`.** Instead of a
+`PYTHONPATH` shim it writes a `.pth` file into the venv's site-packages naming
+the project folder, which makes `python -m mimick` resolve from any working
+directory. That is strictly better — it covers the Start Menu shortcut, the
+terminal command and the "Open with" entry at once, with no wrapper — and
+`install.sh` should probably adopt it, but the Linux launcher is tested and was
+left alone. See the roadmap.
+
+Two Windows traps worth knowing before debugging an install:
+
+- **The Microsoft Store Python is a trap.** A zero-byte `python.exe` sits on
+  `PATH` and opens the Store instead of running. The installer tries the `py`
+  launcher first and ignores anything under `WindowsApps` for this reason.
+- **`pythonw.exe`, not `python.exe`,** for the shortcut and the file
+  association, or a console window sits behind Mimick the whole time it is open.
+
+What is genuinely untested: the PowerShell itself beyond parsing and
+PSScriptAnalyzer, the ffmpeg download, the Start Menu shortcut, the registry
+entries, and **audio latency**. That last one is the real risk — word-sync
+highlighting assumes the playhead matches what is audible, and if WASAPI buffers
+more deeply than ALSA the highlight will lag the voice. Only an ear can tell.
+
 ## State on disk
+
+Paths below are Linux; on Windows `~/.config/mimick` is `%APPDATA%\Mimick` and
+`~/.cache/mimick` is `%LOCALAPPDATA%\Mimick\Cache`. `MIMICK_CONFIG_DIR` and
+`MIMICK_CACHE_DIR` override both on either platform.
 
 - `~/.config/mimick/settings.json` — voice, speed, zoom, reading positions,
   per-document reading-order corrections, preview phrases.
 - `~/.cache/mimick/piper/` — downloaded voices (~60 MB each).
 - `~/.cache/mimick/piper-samples/` — preview clips (~90 KB each).
+- `~/.cache/mimick/ffmpeg/` — Windows only; the copy `install.ps1` downloads.
 
 ## Where it stands
 
@@ -172,6 +218,10 @@ Fixed on the 12th, all found by using the app rather than by reading it: read
 aloud produced no sound at all (trap 6), the applications-menu entry did not
 start (trap 10), citations split across a sentence boundary were half-spoken
 (trap 5), and the reference list was read out in full.
+
+Also on the 12th, **v0.2.0 added Windows** — see the Windows section above. It
+is written but unverified on the platform it targets, which makes it the single
+biggest untested surface in the project.
 
 Not done: see [`ROADMAP.md`](ROADMAP.md). The release checklist there is the
 next thing to work through. The two most valuable tasks are **trying it on more

@@ -13,8 +13,9 @@ from .. import __version__
 from . import theme
 
 TAGLINE = (
-    "Linux's answer to Edge Read Aloud! Mimick-ing natural sounding human "
-    "voices, read any pdf out loud slow or fast with no hassle."
+    "Linux's answer to Edge Read Aloud, and it runs on Windows too! "
+    "Mimick-ing natural sounding human voices, read any pdf out loud "
+    "slow or fast with no hassle."
 )
 
 FEATURES = [

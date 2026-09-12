@@ -44,6 +44,18 @@ Where Mimick is, and where it's going.
 - One-command installer, applications-menu entry, uninstaller
 - README written for people who don't use a terminal
 
+## Done — v0.2
+
+**Windows**
+- Every platform assumption moved into `mimick/system.py`
+- Settings in `%APPDATA%\Mimick`, voices and ffmpeg in `%LOCALAPPDATA%\Mimick`
+- `install.ps1` / `uninstall.ps1`: venv, dependencies, an ffmpeg download,
+  Start Menu shortcut, `mimick` on `PATH`, and an "Open with" entry for PDFs
+- No console window behind the app, and none flashing per sentence while reading
+- A multi-size `assets/mimick.ico`
+
+Written on Linux and **not yet run on Windows** — see the release checklist.
+
 ## Testing notes
 
 `MIMICK_CONFIG_DIR` and `MIMICK_CACHE_DIR` redirect settings and downloads to
@@ -103,10 +115,24 @@ What is still outstanding before it is worth calling a release:
 - [x] **Decide the repository name** — `mimick`, and the project keeps the name.
 - [x] Issue templates (`.github/ISSUE_TEMPLATE/`).
 - [x] Publish to `github.com/kathollander/mimick` (public).
+- [ ] **Run `install.ps1` on a real Windows machine.** Nothing in the Windows
+      support has met the platform it targets. In rough order of risk: does the
+      installer complete; does the Start Menu shortcut open a window; is there
+      a console window behind the app or flashing between sentences; does the
+      ffmpeg download land somewhere `ffmpeg_command()` finds it; does MP3
+      conversion work; does "Open with" appear for PDFs.
+- [ ] **Listen for highlight drift on Windows.** The word-sync highlight assumes
+      the playhead matches what is audible. If WASAPI buffers more deeply than
+      ALSA, the highlight will lag the voice — audible, but invisible to any
+      check tool. `sd.OutputStream` takes a latency hint if it does.
 - [ ] Add `CONTRIBUTING.md`.
 - [ ] **Consider a `pyproject.toml`.** The package is not installed into the
       venv, so the launcher has to set `PYTHONPATH` and everything breaks if
       the project folder moves. Installing it properly would fix both.
+      `install.ps1` already sidesteps this with a `.pth` file in site-packages,
+      which works from any directory and needs no wrapper; `install.sh` could
+      do the same in one line, and should, once someone can retest the Linux
+      launcher and the applications-menu entry against it.
 - [ ] Tag `v0.1.0` once the above is done.
 
 Already in place: `LICENSE` (AGPL-3.0, required by MuPDF), `.gitignore`,

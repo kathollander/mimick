@@ -1,7 +1,7 @@
 # Mimick
 
-**Linux's answer to Edge Read Aloud.** Opens a PDF, reads it out in a natural
-voice, and highlights each word as it says it.
+**Linux's answer to Edge Read Aloud** — and it runs on Windows too. Opens a
+PDF, reads it out in a natural voice, and highlights each word as it says it.
 
 > ### Heads up: this is brand new, and AI-written
 >
@@ -27,18 +27,29 @@ voice, and highlights each word as it says it.
 
 ## Installing
 
-Open this folder in a terminal — in Files, right-click it and choose **Open in
-Terminal** — then:
+You need Python 3.10 or newer. Either installer is safe to run again if
+something breaks — that repairs a broken setup.
+
+**Linux.** Open this folder in a terminal — in Files, right-click it and choose
+**Open in Terminal** — then:
 
 ```
 ./install.sh
 ```
 
-Enter your password if asked, and wait a few minutes. Mimick is then in your
-applications menu.
+Enter your password if asked. Mimick lands in your applications menu.
 
-Everything stays inside this folder and your home directory; your system Python
-is untouched. Safe to run again if something breaks.
+**Windows.** Right-click this folder and choose **Open in Terminal**, then:
+
+```
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+(The `-ExecutionPolicy Bypass` is because Windows blocks downloaded scripts by
+default. It applies to this one command only.) Mimick lands in your Start Menu.
+
+Either way it takes a few minutes, and everything stays inside this folder and
+your own user folder. Your system Python is untouched.
 
 ## Using it
 
@@ -126,10 +137,23 @@ first.
 
 **No sound** — check Settings → Sound; Mimick uses your default output.
 
-**Anything else** — run `./install.sh` again. It repairs a broken setup.
+**Windows says it can't run the script** — use the full command above, with
+`-ExecutionPolicy Bypass`.
 
-To uninstall: `./uninstall.sh`. Settings live in `~/.config/mimick` and voices
-in `~/.cache/mimick`; delete those for a clean slate.
+**Windows can't find Python** — install it from
+[python.org](https://www.python.org/downloads/), not the Microsoft Store. The
+Store copy can't build the environment Mimick needs.
+
+**Anything else** — run the installer again. It repairs a broken setup.
+
+To uninstall, run `./uninstall.sh` or `uninstall.ps1`. What's left behind:
+
+| | Settings | Voices and ffmpeg |
+| --- | --- | --- |
+| Linux | `~/.config/mimick` | `~/.cache/mimick` |
+| Windows | `%APPDATA%\Mimick` | `%LOCALAPPDATA%\Mimick` |
+
+Delete those too for a clean slate.
 
 ## Found a bug?
 
@@ -137,8 +161,8 @@ in `~/.cache/mimick`; delete those for a clean slate.
 find bugs.
 
 What helps: what you did in order, the PDF if you can share it, any error text
-(run `~/.local/bin/mimick` from a terminal to see it), and your distro plus
-Wayland or X11.
+(run `mimick` from a terminal to see it), and which system you're on — distro
+plus Wayland or X11, or your Windows version.
 
 **Already known to be rough:**
 
@@ -152,7 +176,10 @@ Wayland or X11.
   to half a second on a tricky sentence. It resets at every full stop, so it
   never wanders far.
 - **Footnote markers** arrive stuck to the previous word and get read with it.
-- **Only tested on Ubuntu 25.10, GNOME, Wayland.**
+- **Windows support is new and barely tested.** It was developed on Linux and
+  reasoned through carefully, but the installer has not yet been run on a real
+  Windows machine. Reports from the first people to try it are genuinely useful.
+- **Otherwise only tested on Ubuntu 25.10, GNOME, Wayland.**
 
 ## Licence
 
