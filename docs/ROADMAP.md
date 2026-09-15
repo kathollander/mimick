@@ -78,6 +78,43 @@ Written on Linux and **not yet run on Windows** — see the release checklist.
 Released 12 September 2026:
 <https://github.com/kathollander/mimick/releases/tag/v0.2.0>
 
+## In hand — not released yet
+
+**Speed past 3×, and the 3× that was not.** Neither voice engine will speak
+much faster than twice normal: Edge's service clamps its `prosody rate` at
++100% and returns byte-identical audio for 2×, 3× and 6× alike, so the 2.5×
+and 3× the speed box offered had been giving 2× all along. The rate is now
+split — as much as the engine will honestly do, the rest taken out of the
+rendered audio by ffmpeg's `atempo`, which keeps the pitch where it was and
+costs about 70 ms a sentence. Word timings are divided by the same factor, so
+the highlight stays locked to the voice. The list goes to 5×, and the prefetch
+queue is deeper because at that speed a sentence is gone before the next one
+has been fetched. `Engine.render` is the one place this happens, for the same
+reason the text pipeline has one path.
+
+**Ctrl+Z for highlights and notes.** Adding a highlight, editing a note and
+deleting one are all undoable, with Ctrl+Shift+Z to put them back. Edits are
+recorded by word index rather than by object, because undoing a deletion has to
+build a new annotation with a new xref. Nothing else is undoable, deliberately.
+
+**Highlight and Add note come unclipped.** They are one strip now, and it can
+be dragged to the notes panel, the top or bottom of the reading area, or left
+loose over the page. This fixes a real defect as well as adding the arrangement:
+Add note used to live inside the notes panel header, which is hand-positioned
+inside the page view, so turning the notes column off took the only way of
+writing a note with it. See `mimick/ui/markup_bar.py`, including why Qt's own
+QToolBar could not do this.
+
+**Copying a highlight or a note, and removing one.** Copy only ever worked on
+a drag selection, and clicking a highlight deliberately *clears* the selection,
+so Ctrl+C on a highlight did nothing at all. Right-clicking the notes column
+did nothing either -- the handler said so in as many words. Now: Ctrl+C with no
+selection copies the picked-out highlight and its note; right-click, on the
+page or on the card, offers to copy the passage, the note or both, read the
+passage, or delete it; and a picked-out highlight carries a small x -- in the
+page's margin, level with its last line, so it never sits on a word -- that
+removes it in one click. Every removal is undoable.
+
 ## Testing notes
 
 `MIMICK_CONFIG_DIR` and `MIMICK_CACHE_DIR` redirect settings and downloads to
