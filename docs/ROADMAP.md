@@ -224,37 +224,16 @@ connection; if estimates drift, time a known document and adjust.
 
 ## Planned — "Anywhere mode"
 
-*Recorded here so it isn't lost; not started.*
+Reading selected text from any application with a hotkey, not just PDFs open
+in Mimick. Still not started, but now designed: see
+[`ANYWHERE-MODE.md`](ANYWHERE-MODE.md) for the reuse surface, the two
+verified facts about the hotkey, why there can be no true overlay on
+GNOME/Wayland, and the build order.
 
-A background service that reads **any** selected text, in any application — a
-web page in Firefox, a PDF already open in Okular, a paragraph in LibreOffice,
-a message in a chat window. Select the text, press a hotkey, hear it.
-
-**How it would work**
-
-1. A small tray application starts with the session.
-2. A global hotkey (say `Super`+`R`) registered through GNOME's custom
-   keybindings, which is the approach that works under Wayland.
-3. On the hotkey, read the primary selection with `wl-paste --primary`
-   (Wayland) or `xclip -o` (X11).
-4. Feed that text into the same player Mimick already uses — the engines,
-   prefetch queue and transport all get reused unchanged.
-5. Tray icon offers pause, stop and speed.
-
-**Why it's worth doing:** it covers every case the PDF reader doesn't — EPUBs,
-websites, emails, anything on screen. It's the piece that makes the whole thing
-feel like a system service rather than a single app.
-
-**Known difficulties**
-
-- Wayland deliberately prevents applications from grabbing global hotkeys, so
-  the binding has to be registered with the desktop environment instead. That
-  means GNOME-specific setup, with a different path for KDE.
-- The primary selection behaves inconsistently across toolkits; Electron apps
-  are the usual offenders.
-- Reading a whole page *without* a selection would need AT-SPI, the
-  accessibility layer screen readers use. It's fragile on Wayland and broken in
-  many Electron apps, so selection-based reading should stay the primary path.
+The short version: `Player` never knew what a PDF was, so the engines,
+prefetch queue and transport all reuse unchanged. The new code is one small
+text-to-`Sentence` adapter plus a reading window that does the word
+highlighting, since Mimick cannot highlight inside someone else's browser.
 
 ## Further out
 
