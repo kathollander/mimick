@@ -41,7 +41,7 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
   passes: 272 sentences and 8,395 words, identical to the desktop's to the
   rectangle, both with the cleanup on and off.
 - **Step 4b, the pages: done.** `reader.html`: open a PDF (button, Ctrl+O, drop
-  it on the page, or the sample), scroll, turn pages, zoom 40–400%, in the
+  it on the page), scroll, turn pages, zoom 40–400%, in the
   desktop's colours and bar layout. Pyodide runs in `js/document-worker.js`;
   pages are drawn only while on screen or next to it (`js/page-layout.js`).
   `node tools/check_reader.mjs` passes. Nothing reads aloud yet.

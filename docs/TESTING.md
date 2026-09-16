@@ -14,9 +14,12 @@ expected, what happened.
 
 ## The reader — http://localhost:8731/reader.html
 
+**Checked by Kat on 16 September**, all working. What came of it: the sample
+button is gone; Page Up and Page Down no longer move the zoom slider after it
+has been dragged; one document would not open, and a 212-page one was slow.
+
 **Opening**
 - [ ] The page says "Getting ready…", then "Ready" within about 10 seconds
-- [ ] **Try the sample paper** opens it, and the title shows at the top
 - [ ] **Open…** opens a PDF of your own
 - [ ] `Ctrl`+`O` does the same
 - [ ] Dragging a PDF onto the page opens it (the page gets a blue outline while you drag)

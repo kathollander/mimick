@@ -95,15 +95,9 @@
     openBytes(await file.arrayBuffer(), file.name);
   }
 
-  async function openSample() {
-    const response = await fetch("sample/mdpi-sample.pdf");
-    openBytes(await response.arrayBuffer(), "mdpi-sample.pdf");
-  }
-
   const chooseFile = () => $("file").click();
   $("open").onclick = chooseFile;
   $("open-empty").onclick = chooseFile;
-  $("open-sample").onclick = openSample;
   $("file").onchange = () => { openFile($("file").files[0]); $("file").value = ""; };
 
   // Drop a PDF anywhere on the page.
@@ -288,6 +282,9 @@
   $("zoom-in").onclick = () => setZoom(zoom * L.ZOOM_STEP);
   $("zoom-out").onclick = () => setZoom(zoom / L.ZOOM_STEP);
   $("zoom-slider").oninput = () => setZoom(Number($("zoom-slider").value) / 100);
+  // Once the mouse lets go, the keys go back to the page, or Page Up and Page
+  // Down move the slider -- and the zoom -- instead of turning the page.
+  $("zoom-slider").onpointerup = () => view.focus();
   $("zoom").addEventListener("keydown", (e) => {
     if (e.key === "Enter") { setZoom(Number($("zoom").value) / 100); view.focus(); }
   });
