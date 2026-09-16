@@ -195,7 +195,29 @@ clock, via `requestAnimationFrame` when visible and a timer when not. While
 audio plays the timer is not slowed much -- the 32 ms above was measured in a
 hidden tab.
 
-**The desktop app could have exact timing too.** `piper-tts` 1.8 supports it
-with `include_alignments=True` and the `onnx` package; the same word matching
-would be needed. Not done -- the desktop is where changes start, so that is a
-decision for the desktop repo.
+**The desktop app has exact timing too**, since 16 September:
+`mimick/engines/timing.py` there is this file in Python, with its own
+`tools/check_timing.py`.
+
+### Found by using it: the page broke after a few readings
+
+**Fixed 16 September.** Measure, then 1×, 2× and 3× in a row, and 3× cut off
+with "memory access out of bounds". Two faults, one behind the other.
+
+**The phonemizer runs out of stack.** Every `callMain` copies its arguments
+onto a WebAssembly stack of about 24 KB and never takes them back: ~190 bytes
+plus the length of the text, per call. When it is full espeak aborts, and every
+call after fails. Step 3 doubled the calls per sentence, so it went on the 55th
+-- measure and two readings are 48. `createPhonemizer` now counts what it has
+used and makes a fresh phonemizer (about 55 ms) at 12 KB. `check_voice.mjs`
+makes 800 calls; before the fix it failed at 70.
+
+**Two sentences were in the model at once.** The page asks for a passage at a
+time and the worker's async handler started each request as it arrived.
+Nothing broke while phonemizing returned straight away and kept the runs in
+step; once a fresh phonemizer could take 55 ms, two runs overlapped and ONNX
+Runtime on threads failed with "null function" or "unaligned accesses". The
+worker now takes one message at a time. None of the Node checks can see this --
+it needs the worker and threads -- so it was found, and checked, in Chrome:
+eight passages requested at once, then Measure, 1×, 2×, 3× and 4× in a row,
+all without an error.

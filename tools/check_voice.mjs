@@ -65,6 +65,30 @@ for (const { text, phonemes, ids } of baseline.sentences) {
   check(`pronounced as the desktop does: ${JSON.stringify(text)}`, same || knownOnly, detail);
 }
 
+// A long reading. Each sentence phonemizes twice -- itself, then its words for
+// timing -- and the phonemizer used to crash on about its 55th call, a few
+// passages in, with "memory access out of bounds" (PORT-LOG.md, step 3).
+{
+  const sentence = baseline.sentences[1].text;
+  const words = sentence.split(/\s+/);
+  const first = JSON.stringify(await phonemize(sentence, "en-us"));
+  let failure = null, drifted = 0, calls = 0;
+  try {
+    for (let i = 0; i < 400; i++) {
+      if (JSON.stringify(await phonemize(sentence, "en-us")) !== first) drifted++;
+      await phonemize(words, "en-us");
+      calls += 2;
+    }
+  } catch (err) {
+    failure = err.message;
+  }
+  const made = phonemize.instances;
+  check("800 calls in a row, as a long reading makes, and the last is still right",
+        !failure && drifted === 0,
+        failure ? `failed after ${calls} calls: ${failure}`
+                : `${drifted} came out different; ${made ?? "?"} phonemizers made`);
+}
+
 // A 220 Hz tone, one second long, at 1.5x to 4x. Pitch is counted from
 // upward zero crossings in the middle of the result, away from the fade at
 // either end.

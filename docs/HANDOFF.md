@@ -63,6 +63,12 @@ on a page where one may still be running; they stop each other's playback.
    stops and breathy consonants start quiet. Do not "fix" marks to loudness.
 5. **No animation frames in a hidden tab.** Anything that follows playback
    must also work from a timer.
+6. **The phonemizer leaks its stack on every call** and dies after a few
+   dozen. `createPhonemizer` replaces it before then; call it through that,
+   never `callMain` directly.
+7. **One voice session runs one sentence at a time.** The worker queues its
+   messages; overlapping runs crash ONNX Runtime on threads, and only when the
+   timing lines up.
 
 ## Next
 

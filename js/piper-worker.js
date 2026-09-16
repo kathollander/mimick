@@ -33,13 +33,21 @@ const CACHE = "mimick-voices-v1";
 
 let voice = null;
 
-self.onmessage = async ({ data }) => {
-  try {
-    if (data.type === "load") await load(data);
-    else if (data.type === "speak") await speak(data);
-  } catch (err) {
-    self.postMessage({ type: "error", id: data.id, message: String(err && err.message || err) });
-  }
+// One message at a time. The page asks for a whole passage at once, and an
+// async handler would otherwise start the next sentence while the last is still
+// in the model: two runs of one ONNX Runtime session at once, which on threads
+// fails with "null function" or "unaligned accesses" -- and only when the
+// timing lines up, so it read fine for a while and then broke (PORT-LOG.md).
+let queue = Promise.resolve();
+self.onmessage = ({ data }) => {
+  queue = queue.then(async () => {
+    try {
+      if (data.type === "load") await load(data);
+      else if (data.type === "speak") await speak(data);
+    } catch (err) {
+      self.postMessage({ type: "error", id: data.id, message: String(err && err.message || err) });
+    }
+  });
 };
 
 async function load({ voice: key, threads }) {

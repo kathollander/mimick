@@ -14,29 +14,62 @@
 (function (root) {
   "use strict";
 
-  // Load the phonemizer once and call it once per sentence. Its runtime is
-  // built not to exit, so callMain can run again. Each call takes a list of
-  // texts and prints one line of JSON for each, in order.
+  // The phonemizer's runtime is built not to exit, so callMain can run again --
+  // but every call copies its arguments onto the WebAssembly stack and never
+  // takes them back. The stack is about 24 KB and cannot grow: each call costs
+  // ~190 bytes plus the length of its arguments, and when the stack runs into
+  // the heap espeak aborts, and every call after that fails with "memory access
+  // out of bounds". A reading of 8 sentences makes 16 calls, so it died on the
+  // fourth. So the phonemizer is thrown away and made again, which takes about
+  // 55 ms, well before its stack is half used. Measured in PORT-LOG.md.
+  const STACK_BUDGET = 12000;           // bytes; the stack holds ~24,500
+  const CALL_OVERHEAD = 256;            // bytes a call costs besides its arguments
+
+  // Call it once per sentence. Each call takes a list of texts and prints one
+  // line of JSON for each, in order.
   async function createPhonemizer(createPiperPhonemize, locateFile) {
     let lines = null, failure = null;
-    const module = await createPiperPhonemize({
+    const make = () => createPiperPhonemize({
       print: (line) => { if (lines) lines.push(line); },
       printErr: (line) => { failure = line; },
       locateFile,
     });
+    let module = await make(), used = 0, instances = 1;
+    const encoder = new TextEncoder();
+    const cost = (args) => args.reduce((n, arg) => n + encoder.encode(arg).length + 5, CALL_OVERHEAD);
+
+    const call = async (list, espeakVoice) => {
+      const args = ["-l", espeakVoice, "--input", JSON.stringify(list.map((text) => ({ text }))),
+                    "--espeak_data", "/espeak-ng-data"];
+      const bytes = cost(args);
+      if (bytes > STACK_BUDGET) {
+        // Too much for one call: halve the list, or give up on one huge text
+        // rather than let it corrupt the stack.
+        if (list.length === 1) throw new Error(`a text of ${list[0].length} characters is too long to phonemize at once`);
+        const half = Math.ceil(list.length / 2);
+        return [...await call(list.slice(0, half), espeakVoice), ...await call(list.slice(half), espeakVoice)];
+      }
+      if (used + bytes > STACK_BUDGET) {
+        module = await make();
+        used = 0;
+        instances++;
+      }
+      used += bytes;
+      lines = []; failure = null;
+      module.callMain(args);
+      const got = lines; lines = null;
+      if (got.length !== list.length)
+        throw new Error(failure || `the phonemizer printed ${got.length} lines for ${list.length} texts`);
+      return got.map((line) => JSON.parse(line));
+    };
+
     let queue = Promise.resolve();
     // phonemize(text, voice) -> one result; phonemize([texts], voice) -> a list.
-    return function phonemize(texts, espeakVoice) {
+    const phonemize = function phonemize(texts, espeakVoice) {
       const many = Array.isArray(texts);
       const list = many ? texts : [texts];
-      const run = () => {
-        lines = []; failure = null;
-        module.callMain(["-l", espeakVoice, "--input", JSON.stringify(list.map((text) => ({ text }))),
-                         "--espeak_data", "/espeak-ng-data"]);
-        const got = lines; lines = null;
-        if (got.length !== list.length)
-          throw new Error(failure || `the phonemizer printed ${got.length} lines for ${list.length} texts`);
-        const results = got.map((line) => JSON.parse(line));
+      const run = async () => {
+        const results = await call(list, espeakVoice);
         return many ? results : results[0];
       };
       // One call at a time: every call shares the one `print`.
@@ -44,6 +77,9 @@
       queue = result.catch(() => {});
       return result;
     };
+    // How many phonemizers have been made so far; tools/check_voice.mjs reads it.
+    Object.defineProperty(phonemize, "instances", { get: () => instances });
+    return phonemize;
   }
 
   // A loaded voice. `config` is the model's .onnx.json; `model` its bytes.
