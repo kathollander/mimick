@@ -43,6 +43,7 @@ node tools/check_timing.mjs
 node tools/check_reading.mjs
 node tools/check_reader.mjs
 node tools/check_selecting.mjs    # with serve.py running
+node tools/check_notes.mjs        # the same
 ```
 
 The first compares every region of the sample against what the desktop app
@@ -51,9 +52,10 @@ that speeding it up keeps its pitch.
 
 ## Which way the work flows
 
-`py/` holds four modules copied from the desktop app — `document.py`,
-`layout.py`, `citations.py` and `speech.py`, about 1,300 lines that decide what
-on a page is worth reading, in what order, and which word is where. They are the hardest-won code in either
+`py/` holds five modules copied from the desktop app — `document.py`,
+`layout.py`, `citations.py`, `speech.py` and `annotations.py`, about 1,700 lines
+that decide what on a page is worth reading, in what order, which word is
+where, and how highlights are written into a PDF. They are the hardest-won code in either
 project and there is **one copy that matters**, the one in `mimick`.
 
 **Fix things there, then bring them across:**

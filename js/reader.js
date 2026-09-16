@@ -108,6 +108,7 @@
     $("empty").hidden = true;
     voice.open(0);
     closeMenu();
+    notes.close();
     resetMarks();
     clearPages();
     doc = null;
@@ -126,7 +127,7 @@
     try {
       const [info, stored] = await Promise.all([Promise.any(opened), Store.open(key)]);
       if (mine !== generation) return;
-      doc = { title: info.title, pages: info.pages, key };
+      doc = { title: info.title, pages: info.pages, key, name };
       kept = stored;
       slow = kept.size > 0;
       document.title = `${doc.title} — Mimick`;
@@ -156,6 +157,7 @@
       openedStatus = `${doc.pages.length} pages · ${done.sentences} sentences to read · opened in ${seconds}s`;
       voice.open(done.sentences);
       setReadable(done.sentences > 0);
+      notes.open(doc);
     } catch (err) {
       if (mine !== generation) return;
       openedStatus = `${doc.pages.length} pages · this one cannot be read aloud: ${err.message}`;
@@ -281,6 +283,7 @@
     if (document.activeElement !== $("page")) $("page").value = current + 1;
     $("prev").disabled = current <= 0;
     $("next").disabled = current >= doc.pages.length - 1;
+    notes.pageShown();
     drawNext();
   }
 
@@ -435,6 +438,7 @@
       ? (view.scrollLeft + view.clientWidth / 2) / geometry.width : 0.5;
     zoom = next;
     relayout(where);
+    notes.refreshAll();
     view.scrollTop = Math.max(0, view.scrollTop - y);
     view.scrollLeft = Math.max(0, xFraction * geometry.width - view.clientWidth / 2);
   }
@@ -529,15 +533,15 @@
   function drawHighlight(page) {
     const slot = slots.get(page);
     if (!slot || !doc) return;
-    for (const old of slot.el.querySelectorAll(".hl, .caret")) old.remove();
+    for (const old of slot.el.querySelectorAll(".hl, .caret, .remove")) old.remove();
     const [w, h] = doc.pages[page];
-    const add = (kind, [x0, y0, x1, y1], pad = 0) => {
+    const add = (kind, rect, pad = 0) => {
       const box = document.createElement("div");
       box.className = `hl ${kind}`;
-      Object.assign(box.style, { left: `${(x0 - pad) / w * 100}%`, top: `${(y0 - pad) / h * 100}%`,
-                                 width: `${(x1 - x0 + 2 * pad) / w * 100}%`, height: `${(y1 - y0 + 2 * pad) / h * 100}%` });
+      placeBox(box, page, rect, pad);
       slot.el.append(box);
     };
+    notes.draw(page, slot.el);
     for (const [on, box] of selectionBoxes) if (on === page) add("selection", box, 1);
     if (lit.made) {
       for (const [on, box] of lit.made.lines) if (on === page) add("sentence", box);
@@ -554,6 +558,14 @@
     }
   }
   const redrawMarks = () => { for (const page of slots.keys()) drawHighlight(page); };
+
+  /* Place an element over a rectangle of a page, in fractions of the page so a
+   * zoom moves it with it. `pad` is in PDF points. */
+  function placeBox(box, page, [x0, y0, x1, y1], pad = 0) {
+    const [w, h] = doc.pages[page];
+    Object.assign(box.style, { left: `${(x0 - pad) / w * 100}%`, top: `${(y0 - pad) / h * 100}%`,
+                               width: `${(x1 - x0 + 2 * pad) / w * 100}%`, height: `${(y1 - y0 + 2 * pad) / h * 100}%` });
+  }
 
   /* The desktop's rule: leave the view alone while what is read is on screen;
    * otherwise bring it a third of the way down. */
@@ -740,28 +752,40 @@
     if (mine === generation) caretIntoView();
   }
 
-  async function readSelection() {
-    if (!selection || !doc?.sentences) return;
+  const readSelection = () => selection && readRange(...selection);
+
+  /* Read words `first` to `last`, then go quiet: a selection, or a highlight. */
+  async function readRange(first, last) {
+    if (!doc?.sentences) return;
     voice.prepare();
-    const [first, last] = selection, mine = generation;
+    const mine = generation;
     const count = await call("select_range", first, last);
     if (mine !== generation) return;
-    if (!count) { status("That selection has no readable text"); return; }
+    if (!count) { status("That has no readable text"); return; }
     voice.open(count, "selection");
     voice.play(0);
   }
 
-  async function copySelection() {
-    if (!selection) { status("Select some text first — drag across it, or press Ctrl+A"); return; }
-    const chosen = selection;
-    const text = selectionText?.for === chosen ? selectionText.text : await call("selection_text", ...chosen);
+  async function copyText(text, said) {
     try {
       await navigator.clipboard.writeText(text);
-      const n = chosen[1] - chosen[0] + 1;
-      status(`Copied ${n} word${n === 1 ? "" : "s"}`);
+      status(said);
     } catch (err) {
       status("Could not copy: " + err.message);
     }
+  }
+
+  /* Ctrl+C: the selection, or else the highlight picked out. */
+  async function copySelection() {
+    if (!selection) {
+      if (notes.active) notes.copy(notes.active);
+      else status("Select some text first — drag across it, or press Ctrl+A");
+      return;
+    }
+    const chosen = selection;
+    const text = selectionText?.for === chosen ? selectionText.text : await call("selection_text", ...chosen);
+    const n = chosen[1] - chosen[0] + 1;
+    copyText(text, `Copied ${n} word${n === 1 ? "" : "s"}`);
   }
 
   async function selectPage() {
@@ -784,8 +808,19 @@
   let doubleClicks = 0;
   view.addEventListener("pointerdown", (e) => {
     if (!e.target.closest?.("#menu")) closeMenu();
-    if (e.button !== 0 || !doc?.words || !e.target.closest?.(".page")) { press = null; return; }
+    press = null;
+    if (e.button !== 0 || !doc?.words || !e.target.closest?.(".page") || e.target.closest(".remove")) return;
     const at = pointOnPage(e.clientX, e.clientY);
+    // A press on a highlight picks it out instead of starting a selection.
+    const hit = notes.at(at.page, at.x, at.y);
+    if (hit) {
+      anchor = null;
+      setSelection(null);
+      notes.pick(hit);
+      view.focus();
+      return;
+    }
+    notes.pick(null);
     const mine = { x: e.clientX, y: e.clientY, at, dragging: false, anchor: null, word: null };
     press = mine;
     view.setPointerCapture(e.pointerId);
@@ -843,6 +878,8 @@
     doubleClicks++;
     const at = pointOnPage(e.clientX, e.clientY);
     if (!at) return;
+    const hit = notes.at(at.page, at.x, at.y);
+    if (hit) { notes.edit(hit); return; }
     const mine = generation, startedBy = voice.state;
     call("word_at", at.page, at.x, at.y, false)
       .then((word) => (word === null ? null : call("sentence_span", word)))
@@ -867,7 +904,15 @@
       const button = document.createElement("button");
       button.type = "button";
       button.setAttribute("role", "menuitem");
-      button.textContent = item.label;
+      const label = Object.assign(document.createElement("span"), { className: "label", textContent: item.label });
+      if (item.swatch) label.prepend(Object.assign(document.createElement("span"), { className: "dot", style: `background: ${item.swatch}` }));
+      if ("checked" in (item)) {
+        button.setAttribute("role", "menuitemcheckbox");
+        button.setAttribute("aria-checked", item.checked);
+        label.prepend(Object.assign(document.createElement("span"), { className: "check", textContent: item.checked ? "✓" : "" }));
+      }
+      if (item.indent) label.classList.add("indent");
+      button.append(label);
       if (item.keys) button.append(Object.assign(document.createElement("span"), { className: "keys", textContent: item.keys }));
       button.disabled = item.enabled === false;
       button.onclick = () => { closeMenu(); view.focus(); item.run(); };
@@ -888,12 +933,18 @@
     const sentence = at && doc.sentences
       ? (await reading.ask({ type: "sentenceAt", page: at.page, x: at.x, y: at.y })).sentence : null;
     if (mine !== generation) return;
+    const hit = at && notes.ready ? notes.at(at.page, at.x, at.y) : null;
+    if (hit && !selection) notes.pick(hit);
     showMenu(x, y, [
       { label: "Start reading from here", enabled: sentence !== null, run: () => readFrom(sentence) },
       ...(selection ? [{ label: "Read the selection", keys: "Enter", run: readSelection }] : []),
       "-",
-      selection ? { label: "Copy", keys: "Ctrl+C", run: copySelection }
-                : { label: "Select some text to copy it", enabled: false },
+      ...(selection ? [
+        { label: "Copy", keys: "Ctrl+C", run: copySelection },
+        ...(notes.ready ? [{ label: "Highlight", keys: "Ctrl+H", run: () => notes.highlight(false) },
+                           { label: "Highlight and write a note…", keys: "Ctrl+M", run: () => notes.highlight(true) }] : []),
+      ] : hit ? notes.menuItems(hit)
+        : [{ label: "Select some text to copy or highlight it", enabled: false }]),
     ]);
   });
   window.addEventListener("blur", closeMenu);
@@ -913,9 +964,40 @@
   // The desktop's keys, where a browser lets a page have them. See "Shortcuts"
   // in the desktop repo's docs/FUTURE-FEATURES.md.
 
+  // --- highlights and notes -----------------------------------------------------
+  // js/notes.js; this is what it needs of the reader.
+
+  const notes = MimickNotes.create({
+    call, status, view, remember, recall, showMenu, copyText, placeBox,
+    generation: () => generation,
+    zoom: () => zoom,
+    currentPage: () => (doc ? currentPage() : 0),
+    redraw: () => doc && redrawMarks(),
+    relayout: () => update(),
+    focusPage: () => view.focus(),
+    selection: () => selection,
+    clearSelection: () => { anchor = null; setSelection(null); },
+    readRange,
+    canRead: () => !!doc?.sentences,
+    copy: () => copySelection(),
+    scrollToPoint(page, y) {
+      view.scrollTop = Math.max(0, geometry.offsets[page] + y * zoom - view.clientHeight / 3);
+      update();
+    },
+    /* A rectangle of a page, in the window's coordinates. */
+    pageRectToClient(page, [x0, y0, x1, y1]) {
+      if (!doc || page >= geometry.offsets.length) return null;
+      const box = view.getBoundingClientRect();
+      const left = box.left + geometry.lefts[page] - view.scrollLeft, top = box.top + geometry.offsets[page] - view.scrollTop;
+      return { left: left + x0 * zoom, right: left + x1 * zoom, top: top + y0 * zoom, bottom: top + y1 * zoom };
+    },
+  });
+
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
-    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
+                || e.target instanceof HTMLTextAreaElement;
+    if (notes.editing) return;
     if (!menu.hidden) {
       if (e.key === "Escape") { e.preventDefault(); closeMenu(); view.focus(); }
       return;
@@ -942,6 +1024,16 @@
     if (key === "Escape") { anchor = null; setSelection(null); return; }
     if (ctrl && !e.shiftKey && key === "a") { e.preventDefault(); selectPage(); return; }
     if (ctrl && !e.shiftKey && key === "c") { e.preventDefault(); copySelection(); return; }
+    const notesKey = {
+      h: e.shiftKey ? notes.toggleBar : () => notes.highlight(false),
+      m: e.shiftKey ? null : () => notes.highlight(true),
+      j: e.shiftKey ? null : () => notes.step(1),
+      k: e.shiftKey ? null : () => notes.step(-1),
+      z: e.shiftKey ? notes.redo : notes.undo,
+      b: e.shiftKey ? null : notes.togglePanel,
+      s: notes.download,
+    }[key];
+    if (ctrl && !e.altKey && notesKey) { e.preventDefault(); notesKey(); return; }
 
     // The arrows move the cursor unless the voice is reading, when they keep
     // their old jobs: left and right skip a sentence, the rest scroll.

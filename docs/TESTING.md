@@ -51,6 +51,58 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Highlights and notes
+
+Added 16 September, late. Reload the page first. Try it on your own PDFs, not
+only the sample.
+
+**Highlighting**
+- [ ] Select some words, then press `Ctrl`+`H`: they turn yellow, and a card quoting them appears in the panel on the right
+- [ ] The **Highlight** button does the same; the round button beside it picks another colour for the next one
+- [ ] A thin coloured line joins each highlight to its card
+- [ ] `Ctrl`+`Z` takes the highlight back; `Ctrl`+`Shift`+`Z` puts it back
+
+**Notes**
+- [ ] Select words and press `Ctrl`+`M` (or **+ Add note**): the note box opens
+- [ ] Typing in it changes the card in the panel as you type
+- [ ] A heading, and a different colour, both show once saved
+- [ ] `Ctrl`+`Enter` saves; **Cancel** or `Esc` leaves things as they were
+- [ ] Double-clicking a highlight, or its card, opens its note again
+- [ ] `Ctrl`+`Z` undoes a change to a note
+
+**Picking one out**
+- [ ] Clicking a highlight lights up its card, and a small × appears in the page margin beside it
+- [ ] Clicking that × (or the × on the card) deletes it; `Ctrl`+`Z` brings it back, note and all
+- [ ] With one picked out and nothing selected, `Ctrl`+`C` copies its words
+- [ ] Right-clicking a highlight or a card offers: copy the passage, the note or both; edit; **Read this passage**; delete
+- [ ] **Read this passage** reads just that highlight
+- [ ] `Ctrl`+`J` and `Ctrl`+`K` (or ‹ › in the panel) go to the next and previous note, turning pages as needed
+
+**The panel**
+- [ ] It shows the notes for the page you're looking at, and changes as you scroll
+- [ ] **Highlights** and **Notes** at the top switch each kind on and off; their numbers are right
+- [ ] ⚙ lets you change the typeface, the size and your name; the cards change as you choose
+- [ ] Notes get bigger and smaller as you zoom
+- [ ] `Ctrl`+`B` hides and shows the panel
+
+**The Highlight / Add note buttons**
+- [ ] Drag them by the ⋯ handle: onto the page they float; to the top or bottom edge they become a strip; onto the panel they go back in
+- [ ] Hiding the panel moves them to the top rather than hiding them
+- [ ] `Ctrl`+`Shift`+`H` hides and shows them
+- [ ] **Display ▾** in the top bar lists the same choices
+- [ ] Where you left them is remembered after a reload
+
+**Keeping them**
+- [ ] The bottom of the panel says "Kept in this browser" with a time
+- [ ] Close the tab, open the reader again and open the same PDF: your highlights and notes are back
+- [ ] `Ctrl`+`S` (or **Download a copy**) downloads "… (notes).pdf"
+- [ ] That file opens in another PDF reader (Okular, Firefox, Acrobat…) with your highlights and notes in it
+- [ ] Opening that downloaded file in the reader shows them too
+- [ ] A PDF that already had highlights from another program shows them
+
+**Menus**
+- [ ] **Notes ▾** lists everything above with its keys, and greys out what can't be done yet
+
 ## Speed, right-click, selecting and the cursor
 
 Added the evening of 16 September. **Stop the old page server and start

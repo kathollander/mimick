@@ -36,17 +36,18 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## Highlights and notes
 
-- ⬜ Highlight in four colours (`Ctrl`+`H`)
-- ⬜ Highlight and write a note (`Ctrl`+`M`), heading, colour, author name
-- ⬜ Notes panel beside the page (`Ctrl`+`B`), filters for highlights / notes, counts
-- ⬜ Highlight/Note strip that can be dragged to the panel, top, bottom or loose (`Ctrl`+`Shift`+`H`)
-- ⬜ Click a highlight to pick it out; × removes it; double-click edits
-- ⬜ Right-click a highlight or card: copy passage / note / both, read, edit, delete
-- ⬜ `Ctrl`+`C` on a picked-out highlight
-- ⬜ `Ctrl`+`J` / `Ctrl`+`K` next and previous note
-- ⬜ `Ctrl`+`Z` / `Ctrl`+`Shift`+`Z` undo and redo
-- ⬜ Note appearance: typeface and size
-- 🟡 Saving: desktop writes a companion PDF; the browser will offer **Download a copy** (`Ctrl`+`S`)
+- ✅ Highlight in four colours (`Ctrl`+`H`)
+- ✅ Highlight and write a note (`Ctrl`+`M`), heading, colour, author name
+- ✅ Notes panel beside the page (`Ctrl`+`B`), filters for highlights / notes, counts, lines to the highlights
+- ✅ Highlight/Note strip that can be dragged to the panel, top, bottom or loose (`Ctrl`+`Shift`+`H`)
+- ✅ Click a highlight to pick it out; × removes it; double-click edits
+- ✅ Right-click a highlight or card: copy passage / note / both, read, edit, delete
+- ✅ `Ctrl`+`C` on a picked-out highlight
+- ✅ `Ctrl`+`J` / `Ctrl`+`K` next and previous note
+- ✅ `Ctrl`+`Z` / `Ctrl`+`Shift`+`Z` undo and redo
+- ✅ Note appearance: typeface, size, your name
+- ✅ Saving: kept in the browser as you work, and **Download a copy** (`Ctrl`+`S`) — the desktop's companion PDF
+- ✅ Menus: **Notes ▾** and **Display ▾** in the top bar, standing in for the desktop's menu bar
 
 ## What gets read
 

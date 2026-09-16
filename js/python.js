@@ -1,6 +1,6 @@
 /* The desktop's reading code, running under Pyodide.
  *
- * py/ holds document.py, layout.py, citations.py and speech.py, copied from the
+ * py/ holds document.py, layout.py, citations.py, speech.py and annotations.py, copied from the
  * desktop repo by tools/port.sh and never edited here. document.py imports the
  * others relatively, as the package `mimick`, so that is what they are written
  * into Pyodide's file system as -- with an empty __init__.py, since the
@@ -17,7 +17,7 @@
   // Pinned to the PyMuPDF the desktop app uses; see "PyMuPDF versions must
   // match" in the desktop handoff. Pyodide's own 1.26.3 reads text differently.
   const PYMUPDF_WHEEL = "pymupdf-1.28.2-cp313-abi3-pyemscripten_2025_0_wasm32.whl";
-  const PACKAGE = ["document.py", "layout.py", "citations.py", "speech.py"];
+  const PACKAGE = ["document.py", "layout.py", "citations.py", "speech.py", "annotations.py"];
   const HOME = "/home/pyodide";
 
   /* `loadPyodide` from vendor/pyodide; `readText(path)` gives the text of a

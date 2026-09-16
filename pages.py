@@ -33,7 +33,11 @@ def render(page: int, scale: float) -> tuple[int, int, bytes]:
         raise RuntimeError("no document is open")
     if not 0 <= page < _doc.page_count:
         raise IndexError(f"there is no page {page + 1}")
-    pixmap = _doc.load_page(page).get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False)
+    # Highlights are drawn by the page over the top, from the document worker's
+    # copy, which is the one that changes; drawn in here too they would double up
+    # and never go away when deleted.
+    pixmap = _doc.load_page(page).get_pixmap(matrix=pymupdf.Matrix(scale, scale), alpha=False,
+                                             annots=False)
     return pixmap.width, pixmap.height, pixmap.samples
 
 

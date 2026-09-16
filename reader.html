@@ -18,7 +18,7 @@
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { display: grid; grid-template-rows: auto 1fr auto; background: var(--backdrop); color: var(--text);
+  body { display: grid; grid-template-rows: auto auto 1fr auto auto; background: var(--backdrop); color: var(--text);
          font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
 
   .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
@@ -48,6 +48,7 @@
   a { color: var(--accent); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+  #main { position: relative; display: grid; grid-template-columns: 1fr auto; min-height: 0; }
   #view { position: relative; overflow: auto; outline: none; }
   #view::-webkit-scrollbar { width: 12px; height: 12px; }
   #view::-webkit-scrollbar-thumb { background: #39404f; border-radius: 6px; border: 2px solid var(--backdrop); }
@@ -68,6 +69,70 @@
   @keyframes blink { 50% { opacity: 0; } }
   #pages { user-select: none; -webkit-user-select: none; }
 
+  /* Highlights, in their own colour, under everything else that is lit. */
+  .page .hl.annot { border-radius: 2px; }
+  .page .remove, .note-card .remove { position: absolute; display: grid; place-items: center; padding: 0; line-height: 1;
+                                 border-radius: 50%; cursor: pointer; font-size: 14px; }
+  .page .remove { background: #fafafc; color: #5a606e; border: 1.2px solid #78808e; z-index: 2; }
+  .page .remove:hover { background: #fff; color: #000; }
+
+  /* The notes panel: the current page's notes, stacked, beside the page. */
+  #notes { width: 272px; display: grid; grid-template-rows: auto 1fr auto; min-height: 0;
+           background: #1a1d23; border-left: 1px solid var(--border); }
+  .notes-head, .notes-foot { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+  .notes-foot { flex-direction: row; align-items: center; flex-wrap: wrap; padding-bottom: 10px; }
+  .notes-foot #note-count { flex: 1; }
+  #notes-kept { width: 100%; font-size: 11px; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row .grow { flex: 1; }
+  .chip { flex: 1; background: transparent; color: var(--dim); font-size: 12px; white-space: pre; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #0b1220; }
+  #cards { overflow-y: auto; padding: 8px 18px; display: flex; flex-direction: column; gap: 8px; line-height: 1.3; }
+  .note-card { position: relative; background: var(--panel); border-radius: 7px; padding: 10px 10px 10px 13px;
+          cursor: default; overflow-wrap: anywhere; white-space: pre-wrap; border: 1.4px solid transparent; }
+  .note-card::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px;
+                  background: var(--accent); }
+  .note-card.picked { background: var(--panel-hi); border-color: var(--accent); padding-right: 30px; }
+  .note-card .heading { font-weight: 700; margin-bottom: 2px; }
+  .note-card .quote { color: var(--dim); font-style: italic; }
+  .note-card .remove { top: 6px; right: 6px; width: 18px; height: 18px; background: none; border: 0; color: var(--dim); }
+  .note-card .remove:hover { color: var(--text); background: var(--hover); }
+  #connectors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+  #connectors line { stroke-width: 1.2; }
+
+  /* Highlight and Add note: one strip, in one of four places. */
+  .strip { display: flex; padding: 4px 14px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  #markup-bottom { border-bottom: 0; border-top: 1px solid var(--border); }
+  #markup { display: flex; align-items: center; gap: 6px; }
+  #markup[data-home="panel"] { flex-direction: column; align-items: stretch; }
+  #markup[data-home="float"] { position: absolute; z-index: 5; padding: 6px 8px; background: var(--panel);
+                               border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  #markup.dragging { opacity: .9; }
+  #markup.dragging[data-aim="panel"], #markup.dragging[data-aim="top"], #markup.dragging[data-aim="bottom"] {
+    outline: 2px dashed var(--accent); }
+  #markup-grip { color: var(--dim); font-size: 15px; cursor: grab; user-select: none; padding: 0 4px; text-align: center;
+                 touch-action: none; }
+  #markup[data-home="panel"] #markup-grip { line-height: .6; }
+  #markup.dragging #markup-grip { cursor: grabbing; }
+  .pair { display: flex; gap: 4px; }
+  .pair #markup-highlight { flex: 1; }
+  #markup-colour, .swatch { width: 44px; }
+  #markup-colour::after, .swatch::after { content: ""; display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+                                          background: var(--swatch); vertical-align: middle; }
+  .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  dialog { color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px 20px 16px; width: min(460px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog form { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+  dialog input[type=text], dialog textarea, dialog input[type=number] { width: 100%; padding: 6px 8px; text-align: left; }
+  dialog textarea { min-height: 110px; resize: vertical; font: inherit; color: var(--text); background: var(--panel-hi);
+                    border: 1px solid var(--border); border-radius: 6px; }
+  dialog label { display: grid; gap: 4px; }
+  dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; }
+  #style-sample { background: #1a1d23; padding: 10px; border-radius: 7px; }
+  #style-sample .note-card { cursor: default; }
+
   #menu { position: fixed; z-index: 10; min-width: 220px; padding: 4px; background: var(--panel);
           border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
   #menu button { display: flex; justify-content: space-between; gap: 24px; width: 100%; text-align: left;
@@ -75,6 +140,10 @@
   #menu button:hover:not(:disabled), #menu button:focus-visible { background: var(--hover); outline: none; }
   #menu button:disabled { background: none; }
   #menu .keys { color: var(--dim); }
+  #menu .check { width: 14px; display: inline-block; color: var(--accent); }
+  #menu .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: -1px; }
+  #menu .label { flex: 1; }
+  #menu .label.indent { padding-left: 18px; }
   #menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
   #play { min-width: 130px; }
   select { padding: 4px 6px; }
@@ -92,6 +161,8 @@
   <div class="left">
     <span class="brand">Mimick</span>
     <button id="open" title="Open a PDF  (Ctrl+O)">Open…</button>
+    <button id="notes-menu" title="Highlights and notes">Notes ▾</button>
+    <button id="display-menu" title="What is shown, and where">Display ▾</button>
     <input id="file" type="file" accept="application/pdf,.pdf" hidden>
     <label class="dim" for="speed">Speed</label>
     <select id="speed" title="How fast the voice reads"></select>
@@ -107,6 +178,9 @@
   </div>
 </header>
 
+<div id="markup-top" class="strip" hidden></div>
+
+<div id="main">
 <div id="view" tabindex="0">
   <div id="pages"></div>
   <div id="empty">
@@ -120,6 +194,76 @@
     </div>
   </div>
 </div>
+
+<aside id="notes" aria-label="Notes">
+  <div class="notes-head">
+    <div class="row">
+      <button id="filter-quotes" class="chip" aria-pressed="true" title="Show passages you highlighted without writing anything">Highlights</button>
+      <button id="filter-notes" class="chip" aria-pressed="true" title="Show the ones you wrote a note on">Notes</button>
+    </div>
+    <div id="markup-panel">
+      <div id="markup" data-home="panel">
+        <span id="markup-grip" title="Drag to move these buttons — the top or bottom of the page, the notes panel, or loose over the page">⋯</span>
+        <button id="markup-note" title="Highlight the selected text and write a note  (Ctrl+M)" disabled>+  Add note</button>
+        <div class="pair">
+          <button id="markup-highlight" title="Highlight the selected text  (Ctrl+H)" disabled>Highlight</button>
+          <button id="markup-colour" title="Highlight colour" aria-label="Highlight colour" disabled></button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="grow"></span>
+      <button id="prev-note" class="square" title="Previous note  (Ctrl+K)" disabled>‹</button>
+      <button id="next-note" class="square" title="Next note  (Ctrl+J)" disabled>›</button>
+      <button id="note-style" class="square" title="How notes look — typeface and size">⚙</button>
+    </div>
+  </div>
+  <div id="cards"></div>
+  <div id="notes-foot" class="notes-foot" hidden>
+    <span id="note-count" class="dim"></span>
+    <button id="notes-download" title="Download this PDF with your highlights and notes in it  (Ctrl+S)">Download a copy</button>
+    <span id="notes-kept" class="dim"></span>
+  </div>
+</aside>
+<svg id="connectors" aria-hidden="true"></svg>
+</div>
+
+<div id="markup-bottom" class="strip" hidden></div>
+
+<dialog id="note-dialog" aria-label="Note">
+  <form id="note-form" method="dialog">
+    <div id="note-quote" class="dim"></div>
+    <input id="note-title" type="text" placeholder="Heading (optional) — shown by other PDF readers">
+    <textarea id="note-text" placeholder="Write your note here…"></textarea>
+    <div class="row"><span>Colour</span><span id="note-colours" class="row"></span><span class="grow"></span>
+      <button id="note-delete" type="button" title="Remove this highlight and its note">Delete highlight</button></div>
+    <div class="buttons">
+      <button id="note-cancel" type="button">Cancel</button>
+      <button class="primary" type="submit" title="Save  (Ctrl+Enter)">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="style-dialog" aria-label="Note appearance">
+  <form id="style-form" method="dialog">
+    <div class="dim">How notes are written in the margin beside the page.</div>
+    <label>Typeface <input id="style-font" type="text" list="fonts" placeholder="The interface's own"></label>
+    <datalist id="fonts">
+      <option value="Georgia"><option value="Times New Roman"><option value="Palatino"><option value="Arial">
+      <option value="Verdana"><option value="Trebuchet MS"><option value="Courier New"><option value="serif">
+      <option value="sans-serif"><option value="monospace">
+    </datalist>
+    <label>Size, in points at 100% — notes grow and shrink with the page
+      <input id="style-size" type="number" min="6" max="24" step="0.5"></label>
+    <label>Your name — saved with each highlight; other PDF readers show it
+      <input id="style-author" type="text" placeholder="Your name"></label>
+    <div id="style-sample"><div class="note-card" style="--accent: rgb(255, 222, 89)">Foucault's point here is about normalisation, not repression.</div></div>
+    <div class="buttons">
+      <button id="style-cancel" type="button">Cancel</button>
+      <button class="primary" type="submit">Done</button>
+    </div>
+  </form>
+</dialog>
 
 <div id="menu" role="menu" hidden></div>
 
@@ -144,5 +288,7 @@
 <script src="js/page-store.js"></script>
 <script src="js/piper-core.js"></script>
 <script src="js/read-aloud.js"></script>
+<script src="js/notes-store.js"></script>
+<script src="js/notes.js"></script>
 <script src="js/reader.js"></script>
 </html>

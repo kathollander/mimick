@@ -107,7 +107,9 @@ function align(py, { id, sentence, marks, source = "document" }) {
 }
 
 const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "word_at", "sentence_span",
-                       "page_span", "caret_step", "caret_place"]);
+                       "page_span", "caret_step", "caret_place",
+                       "annotations", "annotation_add", "annotation_set", "annotation_remove",
+                       "snapshot", "restore", "notes_pdf", "set_author"]);
 
 function call(py, { id, name, args = [] }) {
   if (!CALLS.has(name)) throw new Error(`reader.py has no ${name} for the page`);

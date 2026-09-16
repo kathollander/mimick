@@ -65,6 +65,7 @@ node tools/check_timing.mjs
 node tools/check_reading.mjs
 node tools/check_reader.mjs
 node tools/check_selecting.mjs       # needs serve.py running; starts its own headless Chrome
+node tools/check_notes.mjs           # the same
 ```
 
 **A headless Chrome, driven from Node, is the easiest way to test the page**,
@@ -153,7 +154,26 @@ page draw -- or ask Kat to bring the tab to the front.
   the desktop's own `document.py`, through one `call` message.
   `tools/check_selecting.mjs` drives all of it in Chrome with real clicks and keys.
 
-**Kat to test:** the new section at the top of `TESTING.md`.
+**Done later on 16 September: highlights and notes**, everything in
+`PARITY.md`'s section of that name. `js/notes.js` is the desktop's page_view
+notes, note_dialog and markup_bar; the highlights themselves are the desktop's
+`annotations.py`, now ported too, in the document worker. `tools/check_notes.mjs`
+drives all of it in Chrome (36 checks), `tools/cdp.mjs` is what both Chrome
+checks share. Three decisions worth knowing:
+
+- **Notes are kept in IndexedDB as plain data** (`reader.snapshot`), not as a
+  PDF: a scanned book's PDF is ~100 MB a save. The PDF is made only for
+  **Download a copy**. Reopening the same bytes calls `reader.restore`, which
+  replaces the file's own highlights with the snapshot, rectangles as saved.
+- **Page workers now draw pages without annotations** (`pages.py`,
+  `annots=False`); the page draws highlights itself, from the live list. Scans
+  kept in `mimick-pages` from before this still have any highlights the PDF
+  itself carried baked in -- harmless, and gone once the store evicts them.
+- **Header menus.** The browser has no menu bar, so **Notes ▾** and
+  **Display ▾** hold what the desktop's menus did. Later switches (reading
+  order, footnotes, citations, click to read) belong in **Display ▾**.
+
+**Kat to test:** the new sections at the top of `TESTING.md`.
 
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
@@ -174,8 +194,7 @@ desktop repo if at all.
 
 **Next, in order:**
 
-1. **Highlights and notes, and the movable Highlight/Note strip** (`PARITY.md`),
-   now that selection exists; and reading while opening, above.
+1. **Reading while a long document opens**, above.
 2. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
    needs its hashes in `piper-worker.js`'s `VOICES`, and a sample clip.
 3. **Keep the reader's place across a reload** (scroll and zoom, not only the

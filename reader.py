@@ -12,9 +12,13 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import pymupdf
+
+from mimick.annotations import AnnotationStore, _write_range
 from mimick.document import Document, _merge_rects, align_marks
 
 _document: Document | None = None
+_store: AnnotationStore | None = None
 # The sentences made from a selection, read by the same path as the document's.
 _selection: list = []
 _folder = Path(tempfile.mkdtemp())
@@ -22,7 +26,7 @@ _folder = Path(tempfile.mkdtemp())
 
 def open_document(pdf_bytes: bytes, name: str) -> dict:
     """Open a PDF, closing whatever was open, and describe it."""
-    global _document
+    global _document, _store
     close()
     # Document wants a path; Pyodide's file system gives it one. The name is
     # kept so the title falls back to it, as on the desktop.
@@ -32,6 +36,11 @@ def open_document(pdf_bytes: bytes, name: str) -> dict:
         _document = Document(path)
     finally:
         path.unlink(missing_ok=True)
+    try:
+        _store = AnnotationStore(_document)
+    except Exception:
+        # A document whose annotations cannot be read is still worth reading aloud.
+        _store = None
     return {
         "title": _document.title,
         "pages": [list(_document.page_size(n)) for n in range(_document.page_count)],
@@ -178,9 +187,131 @@ def caret_place(caret: int, trailing: bool) -> list | None:
     return [word.page, round(x1 if at_end else x0, 2), round(y0, 2), round(y1, 2)]
 
 
+# -- highlights and notes ---------------------------------------------------
+#
+# The desktop's AnnotationStore, on the open document. Every change answers
+# with the whole list, in the store's order (page, then down the page), so the
+# page never has to keep its own copy in step. An annotation is known to the
+# page by its PDF object number, ``xref``.
+#
+# What the browser keeps between visits is ``snapshot``: every highlight as
+# plain data, a few hundred bytes each. Writing the whole PDF after every change
+# would mean a hundred megabytes a time for a scanned book, so the PDF is only
+# made when it is downloaded.
+
+
+def _live() -> AnnotationStore:
+    if _store is None:
+        raise RuntimeError("this document's highlights cannot be read")
+    return _store
+
+
+def _item(xref: int):
+    for item in _live().items:
+        if item.xref == xref:
+            return item
+    return None
+
+
+def _author_of(item) -> str:
+    page = _open().doc.load_page(item.page)
+    for annot in page.annots():
+        if annot.xref == item.xref:
+            return (annot.info or {}).get("title") or ""
+    return ""
+
+
+def annotations() -> list[dict]:
+    """Every highlight, in order down the document."""
+    if _store is None:
+        return []
+    return [{
+        "xref": item.xref, "page": item.page, "rects": [_rect(r) for r in item.rects],
+        "text": item.text, "title": item.title, "note": item.note,
+        "colour": [round(c, 3) for c in item.colour],
+        "first": item.first_word, "last": item.last_word, "top": round(item.top, 2),
+    } for item in _store.items]
+
+
+def annotation_add(first: int, last: int, colour: list, note: str = "", title: str = "",
+                   author: str = "") -> dict:
+    """Highlight words ``first`` to ``last``: the new one's xref, and the list."""
+    item = _live().add(first, last, tuple(colour), note=note, title=title, author=author)
+    return {"xref": item.xref if item else None, "annotations": annotations()}
+
+
+def annotation_set(xref: int, note: str, title: str, colour: list) -> list[dict]:
+    """Change a highlight's note, heading and colour."""
+    item = _item(xref)
+    if item is not None:
+        _live().set_note(item, note, title)
+        if any(abs(a - b) >= 0.02 for a, b in zip(item.colour, colour)):
+            _live().set_colour(item, tuple(colour))
+    return annotations()
+
+
+def annotation_remove(xref: int) -> list[dict]:
+    item = _item(xref)
+    if item is not None:
+        _live().remove(item)
+    return annotations()
+
+
+def snapshot() -> list[dict]:
+    """Every highlight as plain data, to be kept by the browser."""
+    return [{**entry, "author": _author_of(_item(entry["xref"]))} for entry in annotations()]
+
+
+def restore(saved: list) -> list[dict]:
+    """Put back the highlights kept by ``snapshot``, in place of the file's own.
+
+    The snapshot was taken of this same document, file highlights and all, so
+    it replaces them rather than adding to them. Rectangles are put back as
+    they were saved rather than worked out again from the word indices, so a
+    highlight stays where it was drawn even if the reading code changes."""
+    store = _live()
+    doc = _open().doc
+    for number in range(doc.page_count):
+        page = doc.load_page(number)
+        for annot in list(page.annots(types=(pymupdf.PDF_ANNOT_HIGHLIGHT,))):
+            page.delete_annot(annot)
+    for entry in saved:
+        page = doc.load_page(int(entry["page"]))
+        annot = page.add_highlight_annot(quads=[pymupdf.Rect(*r).quad for r in entry["rects"]])
+        annot.set_colors(stroke=tuple(entry["colour"]))
+        annot.set_info(content=entry.get("note") or "", title=entry.get("author") or store.author,
+                       subject=entry.get("title") or "")
+        annot.update()
+        if int(entry.get("first", -1)) >= 0:
+            _write_range(_open(), annot.xref, int(entry["first"]), int(entry["last"]))
+    store.reload()
+    store.dirty = False
+    return annotations()
+
+
+def notes_pdf() -> bytes:
+    """The document with its highlights, as a PDF of its own, checked that it
+    opens again with the same pages and highlights -- AnnotationStore.save_as,
+    without a file to write to."""
+    doc = _open().doc
+    data = doc.tobytes(garbage=3, deflate=True)
+    count = lambda d: sum(len(list(d.load_page(n).annots(types=(pymupdf.PDF_ANNOT_HIGHLIGHT,))))
+                          for n in range(d.page_count))
+    with pymupdf.open(stream=data, filetype="pdf") as written:
+        if written.page_count != doc.page_count or count(written) != count(doc):
+            raise OSError("the PDF just made did not come back with every page and highlight")
+    return data
+
+
+def set_author(name: str) -> None:
+    """The name saved with each new highlight, which other PDF readers show."""
+    _live().author = name or "Mimick"
+
+
 def close() -> None:
-    global _document, _selection
+    global _document, _selection, _store
     _selection = []
+    _store = None
     if _document is not None:
         _document.close()
         _document = None

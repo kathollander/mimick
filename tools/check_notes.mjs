@@ -1,0 +1,192 @@
+/* Highlights, notes, the notes panel and the Highlight/Add note strip, in a
+ * real Chrome.
+ *
+ *     python3 serve.py &          # the page, on 8731
+ *     node tools/check_notes.mjs
+ *
+ * Drives the reader with real clicks and keys (tools/cdp.mjs), against the
+ * sample, which already carries one note of its own on page 2. Checks
+ * highlighting, undo and redo, picking out, copying, the note editor, the
+ * right-click menu, stepping between notes, notes coming back after a reload,
+ * Download a copy (opened again with PyMuPDF from the desktop's venv), the
+ * panel and its filters, and the strip's four homes. Needs no voice.
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { CTRL, SHIFT, root, startReader } from "./cdp.mjs";
+
+const SAMPLE = path.join(root, "sample/mdpi-sample.pdf");
+const r = await startReader("check-notes");
+const { ev, wait, sleep, check } = r;
+await r.load();
+await r.reset();
+await r.openPdf(SAMPLE);
+await wait(`!document.getElementById("markup-highlight").disabled`);
+
+const state = () => ev(`JSON.stringify({
+  onPage: document.querySelectorAll('.page[data-page="0"] .hl.annot').length,
+  colours: [...document.querySelectorAll('.page[data-page="0"] .hl.annot')].map((b) => b.style.background),
+  cards: [...document.querySelectorAll("#cards .note-card")].map((c) => c.textContent),
+  picked: document.querySelectorAll("#cards .note-card.picked").length,
+  badge: document.querySelectorAll(".page .remove").length,
+  quotes: document.getElementById("filter-quotes").textContent,
+  notes: document.getElementById("filter-notes").textContent,
+  count: document.getElementById("note-count").textContent,
+  kept: document.getElementById("notes-kept").textContent,
+  status: document.getElementById("status").textContent })`).then(JSON.parse);
+
+let s = await state();
+check("the sample's own note is counted", s.notes === "Notes  1" && s.quotes === "Highlights", [s.quotes, s.notes]);
+
+// 1. Select and highlight.
+const phrase = [await r.at(283, 268), await r.at(330, 268)];
+await r.drag(...phrase);
+await r.key("h", CTRL);
+await sleep(600);
+s = await state();
+check("Ctrl+H highlights the selection", s.onPage === 1 && /Highlighted — 2 in this document/.test(s.status), [s.onPage, s.status]);
+check("…and its card is in the panel, quoting it", s.cards.length === 1 && s.cards[0].includes("is also at the"), s.cards);
+check("…counted on the chip", s.quotes === "Highlights  1", s.quotes);
+
+// 2. Undo and redo.
+await r.key("z", CTRL); await sleep(500);
+s = await state();
+check("Ctrl+Z takes it back", s.onPage === 0 && s.cards.length === 0 && /Highlight removed/.test(s.status), [s.onPage, s.status]);
+await r.key("z", CTRL | SHIFT); await sleep(500);
+s = await state();
+check("Ctrl+Shift+Z puts it back", s.onPage === 1 && /Highlight put back/.test(s.status), [s.onPage, s.status]);
+
+// 3. Pick it out and copy it.
+await r.click(await r.at(300, 268)); await sleep(400);
+s = await state();
+check("clicking it picks it out: card lit, × in the margin", s.picked === 1 && s.badge === 1, [s.picked, s.badge]);
+await r.key("c", CTRL); await sleep(400);
+const copied = await ev(`navigator.clipboard.readText()`);
+check("Ctrl+C with nothing selected copies the highlight", copied === "is also at the", copied);
+
+// 4. Write a note on it.
+await r.click(await r.at(300, 268), 2); await sleep(500);
+check("double-clicking it opens the note editor", await ev(`document.getElementById("note-dialog").open`));
+await r.click(await r.centre("#note-title"));
+await r.type("Where it lives");
+await r.click(await r.centre("#note-text"));
+await r.type("Knowledge sits in the land.");
+await sleep(200);
+s = await state();
+check("the card shows the note as it is typed", s.cards[0]?.includes("Knowledge sits in the land."), s.cards);
+await r.click(await r.centre('#note-colours .swatch[title="Green"]'));
+await r.key("Enter", CTRL); await sleep(600);
+s = await state();
+check("Ctrl+Enter saves it: heading and note on the card", !(await ev(`document.getElementById("note-dialog").open`))
+      && s.cards[0]?.startsWith("Where it lives") && /Note saved/.test(s.status), [s.cards, s.status]);
+check("…in the colour picked", s.colours[0]?.startsWith("rgba(158, 230, 153"), s.colours);
+check("…and the chips count it as a note now", s.notes === "Notes  2" && s.quotes === "Highlights", [s.quotes, s.notes]);
+await r.key("z", CTRL); await sleep(500);
+s = await state();
+check("Ctrl+Z undoes the note change", !s.cards[0]?.includes("Knowledge") && /Note change undone/.test(s.status), s.cards);
+await r.key("z", CTRL | SHIFT); await sleep(500);
+
+// 5. The right-click menu on a highlight, and deleting.
+await r.rightClick(await r.at(300, 268));
+const labels = await r.menuLabels();
+check("right-click on it offers copy, edit, read and delete",
+      ["Copy the highlighted passage", "Copy the note", "Copy both", "Edit this note…", "Read this passage", "Delete this highlight"]
+        .every((l) => labels?.includes(l)), labels);
+await r.menu("Copy both"); await sleep(300);
+const both = await ev(`navigator.clipboard.readText()`);
+check("Copy both gives the passage and the note", both === "“is also at the”\n\nWhere it lives\nKnowledge sits in the land.", both);
+await r.rightClick(await r.at(300, 268));
+await r.menu("Delete this highlight"); await sleep(500);
+s = await state();
+check("Delete this highlight removes it", s.onPage === 0 && /Ctrl\+Z puts it back/.test(s.status), [s.onPage, s.status]);
+await r.key("z", CTRL); await sleep(500);
+s = await state();
+check("…and Ctrl+Z brings it back with its note", s.onPage === 1 && s.cards[0]?.includes("Knowledge"), s.cards);
+
+// 6. A second highlight, removed with its ×.
+await r.drag(await r.at(168, 346), await r.at(215, 346));
+await r.key("h", CTRL); await sleep(500);
+await r.click(await r.at(190, 346)); await sleep(300);
+await r.click(await r.centre(".page .remove")); await sleep(500);
+s = await state();
+check("the × on a picked-out highlight removes it", s.onPage === 1, s.onPage);
+
+// 7. Next and previous note.
+await r.click(await r.at(40, 40));
+await r.key("j", CTRL); await sleep(400);
+await r.key("j", CTRL); await sleep(600);
+const page = Number(await ev(`document.getElementById("page").value`));
+s = await state();
+check("Ctrl+J twice goes to the sample's own note, on page 2", page === 2 && /On the real article/.test(s.status + s.cards.join()), [page, s.status]);
+await r.key("k", CTRL); await sleep(600);
+check("Ctrl+K comes back to page 1", Number(await ev(`document.getElementById("page").value`)) === 1);
+
+// 8. Kept in the browser: reload and open the same PDF again.
+await wait(`/Kept in this browser/.test(document.getElementById("notes-kept").textContent)`, 10000);
+check("the panel says they are kept", true);
+await r.load();
+await r.openPdf(SAMPLE);
+await wait(`!document.getElementById("markup-highlight").disabled`);
+await sleep(500);
+s = await state();
+check("after a reload, the highlights come back", s.onPage === 1 && s.notes === "Notes  2" && /from last time are back/.test(s.status),
+      [s.onPage, s.notes, s.status]);
+
+// 9. Download a copy.
+for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));
+await r.key("s", CTRL);
+let file = null;
+for (let i = 0; i < 40 && !file; i++) {
+  await sleep(250);
+  file = fs.readdirSync(r.downloads).find((f) => f.endsWith(".pdf"));
+}
+check("Ctrl+S downloads a copy named (notes)", file === "mdpi-sample (notes).pdf", file);
+if (file) {
+  const found = execFileSync(path.join(root, "../Mimick/.venv/bin/python"), ["-c", `
+import pymupdf, sys
+d = pymupdf.open(sys.argv[1])
+print(sorted((a.info["subject"], a.info["content"]) for p in d for a in p.annots()))`, path.join(r.downloads, file)]).toString().trim();
+  check("…with both notes in it as real PDF annotations",
+        found.includes("('Where it lives', 'Knowledge sits in the land.')") && found.includes("On the real article."), found);
+}
+
+// 10. The panel and the strip.
+await r.click(await r.centre("#filter-quotes")); await r.click(await r.centre("#filter-notes")); await sleep(300);
+check("switching both filters off empties the panel", (await state()).cards.length === 0);
+await r.click(await r.centre("#filter-quotes")); await r.click(await r.centre("#filter-notes")); await sleep(300);
+const home = () => ev(`JSON.stringify([document.getElementById("markup").dataset.home, document.getElementById("markup").parentElement.id,
+  document.getElementById("markup-top").hidden, document.getElementById("markup-bottom").hidden, document.getElementById("notes").hidden])`).then(JSON.parse);
+check("the strip starts in the notes panel", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false]), await home());
+await r.key("b", CTRL); await sleep(400);
+check("Ctrl+B hides the panel, and the strip moves to the top", JSON.stringify(await home()) === JSON.stringify(["top", "markup-top", false, true, true]), await home());
+const grip = await r.centre("#markup-grip");
+await r.drag(grip, [600, 450], 8);
+check("dragged over the page, it floats there", (await home())[0] === "float");
+await r.drag(await r.centre("#markup-grip"), [600, 830], 8);
+check("dragged to the foot, it goes across the bottom", JSON.stringify((await home()).slice(0, 4)) === JSON.stringify(["bottom", "markup-bottom", true, false]), await home());
+await r.key("b", CTRL); await sleep(400);
+await r.drag(await r.centre("#markup-grip"), await r.centre("#cards"), 8);
+check("dragged onto the notes panel, it goes back in", (await home())[0] === "panel", await home());
+await r.key("h", CTRL | SHIFT); await sleep(300);
+check("Ctrl+Shift+H hides it", await ev(`document.getElementById("markup").hidden`));
+await r.key("h", CTRL | SHIFT); await sleep(300);
+
+// 11. The menus in the header.
+await r.click(await r.centre("#display-menu"));
+const display = await r.menuLabels();
+check("Display lists the panel, its filters, and where the buttons go",
+      ["Notes panel", "Show highlights in the panel", "Highlight and note buttons", "Loose over the page"].every((l) => display?.includes(l)), display);
+await r.key("Escape");
+await r.click(await r.centre("#notes-menu"));
+const notesMenu = await r.menuLabels();
+check("Notes lists highlighting, stepping, undo and download",
+      ["Highlight selection", "Go to next note", "Undo the last highlight or note", "Download a copy with your notes", "Note appearance…"]
+        .every((l) => notesMenu?.some((m) => m.endsWith(l))), notesMenu);
+await r.menu("Note appearance…");
+await r.click(await r.centre("#style-size"));
+await ev(`(() => { const i = document.getElementById("style-size"); i.value = 14; i.dispatchEvent(new Event("input")); })()`);
+await r.key("Enter"); await sleep(300);
+const size = await ev(`document.getElementById("cards").style.fontSize`);
+check("Note appearance changes the size of the cards", size === `${14 * 1.25}pt`, size);
+r.finish();
