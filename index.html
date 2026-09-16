@@ -1,0 +1,133 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mimick spike — layout analysis in a tab</title>
+<style>
+  :root { color-scheme: light dark; --ink:#14161a; --dim:#5d6470; --line:#d9dde3; --bg:#fbfbfc; --panel:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e7e9ee; --dim:#98a0ad; --line:#2c313a; --bg:#15171b; --panel:#1c1f25; }
+  }
+  body { margin:0; padding:2rem 1rem 4rem; background:var(--bg); color:var(--ink);
+         font:14px/1.55 system-ui, sans-serif; }
+  main { max-width:62rem; margin:0 auto; }
+  h1 { font-size:1.3rem; margin:0 0 .3rem; }
+  p.lede { color:var(--dim); margin:0 0 1.5rem; max-width:44rem; }
+  button { font:inherit; padding:.55rem 1.1rem; border:1px solid var(--line);
+           border-radius:7px; background:var(--panel); color:var(--ink); cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  #log { margin:1.2rem 0; padding:.9rem 1rem; background:var(--panel); border:1px solid var(--line);
+         border-radius:8px; font-family:ui-monospace, monospace; font-size:12.5px;
+         white-space:pre-wrap; min-height:3rem; }
+  table { border-collapse:collapse; width:100%; font-size:12.5px; }
+  th, td { text-align:left; padding:.35rem .6rem; border-bottom:1px solid var(--line);
+           vertical-align:top; }
+  th { color:var(--dim); font-weight:600; }
+  td.kind { white-space:nowrap; font-family:ui-monospace, monospace; }
+  tr.skip td { color:var(--dim); }
+  .wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  h2 { font-size:1rem; margin:1.8rem 0 .5rem; }
+</style>
+
+<main>
+  <h1>Mimick spike: layout analysis in a tab</h1>
+  <p class="lede">
+    Loads Pyodide and MuPDF from this site — nothing from a CDN — then runs the
+    desktop app's <code>layout.analyse</code>, unmodified, over the sample
+    paper. If the regions below read sensibly, and the two-column pages are cut
+    down rather than across, the foundation is proven.
+  </p>
+
+  <button id="go">Run the spike</button>
+  <div id="log">Idle.</div>
+  <div id="out"></div>
+</main>
+
+<script src="vendor/pyodide/pyodide.js"></script>
+<script>
+const log = document.getElementById("log");
+const out = document.getElementById("out");
+const go  = document.getElementById("go");
+
+// Pinned deliberately: Pyodide bundles PyMuPDF 1.26.3, which extracts one
+// character more than the desktop app's 1.28.2 in twelve regions of the
+// sample. Let the runtime choose and the two versions read documents slightly
+// differently, silently. See docs/PORT-LOG.md.
+const WHEEL = "pymupdf-1.28.2-cp313-abi3-pyemscripten_2025_0_wasm32.whl";
+let lines = [];
+const say = (s) => { lines.push(s); log.textContent = lines.join("\n"); };
+const since = (t) => ((performance.now() - t) / 1000).toFixed(2) + "s";
+
+go.addEventListener("click", async () => {
+  go.disabled = true;
+  lines = [];
+  out.innerHTML = "";
+  try {
+    let t = performance.now();
+    say("Loading Pyodide from vendor/ …");
+    const pyodide = await loadPyodide({ indexURL: "vendor/pyodide/" });
+    say(`  Python ${pyodide.version ? "" : ""}ready in ${since(t)}`);
+
+    t = performance.now();
+    say("Loading PyMuPDF (vendored wheel, pinned to the desktop app's version) …");
+    await pyodide.loadPackage("vendor/pyodide/" + WHEEL);
+    say(`  MuPDF ready in ${since(t)}`);
+
+    // The shared modules, copied from the desktop app by tools/port.sh.
+    say("Copying the shared reading logic in …");
+    for (const name of ["layout.py", "citations.py", "speech.py"]) {
+      const src = await (await fetch("py/" + name)).text();
+      pyodide.FS.writeFile("/home/pyodide/" + name, src);
+    }
+    pyodide.FS.writeFile("/home/pyodide/spike.py",
+      await (await fetch("spike.py")).text());
+
+    t = performance.now();
+    say("Opening the sample paper and analysing it …");
+    const pdf = new Uint8Array(await (await fetch("sample/mdpi-sample.pdf")).arrayBuffer());
+    pyodide.globals.set("pdf_bytes", pdf);
+    const result = await pyodide.runPythonAsync(`
+import sys, json
+sys.path.insert(0, "/home/pyodide")
+import spike
+json.dumps(spike.run(bytes(pdf_bytes.to_py())))
+`);
+    const data = JSON.parse(result);
+    say(`  ${data.page_count} pages analysed in ${since(t)}`);
+
+    const kinds = {};
+    for (const p of data.pages) for (const r of p.regions) kinds[r.kind] = (kinds[r.kind] || 0) + 1;
+    say("");
+    say("Regions: " + Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(", "));
+    render(data);
+  } catch (err) {
+    say("");
+    say("FAILED: " + (err && err.message ? err.message : String(err)));
+    console.error(err);
+  } finally {
+    go.disabled = false;
+  }
+});
+
+function render(data) {
+  for (const page of data.pages) {
+    const h = document.createElement("h2");
+    h.textContent = `Page ${page.page}`;
+    out.append(h);
+    const wrap = document.createElement("div");
+    wrap.className = "wrap";
+    const table = document.createElement("table");
+    table.innerHTML = "<tr><th>#</th><th>What</th><th>Why</th><th>Rect</th><th>Text</th></tr>";
+    page.regions.forEach((r, i) => {
+      const tr = document.createElement("tr");
+      if (!r.reads) tr.className = "skip";
+      tr.innerHTML = `<td>${i + 1}</td><td class="kind">${r.label}</td>` +
+        `<td>${escapeHtml(r.reason)}</td><td class="kind">${r.rect.join(", ")}</td>` +
+        `<td>${escapeHtml(r.text)}</td>`;
+      table.append(tr);
+    });
+    wrap.append(table);
+    out.append(wrap);
+  }
+}
+const escapeHtml = (s) => (s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+</script>
