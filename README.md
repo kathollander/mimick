@@ -66,6 +66,8 @@ when it was not.
 
 ## Where the plan lives
 
+For picking the work up, start with [`docs/HANDOFF.md`](docs/HANDOFF.md).
+
 In the desktop repository, at
 [`docs/FUTURE-FEATURES.md`](https://github.com/kathollander/mimick/blob/main/docs/FUTURE-FEATURES.md)
 — the decision, the eight voices, the roadblocks and the build order.
