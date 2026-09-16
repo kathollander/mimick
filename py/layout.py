@@ -20,6 +20,8 @@ import collections
 import re
 from dataclasses import dataclass, field
 
+import pymupdf
+
 # Whitespace narrower than this is not a column or paragraph break. Journal
 # sidebars sit closer to the text than you would guess -- the gap in the sample
 # article is 12.7pt -- so this has to stay fairly tight.
@@ -238,15 +240,21 @@ def _mark_references(result: dict[int, list[Region]], page_count: int) -> None:
             region.reason = "the reference list, and what follows it"
 
 
+# Text only. By default the "dict" extraction also copies out every image on
+# the page, bytes and all, which on a scanned book -- a full-page picture behind
+# every page of text -- made it thirty times slower and opening a 600-page book
+# take over three minutes. Nothing here looks at images.
+_TEXT_ONLY = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_IMAGES
+
+
 def _span_sizes(page) -> list[tuple[float, float, float, int]]:
     """Every run of text on a page as (centre x, centre y, type size, length).
 
     Region rectangles come from the block extraction, which does not carry a
-    font size, so the sizes are matched back to regions by position. The extra
-    pass costs a few hundredths of a second on a long document.
+    font size, so the sizes are matched back to regions by position.
     """
     spans: list[tuple[float, float, float, int]] = []
-    for block in page.get_text("dict").get("blocks", ()):
+    for block in page.get_text("dict", flags=_TEXT_ONLY).get("blocks", ()):
         for line in block.get("lines", ()):
             for span in line.get("spans", ()):
                 text = span.get("text") or ""
@@ -346,7 +354,7 @@ def _text_blocks(page) -> list[tuple[float, float, float, float, str]]:
     Everything else comes back exactly as MuPDF gave it.
     """
     blocks: list[tuple[float, float, float, float, str]] = []
-    for block in page.get_text("dict").get("blocks", ()):
+    for block in page.get_text("dict", flags=_TEXT_ONLY).get("blocks", ()):
         if block.get("type") != 0:
             continue
         lines = []
