@@ -16,39 +16,40 @@ expected, what happened.
 
 **Checked by Kat on 16 September**, all working. What came of it: the sample
 button is gone; Page Up and Page Down no longer move the zoom slider after it
-has been dragged; one document would not open, and a 212-page one was slow.
+has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
+(`HANDOFF.md`, **Next**). The 212-page curriculum opens in about 11s.
 
 **Opening**
-- [ ] The page says "Getting ready…", then "Ready" within about 10 seconds
-- [ ] **Open…** opens a PDF of your own
-- [ ] `Ctrl`+`O` does the same
-- [ ] Dragging a PDF onto the page opens it (the page gets a blue outline while you drag)
-- [ ] Dropping something that isn't a PDF says so, and doesn't break anything
-- [ ] Opening a second PDF replaces the first cleanly
-- [ ] A two-column paper and a long one (50+ pages) both open
+- [x] The page says "Getting ready…", then "Ready" within about 10 seconds
+- [x] **Open…** opens a PDF of your own
+- [x] `Ctrl`+`O` does the same
+- [x] Dragging a PDF onto the page opens it (the page gets a blue outline while you drag)
+- [x] Dropping something that isn't a PDF says so, and doesn't break anything
+- [x] Opening a second PDF replaces the first cleanly
+- [x] A two-column paper and a long one (50+ pages) both open
 
 **Moving around**
-- [ ] Scrolling is smooth, and pages fill in quickly as they come into view
-- [ ] The page number at the bottom keeps up as you scroll
-- [ ] ‹ and › turn one page; they grey out on the first and last page
-- [ ] Typing a page number and pressing Enter jumps there
-- [ ] `Page Up` / `Page Down` turn pages
-- [ ] `Ctrl`+`↑` / `↓` turn pages; `Ctrl`+`Home` / `End` go to the first and last
+- [x] Scrolling is smooth, and pages fill in quickly as they come into view
+- [x] The page number at the bottom keeps up as you scroll
+- [x] ‹ and › turn one page; they grey out on the first and last page
+- [x] Typing a page number and pressing Enter jumps there
+- [x] `Page Up` / `Page Down` turn pages
+- [x] `Ctrl`+`↑` / `↓` turn pages; `Ctrl`+`Home` / `End` go to the first and last
 
 **Zoom**
-- [ ] − and + zoom out and in; the slider and the % box follow
-- [ ] Dragging the slider zooms
-- [ ] Typing a % and pressing Enter zooms to it
-- [ ] `Ctrl`+`+`, `Ctrl`+`−`, `Ctrl`+`0` zoom the page, not the whole browser
-- [ ] `Ctrl`+scroll wheel (or pinch on a trackpad) zooms the page, not the browser
-- [ ] You stay at the same spot in the document after zooming
-- [ ] Text is sharp at every zoom once the page has redrawn (a moment of blur is expected)
-- [ ] Zoomed in past the window width, you can scroll sideways
+- [x] − and + zoom out and in; the slider and the % box follow
+- [x] Dragging the slider zooms
+- [x] Typing a % and pressing Enter zooms to it
+- [x] `Ctrl`+`+`, `Ctrl`+`−`, `Ctrl`+`0` zoom the page, not the whole browser
+- [x] `Ctrl`+scroll wheel (or pinch on a trackpad) zooms the page, not the browser
+- [x] You stay at the same spot in the document after zooming
+- [x] Text is sharp at every zoom once the page has redrawn (a moment of blur is expected)
+- [x] Zoomed in past the window width, you can scroll sideways
 
 **Overall**
-- [ ] It looks and feels like the desktop app
-- [ ] Resizing the window keeps your place
-- [ ] Nothing is missing that you'd want before reading aloud goes on top
+- [x] It looks and feels like the desktop app
+- [x] Resizing the window keeps your place
+- [x] Nothing is missing that you'd want before reading aloud goes on top
 
 ## The voice — http://localhost:8731/voice.html
 

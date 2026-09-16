@@ -1,6 +1,7 @@
 # Handoff
 
-Where the browser version stands, for a fresh session. Written 16 September 2026.
+Where the browser version stands, for a fresh session. Written 16 September 2026,
+and updated that evening after Kat tested the reader.
 
 ## Read first
 
@@ -44,9 +45,15 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
   it on the page), scroll, turn pages, zoom 40–400%, in the
   desktop's colours and bar layout. Pyodide runs in `js/document-worker.js`;
   pages are drawn only while on screen or next to it (`js/page-layout.js`).
-  `node tools/check_reader.mjs` passes. Nothing reads aloud yet.
+  `node tools/check_reader.mjs` passes. Nothing reads aloud yet. **Kat has
+  tested it by hand** (`TESTING.md`): everything on the list works.
+- **Step 4c, part 1, sentences to the page: done.** See **Next**.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
 - **Local only.** No remote. The public GitHub repo is Kat's call.
+- **`sample readings/` is Kat's own documents**, git-ignored because they are
+  not ours to redistribute, and **to be deleted before this goes anywhere near
+  public**. Use them for testing until then: a 598-page scanned book
+  (*Constructing meaning*) and a 212-page curriculum.
 
 ## Running it
 
@@ -58,6 +65,17 @@ node tools/check_timing.mjs
 node tools/check_reading.mjs
 node tools/check_reader.mjs
 ```
+
+**A headless Chrome, driven from Node, is the easiest way to test the page**,
+and works when the Claude in Chrome extension is not connected. Start
+`google-chrome --headless=new --remote-debugging-port=9333
+--user-data-dir=<scratch folder>`, open a tab through
+`http://localhost:9333/json/new?<url>` (a PUT), and talk to its
+`webSocketDebuggerUrl` with Node's own `WebSocket`: `DOM.setFileInputFiles` on
+`#file` opens a PDF, `Input.dispatchKeyEvent` and `Input.dispatchMouseEvent`
+give real keys and clicks, `Runtime.evaluate` reads the state back. That is
+how the Page Up bug below was found. Stop it by process ID -- `pkill -f` with
+the port in the pattern also matches, and kills, the shell running it.
 
 Claude in Chrome drives these pages: click by screen position, not by element
 reference. A reading at 1× outlasts the 45-second limit on one script call, so
@@ -91,8 +109,28 @@ page draw -- or ask Kat to bring the tab to the front.
 
 ## Next
 
-**Kat is working through `TESTING.md`**: `reader.html` by hand, and `voice.html`
-on an ordinary laptop. Ask what she found before building on either.
+**Kat tested `reader.html` on 16 September, and it passed.** What came of it:
+
+- **The sample button is gone.** A PDF is opened only by what the reader
+  chooses: Open…, Ctrl+O, or dropping one on the page.
+- **Page Up and Page Down moved the zoom slider** once it had been dragged, a
+  range input keeping the keys; the slider hands focus back on `pointerup`.
+- **Ctrl+0 works, but only shows when zoomed** -- it goes back to 125%, the
+  desktop's own default. Kat found it did nothing at 125%, which is right.
+- **A 598-page scanned book would not open**: it took 258s. The layout's
+  `get_text("dict")` copied out every page image, twice a page. Fixed in the
+  desktop repo and ported -- 35s here now, 12s on the desktop, identical
+  reading. Still a long wait with nothing on screen; see the open question.
+
+**Not yet tested:** `voice.html` on an ordinary laptop, and the two desktop
+items at the bottom of `TESTING.md`.
+
+**Open question for Kat: long documents.** 35s of "Getting ready" for a
+600-page book. The pages could show as soon as MuPDF opens the file, with the
+sentences built afterwards and a line saying how far along -- `Document`
+builds every sentence in its constructor, so this means building page by page
+from the worker, and reading cannot start until it is done (or until the
+page being read is). Ask before building it.
 
 **Step 4: the reader**, in three parts:
 

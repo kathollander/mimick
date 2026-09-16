@@ -286,3 +286,19 @@ the words match the desktop's baseline to the rectangle, 6,749 of 6,750 marks
 light a word and always in order, every word sits inside its tint, and a click
 on a word finds its sentence. The 25 spoken words that never light are the
 second halves of hyphenated words and lone punctuation, as on the desktop.
+
+## Kat's test of the reader, and long documents
+
+**16 September 2026.** Everything on the reader's checklist works. The one
+real failure was *Constructing meaning*, a 598-page scanned book, which looked
+as though it would not open: it took **258s** under Pyodide (199s natively).
+Profiling a 25-page cut of it put 90% of the time in
+`JM_make_textpage_dict` -- `layout._span_sizes` and `layout._text_blocks` each
+ask for `get_text("dict")`, and by default that copies out every image on the
+page, which on a scan is a full-page picture. 138ms a call, against 4ms with
+`TEXT_PRESERVE_IMAGES` left out of the flags.
+
+Fixed in the desktop repo and ported: **35s here, 12s natively**, with the same
+15,096 sentences and 267,441 words, and the sample identical to the baseline.
+The 212-page curriculum went from 12s to 10.6s. Opening is still roughly 3×
+slower under Pyodide than natively.
