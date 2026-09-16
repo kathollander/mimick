@@ -1,17 +1,16 @@
 /* The document worker: Pyodide, MuPDF and the desktop's document.py, off the
- * page's own thread so opening a document or drawing a page never freezes it
- * (FUTURE-FEATURES.md, roadblock 3).
+ * page's own thread so opening a document never freezes it (FUTURE-FEATURES.md,
+ * roadblock 3). Pages are drawn by js/page-worker.js, so they can show while
+ * this is still opening.
  *
  * Messages in:
  *   { type: "open", id, bytes, name }     bytes: ArrayBuffer, transferred
- *   { type: "render", id, page, scale }   scale: device pixels per PDF point
  *   { type: "sentences", id }
  *   { type: "align", id, sentence, marks }  marks: [[seconds, word]] from the voice
  *   { type: "sentenceAt", id, page, x, y }  x, y in PDF points
  * Messages out:
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, openMs }
- *   { type: "rendered", id, page, scale, bitmap, renderMs }   bitmap transferred
  *   { type: "sentences", id, sentences }
  *       each { page, text, words: [[index, page, [x0, y0, x1, y1]]],
  *              lines: [[page, [x0, y0, x1, y1]]] }   see reader.sentences
@@ -21,9 +20,9 @@
  *
  * Python starts loading the moment the worker does. Messages are handled one at
  * a time, in order -- the voice worker taught that (HANDOFF.md, trap 7) -- so a
- * render asked for while a document opens simply waits for it.
+ * question asked while a document opens simply waits for it.
  */
-importScripts("../vendor/pyodide/pyodide.js", "python.js", "pixels.js");
+importScripts("../vendor/pyodide/pyodide.js", "python.js");
 
 const base = new URL("../", self.location.href).href;
 const started = performance.now();
@@ -48,7 +47,6 @@ self.onmessage = ({ data }) => {
     try {
       const py = await python;
       if (data.type === "open") await open(py, data);
-      else if (data.type === "render") render(py, data);
       else if (data.type === "sentences") sentences(py, data);
       else if (data.type === "align") align(py, data);
       else if (data.type === "sentenceAt") sentenceAt(py, data);
@@ -71,27 +69,6 @@ async function open(py, { id, bytes, name }) {
   } finally {
     openFrom.destroy();
   }
-}
-
-function render(py, { id, page, scale }) {
-  const t0 = performance.now();
-  const reader = py.globals.get("reader");
-  const result = reader.render(page, scale);
-  const [width, height, samples] = result.toJs({ depth: 1 });
-  const buffer = samples.getBuffer("u8");
-  let rgba;
-  try {
-    rgba = MimickPixels.rgbToRgba(buffer.data, width, height);
-  } finally {
-    buffer.release();
-    samples.destroy();
-    result.destroy();
-    reader.destroy();
-  }
-  createImageBitmap(new ImageData(rgba, width, height)).then((bitmap) => {
-    self.postMessage({ type: "rendered", id, page, scale, bitmap, renderMs: performance.now() - t0 },
-                     [bitmap]);
-  });
 }
 
 /* Calls a function in reader.py and gives back its result as plain data,

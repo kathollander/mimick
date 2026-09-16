@@ -1,18 +1,16 @@
-"""The browser reader's side of Python: one open document, its pages drawn,
-and its sentences handed to the page.
+"""The browser reader's side of Python: one open document, and its sentences
+handed to the page. Pages are drawn elsewhere, by ``pages.py``.
 
 Glue, not reading logic. Everything about what a page says comes from the
 desktop's ``document.py`` (the package ``mimick``); this only keeps the open
-``Document`` between calls from js/document-worker.js and hands back pixels and
-plain data. Runs in the document worker, never on the page's own thread.
+``Document`` between calls from js/document-worker.js and hands back plain
+data. Runs in the document worker, never on the page's own thread.
 """
 
 from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-
-import pymupdf
 
 from mimick.document import Document, _merge_rects, align_marks
 
@@ -38,13 +36,6 @@ def open_document(pdf_bytes: bytes, name: str) -> dict:
         "sentences": len(_document.sentences),
         "words": len(_document.words),
     }
-
-
-def render(page: int, scale: float) -> tuple[int, int, bytes]:
-    """One page as RGB pixels at ``scale`` pixels per PDF point."""
-    pixmap = _open().doc.load_page(page).get_pixmap(
-        matrix=pymupdf.Matrix(scale, scale), alpha=False)
-    return pixmap.width, pixmap.height, pixmap.samples
 
 
 def _open() -> Document:

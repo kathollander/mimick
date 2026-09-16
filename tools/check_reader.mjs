@@ -9,8 +9,9 @@
  *      only pages actually on screen count as on screen, plus one either side
  *      for drawing ahead; a place in the document survives a zoom; and no
  *      page is ever drawn bigger than MAX_PAGE_PIXELS.
- *   2. reader.py and js/pixels.js, under Pyodide -- the sample opens, and a
- *      page comes back as an image of the right size with print on it.
+ *   2. reader.py, pages.py and js/pixels.js, under Pyodide -- the sample
+ *      opens both ways, with the same pages and title, and a page comes back
+ *      as an image of the right size with print on it.
  *   3. What the page reads from -- reader.sentences, reader.align and
  *      reader.sentence_at, the worker's "sentences", "align" and "sentenceAt"
  *      messages. For every sentence of the sample: its words are the page's
@@ -100,7 +101,7 @@ const py = await loadReadingPython({
   readText: async (p) => fs.readFileSync(path.join(root, p), "utf8"),
   pyodideDir: path.join(root, "vendor/pyodide") + path.sep,
 });
-py.runPython("import reader");
+py.runPython("import reader, pages");
 const openFrom = py.runPython("lambda js, name: reader.open_document(js.to_bytes(), name)");
 const info = openFrom(new Uint8Array(fs.readFileSync(path.join(root, "sample/mdpi-sample.pdf"))), "mdpi-sample.pdf");
 const opened = info.toJs({ dict_converter: Object.fromEntries });
@@ -109,10 +110,15 @@ check("the sample opens, with its title, twelve pages and their sizes",
       && opened.pages.every(([w, h]) => Math.abs(w - 595.28) < 0.01 && Math.abs(h - 841.89) < 0.01)
       && opened.sentences === 272 && opened.words === 8395,
       `${opened.pages.length} pages, ${opened.sentences} sentences`);
+const pagesFrom = py.runPython("lambda js, name: pages.open_pages(js.to_bytes(), name)");
+const pageInfo = pagesFrom(new Uint8Array(fs.readFileSync(path.join(root, "sample/mdpi-sample.pdf"))), "mdpi-sample.pdf")
+  .toJs({ dict_converter: Object.fromEntries });
+check("the page workers' copy opens with the same title and page sizes",
+      pageInfo.title === opened.title && JSON.stringify(pageInfo.pages) === JSON.stringify(opened.pages));
 
-const reader = py.globals.get("reader");
+const reader = py.globals.get("reader"), pagesPy = py.globals.get("pages");
 const t0 = performance.now();
-const result = reader.render(0, 1.5);
+const result = pagesPy.render(0, 1.5);
 const [width, height, samples] = result.toJs({ depth: 1 });
 const buffer = samples.getBuffer("u8");
 const rgba = rgbToRgba(buffer.data, width, height);
@@ -127,7 +133,7 @@ check("a page comes back the size asked for, opaque, with print on it",
       width === Math.round(595.28 * 1.5) && height === Math.round(841.89 * 1.5) && opaque && ink > 10000,
       `${width}×${height}, ${ink} dark pixels, ${ms.toFixed(0)} ms`);
 let refused = false;
-try { reader.render(12, 1); } catch { refused = true; }
+try { pagesPy.render(12, 1); } catch { refused = true; }
 check("a page past the end is refused, not drawn blank", refused);
 
 // 3. Sentences for reading, under Pyodide -------------------------------------
