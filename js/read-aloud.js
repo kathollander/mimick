@@ -7,10 +7,15 @@
  * decides which word is lit. Pausing suspends the audio clock itself, so the
  * voice and the highlight stop together and start together.
  *
+ * A clip is kept at the model's own pace as well as sped up, so a change of
+ * speed reaches the sentence already playing -- from the word it has got to --
+ * and every clip made ahead, without asking the voice for any of them again.
+ *
  * No DOM. The reader page draws the highlight from onSentence and onWord.
  *
  *   const reader = MimickReadAloud.create({ askDocument, onSentence, onWord, onState, onStatus });
- *   reader.open(sentenceCount)   a new document; stops any reading
+ *   reader.open(count, source?)  a new set of sentences -- "document", or
+ *                                "selection" -- and stops any reading
  *   reader.play(from?)           from a sentence, or carry on
  *   reader.prepare()             in the click or key press that starts reading
  *   reader.pause() / toggle() / skip(±1) / setRate(r) / stop()
@@ -33,9 +38,10 @@
     let index = 0;                 // the sentence playing, or about to
     let state = "stopped";
     let session = 0;               // bumped on every stop, seek and document
+    let source = "document";       // which sentences the document worker hands out
     const sentences = new Map();   // index -> sentence data, a chunk at a time
     const chunks = new Map();      // first index of a chunk -> its promise
-    const clips = new Map();       // index -> { rate, promise, voiceId }
+    const clips = new Map();       // index -> { promise, voiceId }
 
     const setState = (next) => { if (state !== next) { state = next; onState(next); } };
 
@@ -76,10 +82,11 @@
 
     function speak(text) {
       const id = nextId++;
+      const asked = rate;
       const promise = new Promise((resolve, reject) => {
         pending.set(id, { resolve, reject });
-        worker.postMessage({ type: "speak", id, text, rate });
-      });
+        worker.postMessage({ type: "speak", id, text, rate: asked });
+      }).then((made) => ({ ...made, rate: asked }));
       return { id, promise };
     }
 
@@ -94,27 +101,29 @@
       if (sentences.has(i)) return Promise.resolve(sentences.get(i));
       const start = i - (i % CHUNK);
       if (!chunks.has(start)) {
-        chunks.set(start, askDocument({ type: "sentences", start, count: CHUNK }).then(({ sentences: got }) => {
+        chunks.set(start, askDocument({ type: "sentences", source, start, count: CHUNK }).then(({ sentences: got }) => {
           got.forEach((s, k) => sentences.set(start + k, s));
         }).catch((err) => { chunks.delete(start); throw err; }));
       }
       return chunks.get(start).then(() => sentences.get(i));
     }
 
-    /* A sentence made and aligned: { samples, sampleRate, words, lit } where
-     * lit is [[seconds heard, position in words]]. */
+    /* A sentence made and aligned: { samples, rate, natural, sampleRate, words,
+     * lines, lit }. `samples` is sped up to `rate`; `natural` is the model's own
+     * pace, and lit is [[seconds into natural, position in words]]. */
     function clip(i) {
       const have = clips.get(i);
-      if (have && have.rate === rate) return have.promise;
-      if (have) cancel([have]);
-      const entry = { rate, voiceId: -1, promise: null };
+      if (have) return have.promise;
+      const entry = { voiceId: -1, promise: null };
+      const from = source;
       entry.promise = sentence(i).then((s) => {
         const spoken = speak(s.text);
         entry.voiceId = spoken.id;
         return spoken.promise.then(async (made) => {
-          const marks = (made.marks || []).map((m) => [m.heardAtMs / 1000, m.word]);
-          const { aligned } = await askDocument({ type: "align", sentence: i, marks });
-          return { samples: made.samples, sampleRate: made.sampleRate, words: s.words, lines: s.lines, lit: aligned };
+          const marks = (made.marks || []).map((m) => [m.atMs / 1000, m.word]);
+          const { aligned } = await askDocument({ type: "align", source: from, sentence: i, marks });
+          return { samples: made.samples, rate: made.rate, natural: made.natural ?? made.samples,
+                   sampleRate: made.sampleRate, words: s.words, lines: s.lines, lit: aligned };
         });
       });
       entry.promise.catch(() => {});     // a cancelled clip is nobody's error
@@ -131,16 +140,52 @@
 
     // --- playing -------------------------------------------------------------------
 
-    let source = null, frame = 0, finish = null;
+    // `node` plays the sentence `playing`; `playing.from` is how far into its
+    // natural-pace audio the node started, and `playing.rate` how fast it goes.
+    let node = null, playing = null, frame = 0, finish = null;
     const nextFrame = (fn) => (document.hidden ? setTimeout(fn, 15) : requestAnimationFrame(fn));
     const cancelFrame = () => { cancelAnimationFrame(frame); clearTimeout(frame); };
+
+    function silence() {
+      if (!node) return;
+      node.onended = null;
+      try { node.stop(); } catch { /* not started */ }
+      node = null;
+    }
 
     function halt() {
       session++;
       cancelFrame();
-      if (source) { source.onended = null; try { source.stop(); } catch { /* not started */ } source = null; }
+      silence();
+      playing = null;
       finish?.();
       finish = null;
+    }
+
+    /* Seconds into the playing sentence's natural-pace audio, as heard. */
+    const heardNow = () =>
+      playing.from + Math.max(0, context.currentTime - playing.startedAt) * playing.rate;
+
+    /* Play the sentence in `playing` from `from` seconds into it, at the
+     * current speed: its own sped-up samples when they are what is wanted, and
+     * otherwise what is left of the natural audio, sped up here. */
+    function sound(from) {
+      const made = playing.made;
+      let samples = made.samples;
+      if (from > 0 || made.rate !== rate) {
+        const tail = made.natural.subarray(Math.min(made.natural.length, Math.round(from * made.sampleRate)));
+        samples = rate === 1 ? tail : root.MimickPiper.stretch(tail, rate, made.sampleRate);
+      }
+      silence();
+      if (!samples.length) { finish?.(); return; }
+      const buffer = context.createBuffer(1, samples.length, made.sampleRate);
+      buffer.copyToChannel(samples, 0);
+      node = context.createBufferSource();
+      node.buffer = buffer;
+      node.connect(context.destination);
+      Object.assign(playing, { from, rate, startedAt: context.currentTime + 0.02 });
+      node.onended = () => finish?.();
+      node.start(playing.startedAt);
     }
 
     async function run(mine) {
@@ -154,10 +199,8 @@
         try {
           made = await current;
         } catch (err) {
-          clearTimeout(waiting);
           if (mine !== session) return;
           clips.delete(i);
-          if (err.message === "cancelled") continue;        // asked again, at the new speed
           onStatus(`Sentence ${i + 1} could not be read: ${err.message}`);
           index = i + 1;
           continue;
@@ -169,15 +212,10 @@
         if (context.state === "suspended" && state !== "paused") await context.resume();
         if (state !== "paused") setState("playing");
 
-        const buffer = context.createBuffer(1, made.samples.length, made.sampleRate);
-        buffer.copyToChannel(made.samples, 0);
-        source = context.createBufferSource();
-        source.buffer = buffer;
-        source.connect(context.destination);
-        const startedAt = context.currentTime + 0.02;
+        playing = { i, made };
         let shown = -1;
         const follow = () => {
-          const heard = context.currentTime - startedAt;
+          const heard = heardNow();
           let k = shown;
           while (k + 1 < made.lit.length && made.lit[k + 1][0] <= heard) k++;
           if (k !== shown) { shown = k; onWord(i, made.lit[k][1]); }
@@ -185,13 +223,14 @@
         };
         await new Promise((resolve) => {
           finish = resolve;
-          source.onended = resolve;
-          source.start(startedAt);
+          sound(0);
           frame = nextFrame(follow);
         });
         cancelFrame();
         if (mine !== session) return;
-        source = null;
+        node = null;
+        playing = null;
+        finish = null;
         clips.delete(i);
         index = i + 1;
       }
@@ -228,7 +267,7 @@
     function resume() {
       if (state !== "paused") return;
       context.resume();
-      setState(source ? "playing" : "buffering");
+      setState(node ? "playing" : "buffering");
     }
 
     const api = {
@@ -236,9 +275,12 @@
       get state() { return state; },
       get index() { return index; },
       get rate() { return rate; },
-      open(total) {
+      get source() { return source; },
+      get count() { return count; },
+      open(total, from = "document") {
         stop();
         count = total;
+        source = from;
         sentences.clear();
         chunks.clear();
         cancel([...clips.values()]);
@@ -259,15 +301,12 @@
         const wasPaused = state === "paused";
         play(index + step).then(() => { if (wasPaused) pause(); });
       },
+      /* A new speed, heard at once: the sentence playing carries on from the
+       * word it has reached, and clips made ahead are sped up when they play. */
       setRate(next) {
         if (next === rate) return;
         rate = next;
-        // The sentence playing finishes at the old speed; the ones made for
-        // after it are made again.
-        const later = [...clips].filter(([i]) => i > index);
-        cancel(later.map(([, c]) => c));
-        for (const [i] of later) clips.delete(i);
-        if (state !== "stopped") prefetch(index);
+        if (playing && node) sound(heardNow());
       },
       stop() { stop(); },
     };
@@ -277,7 +316,6 @@
       if (context?.state === "suspended") context.resume();
       if (state !== "stopped") { setState("stopped"); onSentence(null, null); }
     }
-
     return api;
   }
 

@@ -107,6 +107,8 @@
     status(pythonReady ? `Opening ${name}…` : `Getting ready, then opening ${name}…`);
     $("empty").hidden = true;
     voice.open(0);
+    closeMenu();
+    resetMarks();
     clearPages();
     doc = null;
     setReadable(false);
@@ -480,26 +482,37 @@
     askDocument: (message) => reading.ask(message),
     onSentence(index, made) {
       lit = { sentence: index, made, position: null };
-      for (const page of slots.keys()) drawHighlight(page);
       if (made) {
-        remember(`mimick-position:${doc.key}`, index);
         const [page, box] = made.lines[0];
+        if (voice.source === "document") {
+          remember(`mimick-position:${doc.key}`, index);
+          status(`Sentence ${index + 1} of ${doc.sentences} · page ${page + 1}`);
+        } else {
+          status(`Reading your selection · sentence ${index + 1} of ${voice.count}`);
+        }
+        const [word, on, rect] = made.words[0];
+        placeCaret(word, false, [on, rect[0], rect[1], rect[3]]);
         keepInView(page, box);
-        status(`Sentence ${index + 1} of ${doc.sentences} · page ${page + 1}`);
       }
+      redrawMarks();
     },
     onWord(index, position) {
       if (index !== lit.sentence || !lit.made) return;
       lit.position = position;
-      for (const page of slots.keys()) drawHighlight(page);
-      const [, page, rect] = lit.made.words[position];
+      // The cursor rides along with the voice, so pausing leaves it where you
+      // stopped listening and the arrow keys carry on from there.
+      const [word, page, rect] = lit.made.words[position];
+      placeCaret(word, false, [page, rect[0], rect[1], rect[3]]);
+      redrawMarks();
       keepInView(page, rect);
     },
     onState(state) {
       $("play").textContent = { stopped: "Read aloud", loading: "Loading voice…", buffering: "Pause",
                                 playing: "Pause", paused: "Resume" }[state];
       $("back").disabled = $("forward").disabled = state === "stopped";
-      if (state === "paused") status("Paused");
+      // A blinking cursor says the arrow keys move it, which is true unless the voice is reading.
+      pagesEl.classList.toggle("reading", isReading(state));
+      if (state === "paused") status("Paused — the arrow keys move the cursor, Shift selects");
       if (state === "loading") status("Getting the voice ready…");
       if (state === "stopped") showProgress();
     },
@@ -515,9 +528,8 @@
    * page so a zoom moves them with it. */
   function drawHighlight(page) {
     const slot = slots.get(page);
-    if (!slot) return;
-    for (const old of slot.el.querySelectorAll(".hl")) old.remove();
-    if (!lit.made) return;
+    if (!slot || !doc) return;
+    for (const old of slot.el.querySelectorAll(".hl, .caret")) old.remove();
     const [w, h] = doc.pages[page];
     const add = (kind, [x0, y0, x1, y1], pad = 0) => {
       const box = document.createElement("div");
@@ -526,10 +538,22 @@
                                  width: `${(x1 - x0 + 2 * pad) / w * 100}%`, height: `${(y1 - y0 + 2 * pad) / h * 100}%` });
       slot.el.append(box);
     };
-    for (const [on, box] of lit.made.lines) if (on === page) add("sentence", box);
-    const word = lit.position === null ? null : lit.made.words[lit.position];
-    if (word && word[1] === page) add("word", word[2], 1);
+    for (const [on, box] of selectionBoxes) if (on === page) add("selection", box, 1);
+    if (lit.made) {
+      for (const [on, box] of lit.made.lines) if (on === page) add("sentence", box);
+      const word = lit.position === null ? null : lit.made.words[lit.position];
+      if (word && word[1] === page) add("word", word[2], 1);
+    }
+    if (caret.place && caret.place[0] === page) {
+      const [, x, y0, y1] = caret.place;
+      const bar = document.createElement("div");
+      bar.className = "caret";
+      Object.assign(bar.style, { left: `${x / w * 100}%`, top: `${(y0 - 1) / h * 100}%`,
+                                 height: `${(y1 - y0 + 2) / h * 100}%` });
+      slot.el.append(bar);
+    }
   }
+  const redrawMarks = () => { for (const page of slots.keys()) drawHighlight(page); };
 
   /* The desktop's rule: leave the view alone while what is read is on screen;
    * otherwise bring it a third of the way down. */
@@ -540,9 +564,23 @@
     update();
   }
 
+  /* Reading a selection swaps the voice's sentences for the selection's; this
+   * puts the document's back. */
+  function useDocument() {
+    if (voice.source !== "document") voice.open(doc.sentences, "document");
+  }
+
+  function readFrom(sentence) {
+    if (sentence === null || !doc?.sentences) return;
+    voice.prepare();
+    useDocument();
+    voice.play(sentence);
+  }
+
   /* Carry on where this document was left, if that is where the reader is
    * looking; otherwise start at the top of the page on screen. */
   async function startReading() {
+    useDocument();
     const mine = generation, page = currentPage();
     let from = Number(recall(`mimick-position:${doc.key}`));
     if (Number.isInteger(from) && from > 0 && from < doc.sentences) {
@@ -558,8 +596,9 @@
   function togglePlay() {
     if (!doc?.sentences) return;
     voice.prepare();     // inside the click or key press, which is what lets it make sound
-    if (voice.state === "stopped") startReading();
-    else voice.toggle();
+    if (voice.state !== "stopped") voice.toggle();
+    else if (selection) readSelection();
+    else startReading();
   }
 
   $("play").onclick = () => { togglePlay(); view.focus(); };
@@ -577,22 +616,297 @@
     view.focus();
   };
 
-  // Click a sentence to read from it -- a click, not the end of a drag.
-  let pressed = null;
-  view.addEventListener("pointerdown", (e) => { pressed = e.button === 0 ? { x: e.clientX, y: e.clientY } : null; });
-  view.addEventListener("pointerup", (e) => {
-    const was = pressed;
-    pressed = null;
-    if (!was || Math.hypot(e.clientX - was.x, e.clientY - was.y) > 4 || !doc?.sentences) return;
-    const el = e.target.closest?.(".page");
-    if (!el) return;
-    const page = Number(el.dataset.page), [w, h] = doc.pages[page], box = el.getBoundingClientRect();
-    const x = (e.clientX - box.left) / box.width * w, y = (e.clientY - box.top) / box.height * h;
-    voice.prepare();
-    const mine = generation;
-    reading.ask({ type: "sentenceAt", page, x, y }).then(({ sentence }) => {
-      if (sentence !== null && mine === generation) voice.play(sentence);
+  // --- selecting, and the text cursor -------------------------------------------
+  // The desktop's PageView and MainWindow rules. Where words are, and how the
+  // cursor steps between them, is answered by the desktop's document.py in the
+  // document worker (reader.py); this keeps the state and draws it.
+
+  const call = (name, ...args) => reading.ask({ type: "call", name, args }).then((d) => d.result);
+  const isReading = (state = voice.state) => state === "playing" || state === "buffering";
+
+  let selection = null;          // [first, last] word index
+  let selectionBoxes = [];       // [[page, rect]], one a line
+  let selectionText = null;      // for Ctrl+C, once fetched: { for: selection, text }
+  let anchor = null;             // the fixed end of a selection made with the keys
+  let caret = { index: -1, trailing: false, place: null };   // place: [page, x, top, bottom]
+
+  function resetMarks() {
+    selection = null; selectionBoxes = []; selectionText = null; anchor = null;
+    caret = { index: -1, trailing: false, place: null };
+    lit = { sentence: null, made: null, position: null };
+  }
+
+  function setSelection(first, last) {
+    const next = first === null || last < first ? null : [first, last];
+    if (next && selection && next[0] === selection[0] && next[1] === selection[1]) return;
+    selection = next;
+    selectionText = null;
+    if (!selection) { selectionBoxes = []; redrawMarks(); return; }
+    fetchSelection();
+  }
+
+  // A drag changes the selection far faster than the worker answers; only the
+  // latest one is asked about.
+  let fetching = false;
+  async function fetchSelection() {
+    if (fetching) return;
+    fetching = true;
+    try {
+      for (let asked = null; selection && asked !== selection;) {
+        asked = selection;
+        const mine = generation;
+        const [boxes, text] = await Promise.all([call("selection_boxes", ...asked), call("selection_text", ...asked)]);
+        if (mine !== generation) return;
+        if (asked === selection) {
+          selectionBoxes = boxes;
+          selectionText = { for: asked, text };
+          redrawMarks();
+        }
+      }
+    } finally {
+      fetching = false;
+    }
+  }
+
+  function announceSelection() {
+    if (!selection) return;
+    const n = selection[1] - selection[0] + 1;
+    status(`${n} word${n === 1 ? "" : "s"} selected — press Enter to read ${n === 1 ? "it" : "them"}`);
+  }
+
+  /* Put the cursor in front of word `index`. `place` is where it is drawn, when
+   * the caller already knows; otherwise the worker is asked. */
+  function placeCaret(index, trailing = false, place = null) {
+    caret = { index, trailing, place: place ?? caret.place };
+    if (place) return Promise.resolve();
+    const mine = generation, wanted = caret;
+    return call("caret_place", index, trailing).then((found) => {
+      if (mine !== generation || caret !== wanted) return;
+      caret.place = found;
+      redrawMarks();
     });
+  }
+
+  /* Keep the cursor on screen, scrolling as little as will do it. */
+  function caretIntoView() {
+    if (!caret.place) return;
+    const [page, , y0, y1] = caret.place;
+    const top = geometry.offsets[page] + y0 * zoom, bottom = geometry.offsets[page] + y1 * zoom;
+    const margin = (bottom - top) * 2;
+    if (top - margin < view.scrollTop) view.scrollTop = Math.max(0, top - margin);
+    else if (bottom + margin > view.scrollTop + view.clientHeight) view.scrollTop = bottom + margin - view.clientHeight;
+    update();
+  }
+
+  // Held-down keys arrive faster than the worker answers; take them in order.
+  let caretQueue = Promise.resolve();
+  const moveCaret = (step, direction, extend) => {
+    caretQueue = caretQueue.then(() => moveCaretNow(step, direction, extend))
+      .catch((err) => status("The cursor could not move: " + err.message));
+  };
+
+  /* An arrow key while the voice is not reading. The cursor sits in front of a
+   * word, so an anchor at a and a cursor at c select words min(a, c) to
+   * max(a, c) - 1. */
+  async function moveCaretNow(step, direction, extend) {
+    if (!doc?.words) return;
+    const mine = generation;
+    let at = caret.index, trailing = caret.trailing;
+    if (at < 0) {
+      // Nothing has put the cursor anywhere yet: start at the top of the page being looked at.
+      const span = await call("page_span", currentPage());
+      at = span ? span[0] : 0;
+      trailing = false;
+    }
+    // A selection made with the mouse, or cleared, leaves the anchor stale;
+    // settle it against what is actually selected.
+    if (!selection) anchor = null;
+    else if (anchor === null) anchor = at > selection[1] ? selection[0] : selection[1] + 1;
+
+    const [moved, trails] = step === "word"
+      ? [Math.max(0, Math.min(at + direction, doc.words)), false]
+      : await call("caret_step", at, trailing, step, direction);
+    if (mine !== generation) return;
+    if (extend) {
+      anchor ??= at;
+      if (anchor === moved) setSelection(null);
+      else setSelection(Math.min(anchor, moved), Math.max(anchor, moved) - 1);
+      announceSelection();
+    } else {
+      anchor = null;
+      setSelection(null);
+    }
+    await placeCaret(moved, trails);
+    if (mine === generation) caretIntoView();
+  }
+
+  async function readSelection() {
+    if (!selection || !doc?.sentences) return;
+    voice.prepare();
+    const [first, last] = selection, mine = generation;
+    const count = await call("select_range", first, last);
+    if (mine !== generation) return;
+    if (!count) { status("That selection has no readable text"); return; }
+    voice.open(count, "selection");
+    voice.play(0);
+  }
+
+  async function copySelection() {
+    if (!selection) { status("Select some text first — drag across it, or press Ctrl+A"); return; }
+    const chosen = selection;
+    const text = selectionText?.for === chosen ? selectionText.text : await call("selection_text", ...chosen);
+    try {
+      await navigator.clipboard.writeText(text);
+      const n = chosen[1] - chosen[0] + 1;
+      status(`Copied ${n} word${n === 1 ? "" : "s"}`);
+    } catch (err) {
+      status("Could not copy: " + err.message);
+    }
+  }
+
+  async function selectPage() {
+    if (!doc?.words) return;
+    const span = await call("page_span", currentPage());
+    if (span) { anchor = null; setSelection(...span); announceSelection(); }
+  }
+
+  /* A point on the screen as a page and PDF points on it, or null off the pages. */
+  function pointOnPage(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY)?.closest?.(".page");
+    if (!el || !doc) return null;
+    const page = Number(el.dataset.page), [w, h] = doc.pages[page], box = el.getBoundingClientRect();
+    return { page, x: (clientX - box.left) / box.width * w, y: (clientY - box.top) / box.height * h };
+  }
+
+  // Press on a word and drag to select; a click with no drag reads from the
+  // sentence clicked. Starting off the text clears the selection.
+  let press = null;
+  let doubleClicks = 0;
+  view.addEventListener("pointerdown", (e) => {
+    if (!e.target.closest?.("#menu")) closeMenu();
+    if (e.button !== 0 || !doc?.words || !e.target.closest?.(".page")) { press = null; return; }
+    const at = pointOnPage(e.clientX, e.clientY);
+    const mine = { x: e.clientX, y: e.clientY, at, dragging: false, anchor: null, word: null };
+    press = mine;
+    view.setPointerCapture(e.pointerId);
+    mine.word = call("word_at", at.page, at.x, at.y, false).then((word) => {
+      if (press !== mine) return word;
+      if (word === null) { if (!mine.dragging) setSelection(null); return word; }
+      mine.anchor = word;
+      if (!mine.dragging) placeCaret(word);
+      return word;
+    });
+  });
+
+  let dragAsk = null;
+  view.addEventListener("pointermove", (e) => {
+    const mine = press;
+    if (!mine || !(e.buttons & 1)) return;
+    if (!mine.dragging && Math.hypot(e.clientX - mine.x, e.clientY - mine.y) < 4) return;
+    mine.dragging = true;
+    const at = pointOnPage(e.clientX, e.clientY);
+    if (!at) return;
+    const wanted = dragAsk = { at };
+    mine.word.then(() => (mine.anchor === null || wanted !== dragAsk ? null
+                         : call("word_at", at.page, at.x, at.y, true))).then((word) => {
+      if (word === null || wanted !== dragAsk || press !== mine) return;
+      anchor = null;
+      setSelection(Math.min(mine.anchor, word), Math.max(mine.anchor, word));
+      // The cursor rides the moving end, so Shift+arrow carries on from where the pointer stopped.
+      placeCaret(word >= mine.anchor ? word + 1 : word, word >= mine.anchor);
+    });
+  });
+
+  view.addEventListener("pointerup", (e) => {
+    const was = press;
+    press = null;
+    if (!was || e.button !== 0) return;
+    if (was.dragging) { was.word.then(() => setTimeout(announceSelection, 50)); return; }
+    // A plain click: drop the selection and read from the sentence clicked.
+    voice.prepare();
+    const clicks = doubleClicks, mine = generation;
+    was.word.then((word) => {
+      if (word === null || mine !== generation) return;
+      anchor = null;
+      setSelection(null);
+      if (!doc.sentences) return;
+      return reading.ask({ type: "sentenceAt", page: was.at.page, x: was.at.x, y: was.at.y }).then(({ sentence }) => {
+        if (clicks === doubleClicks && mine === generation) readFrom(sentence);
+      });
+    });
+  });
+
+  // Double-click selects the sentence, as on the desktop -- and takes back the
+  // reading its first click started.
+  view.addEventListener("dblclick", (e) => {
+    if (!doc?.words) return;
+    doubleClicks++;
+    const at = pointOnPage(e.clientX, e.clientY);
+    if (!at) return;
+    const mine = generation, startedBy = voice.state;
+    call("word_at", at.page, at.x, at.y, false)
+      .then((word) => (word === null ? null : call("sentence_span", word)))
+      .then((span) => {
+        if (!span || mine !== generation) return;
+        if (startedBy !== "stopped" && voice.source === "document") voice.stop();
+        anchor = null;
+        setSelection(...span);
+        announceSelection();
+      });
+  });
+
+  // --- the right-click menu -----------------------------------------------------
+
+  const menu = $("menu");
+  function closeMenu() { menu.hidden = true; menu.replaceChildren(); }
+
+  function showMenu(x, y, items) {
+    menu.replaceChildren();
+    for (const item of items) {
+      if (item === "-") { menu.append(Object.assign(document.createElement("hr"), {})); continue; }
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.textContent = item.label;
+      if (item.keys) button.append(Object.assign(document.createElement("span"), { className: "keys", textContent: item.keys }));
+      button.disabled = item.enabled === false;
+      button.onclick = () => { closeMenu(); view.focus(); item.run(); };
+      menu.append(button);
+    }
+    menu.hidden = false;
+    const { width, height } = menu.getBoundingClientRect();
+    menu.style.left = Math.max(4, Math.min(x, innerWidth - width - 4)) + "px";
+    menu.style.top = Math.max(4, Math.min(y, innerHeight - height - 4)) + "px";
+    menu.querySelector("button:not(:disabled)")?.focus();
+  }
+
+  view.addEventListener("contextmenu", async (e) => {
+    if (!doc) return;
+    e.preventDefault();
+    const x = e.clientX, y = e.clientY, mine = generation;
+    const at = pointOnPage(x, y);
+    const sentence = at && doc.sentences
+      ? (await reading.ask({ type: "sentenceAt", page: at.page, x: at.x, y: at.y })).sentence : null;
+    if (mine !== generation) return;
+    showMenu(x, y, [
+      { label: "Start reading from here", enabled: sentence !== null, run: () => readFrom(sentence) },
+      ...(selection ? [{ label: "Read the selection", keys: "Enter", run: readSelection }] : []),
+      "-",
+      selection ? { label: "Copy", keys: "Ctrl+C", run: copySelection }
+                : { label: "Select some text to copy it", enabled: false },
+    ]);
+  });
+  window.addEventListener("blur", closeMenu);
+  view.addEventListener("scroll", closeMenu, { passive: true });
+  document.addEventListener("pointerdown", (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); });
+  menu.addEventListener("keydown", (e) => {
+    const buttons = [...menu.querySelectorAll("button:not(:disabled)")];
+    const at = buttons.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      buttons[(at + (e.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+    }
   });
 
   // --- keys ---------------------------------------------------------------------
@@ -602,20 +916,46 @@
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
+    if (!menu.hidden) {
+      if (e.key === "Escape") { e.preventDefault(); closeMenu(); view.focus(); }
+      return;
+    }
     if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "o") { e.preventDefault(); chooseFile(); return; }
     if (ctrl && (e.key === "=" || e.key === "+")) { e.preventDefault(); setZoom(zoom * L.ZOOM_STEP); return; }
     if (ctrl && e.key === "-") { e.preventDefault(); setZoom(zoom / L.ZOOM_STEP); return; }
     if (ctrl && e.key === "0") { e.preventDefault(); setZoom(L.ZOOM_DEFAULT); return; }
     if (typing || !doc) return;
-    // A focused button acts on Space itself.
-    if (e.key === " " && !ctrl && !(e.target instanceof HTMLButtonElement)) {
+    const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    // A focused button acts on Space and Enter itself.
+    const onButton = e.target instanceof HTMLButtonElement;
+    if (key === " " && !ctrl && !onButton) {
       e.preventDefault();
       if (!$("play").disabled) togglePlay();
       return;
     }
-    if (!ctrl && !e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && voice.state !== "stopped") {
+    if (key === "Enter" && !ctrl && !onButton) {
       e.preventDefault();
-      voice.skip(e.key === "ArrowLeft" ? -1 : 1);
+      if (selection) readSelection();
+      else if (!$("play").disabled) togglePlay();
+      return;
+    }
+    if (key === "Escape") { anchor = null; setSelection(null); return; }
+    if (ctrl && !e.shiftKey && key === "a") { e.preventDefault(); selectPage(); return; }
+    if (ctrl && !e.shiftKey && key === "c") { e.preventDefault(); copySelection(); return; }
+
+    // The arrows move the cursor unless the voice is reading, when they keep
+    // their old jobs: left and right skip a sentence, the rest scroll.
+    const across = { ArrowLeft: -1, ArrowRight: 1 }[key];
+    if (across && doc.words) {
+      e.preventDefault();
+      if (isReading()) voice.skip(across);
+      else moveCaret(ctrl ? "sentence" : "word", across, e.shiftKey);
+      return;
+    }
+    const lines = { ArrowUp: ["line", -1], ArrowDown: ["line", 1], Home: ["line end", -1], End: ["line end", 1] }[key];
+    if (lines && !ctrl && doc.words && !isReading()) {
+      e.preventDefault();
+      moveCaret(...lines, e.shiftKey);
       return;
     }
     const go = {
@@ -623,7 +963,7 @@
       PageUp: () => goToPage(currentPage() - 1),
       ...(ctrl ? { ArrowDown: () => goToPage(currentPage() + 1), ArrowUp: () => goToPage(currentPage() - 1),
                    Home: () => goToPage(0), End: () => goToPage(doc.pages.length - 1) } : {}),
-    }[e.key];
+    }[key];
     if (go) { e.preventDefault(); go(); }
   });
 

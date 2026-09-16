@@ -22,13 +22,17 @@ source lives here in public, linked from the page itself.
 
 ## Running it
 
-Any static file server will do; it cannot be opened as a `file://` URL because
-the page fetches its own Python.
+It cannot be opened as a `file://` URL, because the page fetches its own
+Python. Serve the folder:
 
 ```bash
-python3 -m http.server 8000
-# then open http://localhost:8000/reader.html
+python3 serve.py
+# then open http://localhost:8731/reader.html
 ```
+
+Any static server works, but `serve.py` tells the browser to check for new
+files every time. `python3 -m http.server` does not, and Chrome then keeps
+running old copies of the scripts after they change.
 
 To check the foundation without a browser:
 
@@ -38,6 +42,7 @@ node tools/check_voice.mjs
 node tools/check_timing.mjs
 node tools/check_reading.mjs
 node tools/check_reader.mjs
+node tools/check_selecting.mjs    # with serve.py running
 ```
 
 The first compares every region of the sample against what the desktop app

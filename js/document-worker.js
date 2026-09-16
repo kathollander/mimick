@@ -5,10 +5,12 @@
  *
  * Messages in:
  *   { type: "open", id, bytes, name }     bytes: ArrayBuffer, transferred
- *   { type: "sentences", id, start?, count? }
- *   { type: "align", id, sentence, marks }  marks: [[seconds, word]] from the voice
+ *   { type: "sentences", id, start?, count?, source? }   source: "document" or "selection"
+ *   { type: "align", id, sentence, marks, source? }  marks: [[seconds, word]] from the voice
  *   { type: "sentenceAt", id, page, x, y }  x, y in PDF points
  *   { type: "firstSentenceOn", id, page }
+ *   { type: "call", id, name, args }       one of CALLS in reader.py -- selecting
+ *                                          and the text cursor
  * Messages out:
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, openMs }
@@ -18,6 +20,7 @@
  *   { type: "aligned", id, sentence, aligned: [[seconds, position in words]] }
  *   { type: "sentenceAt", id, sentence }    sentence: an index, or null
  *   { type: "firstSentenceOn", id, sentence }   the same
+ *   { type: "called", id, result }
  *   { type: "error", id?, message }
  *
  * Python starts loading the moment the worker does. Messages are handled one at
@@ -53,6 +56,7 @@ self.onmessage = ({ data }) => {
       else if (data.type === "align") align(py, data);
       else if (data.type === "sentenceAt") sentenceAt(py, data);
       else if (data.type === "firstSentenceOn") firstSentenceOn(py, data);
+      else if (data.type === "call") call(py, data);
     } catch (err) {
       self.postMessage({ type: "error", id: data.id, message: String(err && err.message || err) });
     }
@@ -93,13 +97,22 @@ function callReader(py, name, ...args) {
   }
 }
 
-function sentences(py, { id, start = 0, count = null }) {
-  self.postMessage({ type: "sentences", id, sentences: callReader(py, "sentences", start, count) });
+function sentences(py, { id, start = 0, count = null, source = "document" }) {
+  self.postMessage({ type: "sentences", id, sentences: callReader(py, "sentences", start, count, source) });
 }
 
 // The alignment stays in Python -- one copy, the desktop's align_marks.
-function align(py, { id, sentence, marks }) {
-  self.postMessage({ type: "aligned", id, sentence, aligned: callReader(py, "align", sentence, marks) });
+function align(py, { id, sentence, marks, source = "document" }) {
+  self.postMessage({ type: "aligned", id, sentence, aligned: callReader(py, "align", sentence, marks, source) });
+}
+
+const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "word_at", "sentence_span",
+                       "page_span", "caret_step", "caret_place"]);
+
+function call(py, { id, name, args = [] }) {
+  if (!CALLS.has(name)) throw new Error(`reader.py has no ${name} for the page`);
+  const result = callReader(py, name, ...args);
+  self.postMessage({ type: "called", id, result: result ?? null });
 }
 
 function sentenceAt(py, { id, page, x, y }) {

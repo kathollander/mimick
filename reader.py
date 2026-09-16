@@ -15,6 +15,8 @@ from pathlib import Path
 from mimick.document import Document, _merge_rects, align_marks
 
 _document: Document | None = None
+# The sentences made from a selection, read by the same path as the document's.
+_selection: list = []
 _folder = Path(tempfile.mkdtemp())
 
 
@@ -48,7 +50,11 @@ def _rect(rect) -> list[float]:
     return [round(v, 2) for v in rect]
 
 
-def sentences(start: int = 0, count: int | None = None) -> list[dict]:
+def _sentences(source: str) -> list:
+    return _selection if source == "selection" else _open().sentences
+
+
+def sentences(start: int = 0, count: int | None = None, source: str = "document") -> list[dict]:
     """Sentences from ``start`` -- ``count`` of them, or all the rest -- as the
     page needs them to read and highlight. A long book has fifteen thousand,
     so the page asks for them a stretch at a time.
@@ -60,7 +66,7 @@ def sentences(start: int = 0, count: int | None = None) -> list[dict]:
     sentence can carry on over a page, which is why both say which page.
     """
     out = []
-    every = _open().sentences
+    every = _sentences(source)
     for sentence in every[start:len(every) if count is None else start + count]:
         pages = sorted({word.page for word in sentence.words})
         out.append({
@@ -73,11 +79,11 @@ def sentences(start: int = 0, count: int | None = None) -> list[dict]:
     return out
 
 
-def align(sentence: int, marks: list) -> list[list]:
+def align(sentence: int, marks: list, source: str = "document") -> list[list]:
     """The voice's ``[seconds, word]`` marks for one sentence, as
     ``[seconds, position]`` -- a position into that sentence's ``words``.
     The desktop's own ``align_marks``, so both highlight the same word."""
-    target = _open().sentences[sentence]
+    target = _sentences(source)[sentence]
     return [[when, position] for when, position in
             align_marks(target, [(float(when), str(word)) for when, word in marks])]
 
@@ -95,8 +101,86 @@ def sentence_at(page: int, x: float, y: float) -> int | None:
     return _open().sentence_at_point(page, x, y)
 
 
+# -- selecting, and the text cursor -------------------------------------------
+#
+# The desktop's rules, from MainWindow and PageView. The cursor sits *in front
+# of* a word, so one past the last word is a place too; ``trailing`` says a
+# cursor at the start of a line means the end of the line before it.
+
+
+def select_range(first: int, last: int) -> int:
+    """Make the selection's sentences, for reading; how many there are."""
+    global _selection
+    _selection = _open().sentences_from_range(first, last)
+    return len(_selection)
+
+
+def selection_text(first: int, last: int) -> str:
+    return _open().selection_text(first, last)
+
+
+def selection_boxes(first: int, last: int) -> list[list]:
+    """The selection tint: ``[page, rect]``, one box a line, as PageView paints it."""
+    words = _open().words[max(0, first):last + 1]
+    pages = sorted({w.page for w in words})
+    return [[page, _rect(box)] for page in pages
+            for box in _merge_rects([w.rect for w in words if w.page == page])]
+
+
+def word_at(page: int, x: float, y: float, dragging: bool = False) -> int | None:
+    """The word under a point. While dragging, a little looser, and the nearest
+    word on the line when the point is between words."""
+    document = _open()
+    word = document.word_at_point(page, x, y, pad=4.0 if dragging else 1.5)
+    if word is None and dragging:
+        word = document.nearest_word_on_line(page, x, y)
+    return None if word is None else word.index
+
+
+def sentence_span(index: int) -> list[int] | None:
+    """The first and last word of the sentence a word is in."""
+    document = _open()
+    if not 0 <= index < len(document.words) or document.words[index].sentence < 0:
+        return None
+    words = document.sentences[document.words[index].sentence].words
+    return [words[0].index, words[-1].index]
+
+
+def page_span(page: int) -> list[int] | None:
+    """The first and last word on a page."""
+    words = _open().page_words.get(page) or []
+    return [words[0].index, words[-1].index] if words else None
+
+
+def caret_step(caret: int, trailing: bool, step: str, direction: int) -> list:
+    """Where a cursor lands: ``[caret, trailing]``. MainWindow._caret_step."""
+    document = _open()
+    last = len(document.words)
+    if step == "word":
+        return [max(0, min(caret + direction, last)), False]
+    here = max(0, min(caret - 1 if trailing else caret, last - 1))
+    if step == "line":
+        return [document.word_on_next_line(here, direction), False]
+    if step == "line end":
+        first, final = document.line_ends(here)
+        return [final + 1, True] if direction > 0 else [first, False]
+    return [document.sentence_step(here, direction), False]
+
+
+def caret_place(caret: int, trailing: bool) -> list | None:
+    """Where the cursor is drawn: ``[page, x, top, bottom]``. PageView.caret_rect."""
+    words = _open().words
+    if not words or not 0 <= caret <= len(words):
+        return None
+    at_end = caret == len(words) or (trailing and caret > 0)
+    word = words[caret - 1 if at_end else caret]
+    x0, y0, x1, y1 = word.rect
+    return [word.page, round(x1 if at_end else x0, 2), round(y0, 2), round(y1, 2)]
+
+
 def close() -> None:
-    global _document
+    global _document, _selection
+    _selection = []
     if _document is not None:
         _document.close()
         _document = None

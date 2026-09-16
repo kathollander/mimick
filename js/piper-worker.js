@@ -8,7 +8,7 @@
  * Messages out:
  *   { type: "progress", loaded, total }
  *   { type: "ready", voice, threads, isolated, cached, loadMs }
- *   { type: "spoken", id, samples, sampleRate, marks, exactTiming,
+ *   { type: "spoken", id, samples, natural, sampleRate, marks, exactTiming,
  *     phonemizeMs, inferMs, timingMs, stretchMs, audioMs, heardMs }
  *   { type: "error", id?, message }
  *
@@ -88,12 +88,14 @@ async function speak({ id, text, rate }) {
   if (cancelled.delete(id)) throw new Error("cancelled");
   if (!voice) throw new Error("no voice loaded");
   const r = await voice.speak(text, { rate });
-  self.postMessage({ type: "spoken", id, samples: r.samples, sampleRate: voice.sampleRate,
+  // At 1× the two are one array, which cannot be transferred twice.
+  const natural = r.natural === r.samples ? null : r.natural;
+  self.postMessage({ type: "spoken", id, samples: r.samples, natural, sampleRate: voice.sampleRate,
                      marks: r.marks, exactTiming: r.exactTiming,
                      phonemizeMs: r.phonemizeMs, inferMs: r.inferMs, timingMs: r.timingMs,
                      stretchMs: r.stretchMs,
                      audioMs: r.audioMs, heardMs: r.heardMs },
-                   [r.samples.buffer]);
+                   natural ? [r.samples.buffer, natural.buffer] : [r.samples.buffer]);
 }
 
 // A file from the cache if it is there, else from the network. Either way it

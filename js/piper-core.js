@@ -145,6 +145,9 @@
         const ms = (n) => (n / config.audio.sample_rate) * 1000;
         return {
           samples,
+          // The same sentence at the model's own pace, so the page can speed up
+          // what is left of a sentence already playing when the speed changes.
+          natural,
           ids,
           samplesPerId,
           phonemes: phonemes.phonemes,

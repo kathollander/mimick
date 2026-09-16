@@ -6,7 +6,7 @@ them first (see `HANDOFF.md`).
 Start the page server from this folder, then open the links below in Chrome:
 
 ```bash
-python3 -m http.server 8731
+python3 serve.py
 ```
 
 Tick what works, and write down anything that doesn't -- what you did, what you
@@ -50,6 +50,23 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] It looks and feels like the desktop app
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
+
+## Speed, right-click, selecting and the cursor
+
+Added the evening of 16 September. **Stop the old page server and start
+`python3 serve.py` instead**, then reload -- the old server let Chrome keep old
+copies of the scripts, which may be why speed seemed to do nothing.
+
+- [ ] Changing **Speed** while it reads changes it straight away, mid-sentence
+- [ ] Right-click a sentence → **Start reading from here** reads from it
+- [ ] Drag across words selects them (pale blue); double-click selects a sentence
+- [ ] `Ctrl`+`A` selects the page; `Esc` clears
+- [ ] `Ctrl`+`C` copies the selection; paste it somewhere to check
+- [ ] `Enter`, or right-click → **Read the selection**, reads only the selection
+- [ ] While reading, a thin blue cursor follows the voice; paused, it blinks
+- [ ] Paused: `←` `→` move it a word, `↑` `↓` a line, `Home` `End` to the line's ends, `Ctrl`+`←` `→` a sentence
+- [ ] Holding `Shift` with any of those selects
+- [ ] While reading, `←` `→` still skip a sentence
 
 ## Reading aloud, and scanned books — http://localhost:8731/reader.html
 

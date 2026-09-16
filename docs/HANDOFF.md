@@ -58,12 +58,13 @@ and updated that evening after Kat tested the reader, and again once it read alo
 ## Running it
 
 ```bash
-python3 -m http.server 8731          # then http://localhost:8731/reader.html
+python3 serve.py                     # then http://localhost:8731/reader.html
 node tools/check_spike.mjs
 node tools/check_voice.mjs           # these two need en_US-lessac-low from the desktop app
 node tools/check_timing.mjs
 node tools/check_reading.mjs
 node tools/check_reader.mjs
+node tools/check_selecting.mjs       # needs serve.py running; starts its own headless Chrome
 ```
 
 **A headless Chrome, driven from Node, is the easiest way to test the page**,
@@ -112,6 +113,14 @@ page draw -- or ask Kat to bring the tab to the front.
 9. **Every message to a worker with an id must be answered**, errors included.
    The page waits on each; one that is never answered stops everything queued
    behind it without a word.
+10. **`python3 -m http.server` lets Chrome keep old scripts.** It sends no
+    caching headers, so Chrome guesses, and ran last hour's `read-aloud.js`
+    after an edit -- `Ctrl`+`Shift`+`R` does not help, because
+    `coi-serviceworker.js` reloads the page once more. Use `serve.py`. When a
+    change seems to do nothing, check the script actually loaded first.
+11. **Clear Chrome's cache in a headless test** (`Network.clearBrowserCache`),
+    and remember `localStorage` survives between runs: a saved speed or
+    reading position changes what the next run does.
 
 ## Next
 
@@ -128,6 +137,21 @@ page draw -- or ask Kat to bring the tab to the front.
   aloud / Pause, ↶ ↷, `Space`, `←` `→`, speed 0.75–4×, click a sentence to
   read from it, the sentence and word lit, the page following, and the place
   in each document remembered.
+
+**Done on 16 September, evening, after Kat's test of reading aloud:**
+
+- **[`PARITY.md`](PARITY.md) lists every desktop feature** and which the
+  browser has. Work down it.
+- **Speed changes at once**, mid-sentence, from the word reached. Clips are
+  kept at the model's own pace too, so nothing is made again. The likelier
+  reason Kat heard no change was trap 10: her browser was running old scripts.
+- **Right-click menu:** *Start reading from here*, *Read the selection*, *Copy*.
+- **Selecting and the text cursor**, as on the desktop: drag, double-click,
+  `Ctrl`+`A`, `Esc`, `Ctrl`+`C`, `Enter` reads it; the cursor follows the voice,
+  blinks when paused, and the arrows (with `Ctrl` for sentences and `Shift` to
+  select) move it. `reader.py` answers every where-is-this-word question with
+  the desktop's own `document.py`, through one `call` message.
+  `tools/check_selecting.mjs` drives all of it in Chrome with real clicks and keys.
 
 **Kat to test:** the new section at the top of `TESTING.md`.
 
@@ -150,12 +174,13 @@ desktop repo if at all.
 
 **Next, in order:**
 
-1. **Right-click → Start reading from here**, and reading while opening, above.
+1. **Highlights and notes, and the movable Highlight/Note strip** (`PARITY.md`),
+   now that selection exists; and reading while opening, above.
 2. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
    needs its hashes in `piper-worker.js`'s `VOICES`, and a sample clip.
 3. **Keep the reader's place across a reload** (scroll and zoom, not only the
    sentence), which `FUTURE-FEATURES.md`'s **Shortcuts** asks for.
-4. Selection, highlights and notes -- step 5 of the build order.
+4. The rest of `PARITY.md`.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are already
 shared (`FUTURE-FEATURES.md`, **Shortcuts**).
