@@ -45,9 +45,9 @@ and updated that evening after Kat tested the reader.
   it on the page), scroll, turn pages, zoom 40–400%, in the
   desktop's colours and bar layout. Pyodide runs in `js/document-worker.js`;
   pages are drawn only while on screen or next to it (`js/page-layout.js`).
-  `node tools/check_reader.mjs` passes. Nothing reads aloud yet. **Kat has
+  `node tools/check_reader.mjs` passes. **Kat has
   tested it by hand** (`TESTING.md`): everything on the list works.
-- **Step 4c, part 1, sentences to the page: done.** See **Next**.
+- **Step 4c, reading on the page: done.** See **Next**.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
 - **Local only.** No remote. The public GitHub repo is Kat's call.
 - **`sample readings/` is Kat's own documents**, git-ignored because they are
@@ -106,59 +106,42 @@ page draw -- or ask Kat to bring the tab to the front.
 7. **One voice session runs one sentence at a time.** The worker queues its
    messages; overlapping runs crash ONNX Runtime on threads, and only when the
    timing lines up.
+8. **Make the `AudioContext` in the click or key press.** `read-aloud.js`'s
+   `prepare()` is called there for that reason; one made after waiting on a
+   worker may never make a sound.
+9. **Every message to a worker with an id must be answered**, errors included.
+   The page waits on each; one that is never answered stops everything queued
+   behind it without a word.
 
 ## Next
 
-**Kat tested `reader.html` on 16 September, and it passed.** What came of it:
+**Done on 16 September, after Kat's test** (`PORT-LOG.md` has the detail):
 
-- **The sample button is gone.** A PDF is opened only by what the reader
-  chooses: Open…, Ctrl+O, or dropping one on the page.
-- **Page Up and Page Down moved the zoom slider** once it had been dragged, a
-  range input keeping the keys; the slider hands focus back on `pointerup`.
-- **Ctrl+0 works, but only shows when zoomed** -- it goes back to 125%, the
-  desktop's own default. Kat found it did nothing at 125%, which is right.
-- **A 598-page scanned book would not open**: it took 258s. The layout's
-  `get_text("dict")` copied out every page image, twice a page. Fixed in the
-  desktop repo and ported -- 35s here now, 12s on the desktop, identical
-  reading. Still a long wait with nothing on screen; see the open question.
+- **Pages are drawn apart from the reading**, by two or three page workers, so
+  a long book shows its pages in seconds and builds sentences meanwhile.
+- **Scans are drawn ahead.** A document whose pages take over 400ms is drawn
+  page by page in the background at 150 dpi and kept in IndexedDB; reopening
+  it is instant. The PDF is never changed.
+- **A page that fails to draw no longer stops the rest** -- the likeliest
+  cause of Kat's blank pages, which could not be reproduced here.
+- **Step 4c is done: it reads aloud.** One voice, `en_US-lessac-low`. Read
+  aloud / Pause, ↶ ↷, `Space`, `←` `→`, speed 0.75–4×, click a sentence to
+  read from it, the sentence and word lit, the page following, and the place
+  in each document remembered.
 
-**Not yet tested:** `voice.html` on an ordinary laptop, and the two desktop
-items at the bottom of `TESTING.md`.
+**Kat to test:** the new section at the top of `TESTING.md`.
 
-**Open question for Kat: long documents.** 35s of "Getting ready" for a
-600-page book. The pages could show as soon as MuPDF opens the file, with the
-sentences built afterwards and a line saying how far along -- `Document`
-builds every sentence in its constructor, so this means building page by page
-from the worker, and reading cannot start until it is done (or until the
-page being read is). Ask before building it.
+**Known:** on a page printed sideways the highlight runs across the lines
+instead of along them. It comes from the shared reading code, so fix it in the
+desktop repo if at all.
 
-**Step 4: the reader**, in three parts:
+**Next, in order:**
 
-- **4a, the words on the page -- done.** See above.
-- **4b, the pages -- done.** See above.
-- **4c, reading on the page -- next.** What it needs, in order:
-  1. **Sentences to the page -- done.** The document worker answers
-     `sentences` (each sentence's text, its words' indices, pages and
-     rectangles, and the tint's boxes a line), `align` (the voice's marks onto
-     positions in those words, through the desktop's `align_marks`) and
-     `sentenceAt` (for click-to-read). `reader.py` holds the Python side;
-     `node tools/check_reader.mjs` checks every sentence of the sample. Nothing
-     on the page calls them yet.
-  2. **The voice in the reader.** `js/piper-worker.js` as it is; a Load voice
-     control, since the first load is 63 MB. Prefetch several sentences ahead
-     as the desktop's `player.py` does (`PREFETCH = 5`), and play through Web
-     Audio from the audio clock, as `voice.html` does -- its `read()` is the
-     working model, stalls and hidden-tab timer included.
-  3. **The highlight.** The current sentence and word drawn over the page from
-     their rectangles times the zoom, in the desktop's `SENTENCE_TINT` and
-     `WORD_TINT` (`mimick/ui/theme.py`). Keep the spoken word in view.
-  4. **Transport.** Play/pause (`Space` on the desktop -- check
-     `main_window._build_shortcuts`), speed 1–4×, and click a sentence to read
-     from it (`Document.sentence_at_point`).
-  The check roadblock 2 asks for is in `check_reader.mjs`: the words lit are
-  the page's own, in order, for every sentence of the sample. The second half
-  of a word hyphenated across a line never lights -- the voice says one word
-  and the first half takes it -- which is the desktop's behaviour too.
+1. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
+   needs its hashes in `piper-worker.js`'s `VOICES`, and a sample clip.
+2. **Keep the reader's place across a reload** (scroll and zoom, not only the
+   sentence), which `FUTURE-FEATURES.md`'s **Shortcuts** asks for.
+3. Selection, highlights and notes -- step 5 of the build order.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are already
 shared (`FUTURE-FEATURES.md`, **Shortcuts**).

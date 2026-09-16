@@ -51,6 +51,31 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Reading aloud, and scanned books — http://localhost:8731/reader.html
+
+Added 16 September. Reload the page first (`Ctrl`+`Shift`+`R`) so the browser
+picks up the new version.
+
+**A scanned book** (*Constructing meaning*)
+- [ ] The first pages show within a few seconds, before "sentences to read" appears
+- [ ] The status line counts "drawing pages ahead", and scrolling past those pages shows them at once
+- [ ] Every page you scroll to loads -- none stays blank
+- [ ] Close the tab, reopen the book: pages already drawn show at once
+- [ ] Zoomed right in, a page sharpens after a moment
+
+**Reading**
+- [ ] **Read aloud** is greyed out until the sentences are ready, then works
+- [ ] The first time, it downloads the voice (about 60 MB) and says so, then reads
+- [ ] It starts at the top of the page you are looking at
+- [ ] The sentence is tinted blue and the word being said is lit, in time with the voice
+- [ ] The page scrolls along as it reads
+- [ ] `Space` pauses and carries on; so does the button
+- [ ] ↶ / ↷ and `←` / `→` go back and forward a sentence
+- [ ] Changing **Speed** while it reads takes effect from the next sentence or two
+- [ ] Clicking a sentence reads from there; dragging to scroll does not
+- [ ] Reading carries on with the tab in the background
+- [ ] Opening another PDF stops the reading
+
 ## The voice — http://localhost:8731/voice.html
 
 - [ ] **Load** is ready within a few seconds (the first ever load downloads 63 MB)

@@ -3,6 +3,8 @@
  * Messages in:
  *   { type: "load", voice, threads }   fetch (or reuse) the voice and start it
  *   { type: "speak", id, text, rate }  one sentence, sped up to `rate` at the same pitch
+ *   { type: "cancel", ids }            speak requests no longer wanted; each is
+ *                                      answered with an error saying "cancelled"
  * Messages out:
  *   { type: "progress", loaded, total }
  *   { type: "ready", voice, threads, isolated, cached, loadMs }
@@ -38,8 +40,12 @@ let voice = null;
 // in the model: two runs of one ONNX Runtime session at once, which on threads
 // fails with "null function" or "unaligned accesses" -- and only when the
 // timing lines up, so it read fine for a while and then broke (PORT-LOG.md).
+// Read as soon as it arrives, not in turn, or it would wait behind the very
+// sentences it is cancelling.
+const cancelled = new Set();
 let queue = Promise.resolve();
 self.onmessage = ({ data }) => {
+  if (data.type === "cancel") { for (const id of data.ids) cancelled.add(id); return; }
   queue = queue.then(async () => {
     try {
       if (data.type === "load") await load(data);
@@ -79,6 +85,7 @@ async function load({ voice: key, threads }) {
 }
 
 async function speak({ id, text, rate }) {
+  if (cancelled.delete(id)) throw new Error("cancelled");
   if (!voice) throw new Error("no voice loaded");
   const r = await voice.speak(text, { rate });
   self.postMessage({ type: "spoken", id, samples: r.samples, sampleRate: voice.sampleRate,

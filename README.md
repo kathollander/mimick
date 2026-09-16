@@ -4,9 +4,10 @@ A PDF reader that reads aloud in natural voices, highlighting each word as it
 speaks it — in a browser tab, with nothing installed and nothing uploaded. Your
 document is opened by your own browser and never leaves your machine.
 
-**It does not read aloud yet.** [`reader.html`](reader.html) opens a PDF and
-shows it -- scrolling, page turning, zoom -- and the reading comes next. Two
-test pages prove the rest of the foundation: [`index.html`](index.html) puts the
+**It reads aloud, with one voice so far.** [`reader.html`](reader.html) opens a
+PDF, shows it, and reads it with the word being said lit on the page. Scanned
+books are drawn ahead in the background and kept in the browser, so they scroll
+quickly. Two test pages prove the foundation: [`index.html`](index.html) puts the
 sample paper through the desktop app's layout analysis, and
 [`voice.html`](voice.html) reads a passage aloud with a Piper voice, up to 4×.
 

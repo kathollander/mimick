@@ -93,7 +93,8 @@
   const dpr = () => window.devicePixelRatio || 1;
 
   function showProgress() {
-    if (!doc) return;
+    // While reading, the status line is the reading's.
+    if (!doc || voice.state !== "stopped") return;
     const ahead = slow && !storeFull && kept.size < doc.pages.length
       ? ` · drawing pages ahead, ${kept.size} of ${doc.pages.length}` : "";
     status(openedStatus + ahead);
@@ -105,8 +106,10 @@
     const mine = ++generation;
     status(pythonReady ? `Opening ${name}…` : `Getting ready, then opening ${name}…`);
     $("empty").hidden = true;
+    voice.open(0);
     clearPages();
     doc = null;
+    setReadable(false);
     const t0 = performance.now();
     const key = await Store.hash(buffer);
     if (mine !== generation) return;
@@ -149,6 +152,8 @@
       Object.assign(doc, { sentences: done.sentences, words: done.words });
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
       openedStatus = `${doc.pages.length} pages · ${done.sentences} sentences to read · opened in ${seconds}s`;
+      voice.open(done.sentences);
+      setReadable(done.sentences > 0);
     } catch (err) {
       if (mine !== generation) return;
       openedStatus = `${doc.pages.length} pages · this one cannot be read aloud: ${err.message}`;
@@ -259,12 +264,14 @@
       const el = document.createElement("div");
       el.className = "page";
       el.setAttribute("aria-label", `Page ${page + 1}`);
+      el.dataset.page = page;
       const canvas = document.createElement("canvas");
       el.append(canvas);
       pagesEl.append(el);
       const slot = { el, canvas, drawnScale: 0 };
       slots.set(page, slot);
       place(page, slot);
+      drawHighlight(page);
     }
     for (const page of band) paint(page);
 
@@ -457,18 +464,160 @@
     setZoom(zoom * factor, e.clientY - view.getBoundingClientRect().top);
   }, { passive: false });
 
+  // --- reading aloud ------------------------------------------------------------
+  // js/read-aloud.js does the reading; this draws it on the page and gives it
+  // its controls.
+
+  const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
+  const remember = (name, value) => { try { localStorage.setItem(name, String(value)); } catch { /* not kept */ } };
+  const recall = (name) => { try { return localStorage.getItem(name); } catch { return null; } };
+
+  // What is lit: the sentence being read, as read-aloud.js made it, and the
+  // position of the word being said in its words.
+  let lit = { sentence: null, made: null, position: null };
+
+  const voice = MimickReadAloud.create({
+    askDocument: (message) => reading.ask(message),
+    onSentence(index, made) {
+      lit = { sentence: index, made, position: null };
+      for (const page of slots.keys()) drawHighlight(page);
+      if (made) {
+        remember(`mimick-position:${doc.key}`, index);
+        const [page, box] = made.lines[0];
+        keepInView(page, box);
+        status(`Sentence ${index + 1} of ${doc.sentences} · page ${page + 1}`);
+      }
+    },
+    onWord(index, position) {
+      if (index !== lit.sentence || !lit.made) return;
+      lit.position = position;
+      for (const page of slots.keys()) drawHighlight(page);
+      const [, page, rect] = lit.made.words[position];
+      keepInView(page, rect);
+    },
+    onState(state) {
+      $("play").textContent = { stopped: "Read aloud", loading: "Loading voice…", buffering: "Pause",
+                                playing: "Pause", paused: "Resume" }[state];
+      $("back").disabled = $("forward").disabled = state === "stopped";
+      if (state === "paused") status("Paused");
+      if (state === "loading") status("Getting the voice ready…");
+      if (state === "stopped") showProgress();
+    },
+    onStatus: status,
+  });
+
+  function setReadable(on) {
+    $("play").disabled = !on;
+    $("play").title = on ? "Start or pause reading  (Space)" : "Reading aloud is ready once the sentences are";
+  }
+
+  /* The sentence tint and the word, over one page, placed in fractions of the
+   * page so a zoom moves them with it. */
+  function drawHighlight(page) {
+    const slot = slots.get(page);
+    if (!slot) return;
+    for (const old of slot.el.querySelectorAll(".hl")) old.remove();
+    if (!lit.made) return;
+    const [w, h] = doc.pages[page];
+    const add = (kind, [x0, y0, x1, y1], pad = 0) => {
+      const box = document.createElement("div");
+      box.className = `hl ${kind}`;
+      Object.assign(box.style, { left: `${(x0 - pad) / w * 100}%`, top: `${(y0 - pad) / h * 100}%`,
+                                 width: `${(x1 - x0 + 2 * pad) / w * 100}%`, height: `${(y1 - y0 + 2 * pad) / h * 100}%` });
+      slot.el.append(box);
+    };
+    for (const [on, box] of lit.made.lines) if (on === page) add("sentence", box);
+    const word = lit.position === null ? null : lit.made.words[lit.position];
+    if (word && word[1] === page) add("word", word[2], 1);
+  }
+
+  /* The desktop's rule: leave the view alone while what is read is on screen;
+   * otherwise bring it a third of the way down. */
+  function keepInView(page, [, y0, , y1]) {
+    const top = geometry.offsets[page] + y0 * zoom, bottom = geometry.offsets[page] + y1 * zoom;
+    if (top >= view.scrollTop && bottom <= view.scrollTop + view.clientHeight) return;
+    view.scrollTop = Math.max(0, (top + bottom) / 2 - view.clientHeight / 3);
+    update();
+  }
+
+  /* Carry on where this document was left, if that is where the reader is
+   * looking; otherwise start at the top of the page on screen. */
+  async function startReading() {
+    const mine = generation, page = currentPage();
+    let from = Number(recall(`mimick-position:${doc.key}`));
+    if (Number.isInteger(from) && from > 0 && from < doc.sentences) {
+      const { sentences: [there] } = await reading.ask({ type: "sentences", start: from, count: 1 });
+      if (!there || Math.abs(there.page - page) > 1) from = null;
+    } else {
+      from = null;
+    }
+    from ??= (await reading.ask({ type: "firstSentenceOn", page })).sentence ?? 0;
+    if (mine === generation) voice.play(from);
+  }
+
+  function togglePlay() {
+    if (!doc?.sentences) return;
+    voice.prepare();     // inside the click or key press, which is what lets it make sound
+    if (voice.state === "stopped") startReading();
+    else voice.toggle();
+  }
+
+  $("play").onclick = () => { togglePlay(); view.focus(); };
+  $("back").onclick = () => { voice.skip(-1); view.focus(); };
+  $("forward").onclick = () => { voice.skip(1); view.focus(); };
+
+  for (const speed of SPEEDS) $("speed").append(new Option(`${speed}×`, speed));
+  const savedRate = Number(recall("mimick-rate"));
+  $("speed").value = SPEEDS.includes(savedRate) ? savedRate : 1;
+  voice.setRate(Number($("speed").value));
+  $("speed").onchange = () => {
+    const rate = Number($("speed").value);
+    voice.setRate(rate);
+    remember("mimick-rate", rate);
+    view.focus();
+  };
+
+  // Click a sentence to read from it -- a click, not the end of a drag.
+  let pressed = null;
+  view.addEventListener("pointerdown", (e) => { pressed = e.button === 0 ? { x: e.clientX, y: e.clientY } : null; });
+  view.addEventListener("pointerup", (e) => {
+    const was = pressed;
+    pressed = null;
+    if (!was || Math.hypot(e.clientX - was.x, e.clientY - was.y) > 4 || !doc?.sentences) return;
+    const el = e.target.closest?.(".page");
+    if (!el) return;
+    const page = Number(el.dataset.page), [w, h] = doc.pages[page], box = el.getBoundingClientRect();
+    const x = (e.clientX - box.left) / box.width * w, y = (e.clientY - box.top) / box.height * h;
+    voice.prepare();
+    const mine = generation;
+    reading.ask({ type: "sentenceAt", page, x, y }).then(({ sentence }) => {
+      if (sentence !== null && mine === generation) voice.play(sentence);
+    });
+  });
+
   // --- keys ---------------------------------------------------------------------
   // The desktop's keys, where a browser lets a page have them. See "Shortcuts"
   // in the desktop repo's docs/FUTURE-FEATURES.md.
 
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
-    const typing = e.target instanceof HTMLInputElement;
+    const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement;
     if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "o") { e.preventDefault(); chooseFile(); return; }
     if (ctrl && (e.key === "=" || e.key === "+")) { e.preventDefault(); setZoom(zoom * L.ZOOM_STEP); return; }
     if (ctrl && e.key === "-") { e.preventDefault(); setZoom(zoom / L.ZOOM_STEP); return; }
     if (ctrl && e.key === "0") { e.preventDefault(); setZoom(L.ZOOM_DEFAULT); return; }
     if (typing || !doc) return;
+    // A focused button acts on Space itself.
+    if (e.key === " " && !ctrl && !(e.target instanceof HTMLButtonElement)) {
+      e.preventDefault();
+      if (!$("play").disabled) togglePlay();
+      return;
+    }
+    if (!ctrl && !e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && voice.state !== "stopped") {
+      e.preventDefault();
+      voice.skip(e.key === "ArrowLeft" ? -1 : 1);
+      return;
+    }
     const go = {
       PageDown: () => goToPage(currentPage() + 1),
       PageUp: () => goToPage(currentPage() - 1),

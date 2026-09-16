@@ -27,13 +27,13 @@
   footer.bar { border-top: 1px solid var(--border); padding-bottom: 10px; }
   .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .centre { display: flex; align-items: center; gap: 8px; }
-  .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 0; }
   .brand { font-weight: 600; letter-spacing: .2px; }
   .dim { color: var(--dim); }
-  #title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  button, input { font: inherit; color: var(--text); background: var(--panel-hi);
+  button, input, select { font: inherit; color: var(--text); background: var(--panel-hi);
                   border: 1px solid var(--border); border-radius: 6px; }
   button { padding: 5px 12px; cursor: pointer; }
   button:hover { background: var(--hover); border-color: #3a4152; }
@@ -42,6 +42,7 @@
   button.square { width: 32px; padding: 5px 0; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
   button.primary:hover { background: #6fa9ff; }
+  button.primary:disabled { background: #1c2029; border-color: var(--border); color: var(--disabled); }
   input[type=number] { width: 64px; padding: 5px 6px; text-align: right; }
   input[type=range] { width: 120px; accent-color: var(--accent); }
   a { color: var(--accent); }
@@ -55,6 +56,12 @@
   #pages { position: relative; }
   .page { position: absolute; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
   .page canvas { width: 100%; height: 100%; display: block; }
+  /* The reading highlight, in the desktop's SENTENCE_TINT and WORD_TINT. */
+  .page .hl { position: absolute; pointer-events: none; }
+  .page .hl.sentence { background: rgba(91, 157, 255, .19); }
+  .page .hl.word { background: rgba(255, 190, 60, .51); border-radius: 2px; }
+  #play { min-width: 130px; }
+  select { padding: 4px 6px; }
 
   #empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; }
   #empty .card { max-width: 420px; }
@@ -70,9 +77,16 @@
     <span class="brand">Mimick</span>
     <button id="open" title="Open a PDF  (Ctrl+O)">Open…</button>
     <input id="file" type="file" accept="application/pdf,.pdf" hidden>
+    <label class="dim" for="speed">Speed</label>
+    <select id="speed" title="How fast the voice reads"></select>
   </div>
-  <div class="centre"><span id="title" class="dim"></span></div>
+  <div class="centre">
+    <button id="back" class="square" title="Previous sentence  (←)" disabled>↶</button>
+    <button id="play" class="primary" title="Start or pause reading  (Space)" disabled>Read aloud</button>
+    <button id="forward" class="square" title="Next sentence  (→)" disabled>↷</button>
+  </div>
   <div class="right">
+    <span id="title" class="dim"></span>
     <a class="dim" href="https://github.com/kathollander/mimick-web" target="_blank" rel="noopener">Source</a>
   </div>
 </header>
@@ -110,5 +124,6 @@
 
 <script src="js/page-layout.js"></script>
 <script src="js/page-store.js"></script>
+<script src="js/read-aloud.js"></script>
 <script src="js/reader.js"></script>
 </html>

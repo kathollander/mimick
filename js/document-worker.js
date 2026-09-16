@@ -5,9 +5,10 @@
  *
  * Messages in:
  *   { type: "open", id, bytes, name }     bytes: ArrayBuffer, transferred
- *   { type: "sentences", id }
+ *   { type: "sentences", id, start?, count? }
  *   { type: "align", id, sentence, marks }  marks: [[seconds, word]] from the voice
  *   { type: "sentenceAt", id, page, x, y }  x, y in PDF points
+ *   { type: "firstSentenceOn", id, page }
  * Messages out:
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, openMs }
@@ -16,6 +17,7 @@
  *              lines: [[page, [x0, y0, x1, y1]]] }   see reader.sentences
  *   { type: "aligned", id, sentence, aligned: [[seconds, position in words]] }
  *   { type: "sentenceAt", id, sentence }    sentence: an index, or null
+ *   { type: "firstSentenceOn", id, sentence }   the same
  *   { type: "error", id?, message }
  *
  * Python starts loading the moment the worker does. Messages are handled one at
@@ -50,6 +52,7 @@ self.onmessage = ({ data }) => {
       else if (data.type === "sentences") sentences(py, data);
       else if (data.type === "align") align(py, data);
       else if (data.type === "sentenceAt") sentenceAt(py, data);
+      else if (data.type === "firstSentenceOn") firstSentenceOn(py, data);
     } catch (err) {
       self.postMessage({ type: "error", id: data.id, message: String(err && err.message || err) });
     }
@@ -90,8 +93,8 @@ function callReader(py, name, ...args) {
   }
 }
 
-function sentences(py, { id }) {
-  self.postMessage({ type: "sentences", id, sentences: callReader(py, "sentences") });
+function sentences(py, { id, start = 0, count = null }) {
+  self.postMessage({ type: "sentences", id, sentences: callReader(py, "sentences", start, count) });
 }
 
 // The alignment stays in Python -- one copy, the desktop's align_marks.
@@ -102,4 +105,9 @@ function align(py, { id, sentence, marks }) {
 function sentenceAt(py, { id, page, x, y }) {
   const sentence = callReader(py, "sentence_at", page, x, y);
   self.postMessage({ type: "sentenceAt", id, sentence: sentence ?? null });
+}
+
+function firstSentenceOn(py, { id, page }) {
+  const sentence = callReader(py, "first_sentence_on", page);
+  self.postMessage({ type: "firstSentenceOn", id, sentence: sentence ?? null });
 }

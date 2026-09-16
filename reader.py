@@ -48,8 +48,10 @@ def _rect(rect) -> list[float]:
     return [round(v, 2) for v in rect]
 
 
-def sentences() -> list[dict]:
-    """Every sentence, as the page needs it to read and highlight.
+def sentences(start: int = 0, count: int | None = None) -> list[dict]:
+    """Sentences from ``start`` -- ``count`` of them, or all the rest -- as the
+    page needs them to read and highlight. A long book has fifteen thousand,
+    so the page asks for them a stretch at a time.
 
     ``words`` holds one ``[index, page, rect]`` per word of the sentence, in the
     sentence's own order, so a position ``align`` returns picks one out.
@@ -58,7 +60,8 @@ def sentences() -> list[dict]:
     sentence can carry on over a page, which is why both say which page.
     """
     out = []
-    for sentence in _open().sentences:
+    every = _open().sentences
+    for sentence in every[start:len(every) if count is None else start + count]:
         pages = sorted({word.page for word in sentence.words})
         out.append({
             "page": sentence.page,
@@ -77,6 +80,14 @@ def align(sentence: int, marks: list) -> list[list]:
     target = _open().sentences[sentence]
     return [[when, position] for when, position in
             align_marks(target, [(float(when), str(word)) for when, word in marks])]
+
+
+def first_sentence_on(page: int) -> int | None:
+    """The first sentence that starts on ``page`` or after it, or None."""
+    for index, sentence in enumerate(_open().sentences):
+        if sentence.page >= page:
+            return index
+    return None
 
 
 def sentence_at(page: int, x: float, y: float) -> int | None:

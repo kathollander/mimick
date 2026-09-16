@@ -302,3 +302,52 @@ Fixed in the desktop repo and ported: **35s here, 12s natively**, with the same
 15,096 sentences and 267,441 words, and the sample identical to the baseline.
 The 212-page curriculum went from 12s to 10.6s. Opening is still roughly 3×
 slower under Pyodide than natively.
+
+## Pages drawn apart from the reading, and scans drawn ahead
+
+**16 September 2026.** Kat found that on *Constructing meaning* the pages after
+the first did not load. It could not be made to happen here, at either screen
+density, but the code had a way to do it: pages were drawn one at a time, each
+waiting on the last, and a draw that failed without answering stopped every
+page after it. Every draw now answers, and a failure is reported.
+
+The book's pages are two layers of JPEG 2000 and JBIG2, about 0.6s each to
+draw natively and 0.9s here, whatever size they are drawn at. So:
+
+- **Pages have their own workers** (`js/page-worker.js`, `pages.py`), two or
+  three beside the document worker. The first page shows in under 5s instead of
+  after the 36s the sentences take.
+- **Slow documents are spotted** by two pages taking over 400ms. Every page is
+  then drawn at 150 dpi, nearest the reader first, and kept in IndexedDB
+  (`js/page-store.js`) -- about 190 KB a page, so about 115 MB for this book;
+  the four most recent slow documents are kept. Reopening shows kept pages at
+  once. Born-digital documents are never marked slow: the sample and the
+  212-page curriculum both checked.
+- **Converting the PDF was tried and dropped.** PyMuPDF's `rewrite_images`
+  skipped these images after 10 minutes; flattening each page to a 150 dpi
+  JPEG drew 12× faster but made the file 3–4× larger.
+
+Building the sentences takes 45s now rather than 36s, sharing the machine with
+the drawing.
+
+## Step 4c, parts 2–4 — reading aloud
+
+**16 September 2026.** `js/read-aloud.js` is the browser's `player.py`: the
+Piper worker makes the sentence playing and five ahead, `align` puts the voice's
+words on the page's, and Web Audio plays it with the highlight following the
+audio clock. Pause suspends the audio clock, so voice and highlight stop
+together. A speed change cancels the sentences already made ahead
+(`piper-worker.js` takes a `cancel` message, read out of turn). Sentences come
+from the document worker forty at a time. The reader draws the sentence tint
+and word in the desktop's colours, keeps them in view by the desktop's rule,
+and remembers where each document was left.
+
+Checked in headless Chrome: the voice downloads and reads; pause, resume, skip,
+speed change and click-to-read work; the tint and word land on the right text
+in the sample and in the scanned book.
+
+**Found: a sideways page highlights across, not down.** Page 43 of the book is
+printed sideways; the tint is drawn as horizontal bands over the vertical
+lines. That comes from the shared reading code's rectangles, so the desktop
+does the same.
+
