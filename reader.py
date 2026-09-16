@@ -1,9 +1,10 @@
-"""The browser reader's side of Python: one open document, and its pages drawn.
+"""The browser reader's side of Python: one open document, its pages drawn,
+and its sentences handed to the page.
 
 Glue, not reading logic. Everything about what a page says comes from the
 desktop's ``document.py`` (the package ``mimick``); this only keeps the open
-``Document`` between calls from js/document-worker.js and hands pages back as
-pixels. Runs in the document worker, never on the page's own thread.
+``Document`` between calls from js/document-worker.js and hands back pixels and
+plain data. Runs in the document worker, never on the page's own thread.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from pathlib import Path
 
 import pymupdf
 
-from mimick.document import Document
+from mimick.document import Document, _merge_rects, align_marks
 
 _document: Document | None = None
 _folder = Path(tempfile.mkdtemp())
@@ -41,11 +42,55 @@ def open_document(pdf_bytes: bytes, name: str) -> dict:
 
 def render(page: int, scale: float) -> tuple[int, int, bytes]:
     """One page as RGB pixels at ``scale`` pixels per PDF point."""
-    if _document is None:
-        raise RuntimeError("no document is open")
-    pixmap = _document.doc.load_page(page).get_pixmap(
+    pixmap = _open().doc.load_page(page).get_pixmap(
         matrix=pymupdf.Matrix(scale, scale), alpha=False)
     return pixmap.width, pixmap.height, pixmap.samples
+
+
+def _open() -> Document:
+    if _document is None:
+        raise RuntimeError("no document is open")
+    return _document
+
+
+def _rect(rect) -> list[float]:
+    return [round(v, 2) for v in rect]
+
+
+def sentences() -> list[dict]:
+    """Every sentence, as the page needs it to read and highlight.
+
+    ``words`` holds one ``[index, page, rect]`` per word of the sentence, in the
+    sentence's own order, so a position ``align`` returns picks one out.
+    ``lines`` is the sentence tint: its words' rectangles joined into one box a
+    line, page by page, exactly as the desktop's ``PageView`` paints it. A
+    sentence can carry on over a page, which is why both say which page.
+    """
+    out = []
+    for sentence in _open().sentences:
+        pages = sorted({word.page for word in sentence.words})
+        out.append({
+            "page": sentence.page,
+            "text": sentence.text,
+            "words": [[word.index, word.page, _rect(word.rect)] for word in sentence.words],
+            "lines": [[page, _rect(box)] for page in pages
+                      for box in _merge_rects([w.rect for w in sentence.words if w.page == page])],
+        })
+    return out
+
+
+def align(sentence: int, marks: list) -> list[list]:
+    """The voice's ``[seconds, word]`` marks for one sentence, as
+    ``[seconds, position]`` -- a position into that sentence's ``words``.
+    The desktop's own ``align_marks``, so both highlight the same word."""
+    target = _open().sentences[sentence]
+    return [[when, position] for when, position in
+            align_marks(target, [(float(when), str(word)) for when, word in marks])]
+
+
+def sentence_at(page: int, x: float, y: float) -> int | None:
+    """The sentence under a point on a page, in PDF points, or None."""
+    return _open().sentence_at_point(page, x, y)
 
 
 def close() -> None:

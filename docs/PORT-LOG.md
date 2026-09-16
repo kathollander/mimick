@@ -272,3 +272,17 @@ page now updates from a timer when hidden, as trap 5 says it must -- but the
 reliable test is real input and a screenshot. Scrolling to page 2, zooming to
 190% and keeping the place, and typing 12 into the page box were all checked
 that way.
+
+## Step 4c, part 1 — sentences to the page
+
+**Done, 16 September 2026.** `reader.py` gains `sentences`, `align` and
+`sentence_at`; `js/document-worker.js` answers them as `sentences`, `align` and
+`sentenceAt`. The tint's line boxes are made in Python with the desktop's own
+`_merge_rects`, page by page, so a sentence carried over a page break is tinted
+on both.
+
+`node tools/check_reader.mjs` now goes through all 272 sentences of the sample:
+the words match the desktop's baseline to the rectangle, 6,749 of 6,750 marks
+light a word and always in order, every word sits inside its tint, and a click
+on a word finds its sentence. The 25 spoken words that never light are the
+second halves of hyphenated words and lone punctuation, as on the desktop.

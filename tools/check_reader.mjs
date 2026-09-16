@@ -11,6 +11,14 @@
  *      page is ever drawn bigger than MAX_PAGE_PIXELS.
  *   2. reader.py and js/pixels.js, under Pyodide -- the sample opens, and a
  *      page comes back as an image of the right size with print on it.
+ *   3. What the page reads from -- reader.sentences, reader.align and
+ *      reader.sentence_at, the worker's "sentences", "align" and "sentenceAt"
+ *      messages. For every sentence of the sample: its words are the page's
+ *      own, index for index and rectangle for rectangle, as the desktop's
+ *      baseline has them; the words the voice lights are those words, in
+ *      order, and every word it says lights one; the sentence tint covers
+ *      every word, on the word's own page; and a click on a word finds that
+ *      word's sentence.
  *
  * Scrolling, painting and the controls themselves are checked in Chrome; see
  * PORT-LOG.md, step 4b.
@@ -121,6 +129,59 @@ check("a page comes back the size asked for, opaque, with print on it",
 let refused = false;
 try { reader.render(12, 1); } catch { refused = true; }
 check("a page past the end is refused, not drawn blank", refused);
+
+// 3. Sentences for reading, under Pyodide -------------------------------------
+const baseline = JSON.parse(fs.readFileSync(path.join(root, "sample/expected-reading.json"), "utf8")).clean;
+const plain = (proxy) => { const v = proxy.toJs({ dict_converter: Object.fromEntries }); proxy.destroy(); return v; };
+const sentences = plain(reader.sentences());
+check("every sentence reaches the page", sentences.length === baseline.sentences.length,
+      `${sentences.length} vs the desktop's ${baseline.sentences.length}`);
+
+let notOwn = 0, badLight = 0, unlit = 0, uncovered = 0, missed = 0, lit = 0, said = 0, firstBad = "";
+const inside = ([x0, y0, x1, y1], [a0, b0, a1, b1]) => x0 >= a0 - 0.01 && y0 >= b0 - 0.01 && x1 <= a1 + 0.01 && y1 <= b1 + 0.01;
+sentences.forEach((s, i) => {
+  const want = baseline.sentences[i];
+  const own = s.text === want.text && s.page === want.page && s.words.length === want.words.length
+    && s.words.every(([index, , rect], k) => index === want.words[k][0] && JSON.stringify(rect) === JSON.stringify(want.words[k][2]));
+  if (!own) { notOwn++; firstBad ||= `sentence ${i} is not the page's own words`; }
+
+  // The voice's marks, as the voice gives them: one per word of the text.
+  const marks = s.text.split(/\s+/).filter(Boolean).map((word, k) => [k * 0.3, word]);
+  const pyMarks = py.toPy(marks);
+  const aligned = plain(reader.align(i, pyMarks));
+  pyMarks.destroy();
+  said += marks.length; lit += aligned.length;
+  let last = -1;
+  for (const [, position] of aligned) {
+    const word = want.words[position];
+    if (!(position > last) || !word || !word[3]) { badLight++; firstBad ||= `sentence ${i}: position ${position} lit out of order or unspoken`; }
+    last = position;
+  }
+  // Every spoken word lights, but for two kinds the voice has no mark of its
+  // own for: the second half of a word hyphenated across a line ("cul-" lights
+  // for "cultures"), and a word with no letters or digits in it.
+  const litPositions = new Set(aligned.map(([, position]) => position));
+  want.words.forEach((w, k) => {
+    const secondHalf = k > 0 && want.words[k - 1][4];
+    if (w[3] && !litPositions.has(k) && !secondHalf && /[\p{L}\p{N}]/u.test(w[1])) {
+      unlit++; firstBad ||= `sentence ${i}: "${w[1]}" never lit`;
+    }
+  });
+
+  for (const [, page, rect] of s.words) {
+    if (!s.lines.some(([p, box]) => p === page && inside(rect, box))) { uncovered++; firstBad ||= `sentence ${i}: a word outside its tint`; }
+  }
+  const [index, page, [x0, y0, x1, y1]] = s.words.find((w) => want.words.find((b) => b[0] === w[0])[3]) || s.words[0];
+  const hit = reader.sentence_at(page, (x0 + x1) / 2, (y0 + y1) / 2);
+  if (hit !== i) { missed++; firstBad ||= `word ${index} on page ${page + 1} found sentence ${hit}, not ${i}`; }
+});
+check("every sentence's words are the page's own, index for index and rectangle for rectangle", notOwn === 0, firstBad);
+check("the words the voice lights are that sentence's spoken words, in order", badLight === 0,
+      `${lit} of ${said} marks lit a word`);
+check("and every spoken word is lit, but the second half of a hyphenated one", unlit === 0, unlit ? `${unlit} never lit` : "");
+check("the sentence tint covers every word, on the word's own page", uncovered === 0);
+check("a click on a word finds that word's sentence", missed === 0, missed ? `${missed} missed` : "");
+check("a click on empty margin finds no sentence", reader.sentence_at(0, 2, 2) === undefined || reader.sentence_at(0, 2, 2) === null);
 
 console.log("");
 if (problems.length) {

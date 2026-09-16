@@ -99,10 +99,13 @@ on an ordinary laptop. Ask what she found before building on either.
 - **4a, the words on the page -- done.** See above.
 - **4b, the pages -- done.** See above.
 - **4c, reading on the page -- next.** What it needs, in order:
-  1. **Sentences to the page.** A document-worker message that gives each
-     sentence's text and its words' indices, pages and rectangles, and one that
-     runs `align_marks` for a sentence and the voice's marks. The alignment
-     stays in Python -- one copy, the desktop's.
+  1. **Sentences to the page -- done.** The document worker answers
+     `sentences` (each sentence's text, its words' indices, pages and
+     rectangles, and the tint's boxes a line), `align` (the voice's marks onto
+     positions in those words, through the desktop's `align_marks`) and
+     `sentenceAt` (for click-to-read). `reader.py` holds the Python side;
+     `node tools/check_reader.mjs` checks every sentence of the sample. Nothing
+     on the page calls them yet.
   2. **The voice in the reader.** `js/piper-worker.js` as it is; a Load voice
      control, since the first load is 63 MB. Prefetch several sentences ahead
      as the desktop's `player.py` does (`PREFETCH = 5`), and play through Web
@@ -114,8 +117,10 @@ on an ordinary laptop. Ask what she found before building on either.
   4. **Transport.** Play/pause (`Space` on the desktop -- check
      `main_window._build_shortcuts`), speed 1–4×, and click a sentence to read
      from it (`Document.sentence_at_point`).
-  A check tool alongside, as roadblock 2 says: the words lit must be the
-  page's own words, in order, for every sentence of the sample.
+  The check roadblock 2 asks for is in `check_reader.mjs`: the words lit are
+  the page's own, in order, for every sentence of the sample. The second half
+  of a word hyphenated across a line never lights -- the voice says one word
+  and the first half takes it -- which is the desktop's behaviour too.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are already
 shared (`FUTURE-FEATURES.md`, **Shortcuts**).
