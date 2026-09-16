@@ -34,6 +34,11 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
 - **Step 3, word timing: done.** Exact, from the model's own phoneme durations
   (`js/timing.js`). `node tools/check_timing.mjs` passes; `voice.html` now
   highlights each word of the passage as it is spoken.
+- **Step 4a, the words on the page: done.** The desktop's `document.py` runs
+  unchanged under Pyodide (`js/python.js`, `reading.py`), and so does
+  `align_marks`, moved into it for the purpose. `node tools/check_reading.mjs`
+  passes: 272 sentences and 8,395 words, identical to the desktop's to the
+  rectangle, both with the cleanup on and off.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
 - **Local only.** No remote. The public GitHub repo is Kat's call.
 
@@ -44,6 +49,7 @@ python3 -m http.server 8731          # then http://localhost:8731/voice.html
 node tools/check_spike.mjs
 node tools/check_voice.mjs           # these two need en_US-lessac-low from the desktop app
 node tools/check_timing.mjs
+node tools/check_reading.mjs
 ```
 
 Claude in Chrome drives these pages: click by screen position, not by element
@@ -75,10 +81,14 @@ on a page where one may still be running; they stop each other's playback.
 **Try `voice.html` on an ordinary laptop** — two to four cores, not this
 machine. Steps 1–3 answered every other open question.
 
-**Step 4: the reader.** Page rendering, scrolling, the highlight on the page
-rather than in a quotation. Words on the page come from the desktop's
-`Document` (not yet ported -- `spike.py` stands in); the voice's marks are per
-whitespace-split word of a sentence's text, so they still have to be matched to
-page words the way the desktop's `player.align_marks` does. Port that with a
-check. The layout follows the desktop app, Photopea-style; the shortcuts are
-already shared (`FUTURE-FEATURES.md`, **Shortcuts**).
+**Step 4: the reader**, in three parts:
+
+- **4a, the words on the page -- done.** See above.
+- **4b, the pages.** Pyodide and MuPDF in their own worker (roadblock 3), pages
+  rendered there and drawn only while on screen (desktop trap 4).
+- **4c, reading on the page.** The word highlight drawn over the page from
+  `Word.rect`, click a sentence to read from it, play, pause and speed. The
+  voice's marks go through `align_marks` in the document worker.
+
+The layout follows the desktop app, Photopea-style; the shortcuts are already
+shared (`FUTURE-FEATURES.md`, **Shortcuts**).

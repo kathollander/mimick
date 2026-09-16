@@ -34,17 +34,19 @@ To check the foundation without a browser:
 ```bash
 node tools/check_spike.mjs
 node tools/check_voice.mjs
+node tools/check_timing.mjs
+node tools/check_reading.mjs
 ```
 
 The first compares every region of the sample against what the desktop app
-found. The second checks the voice pronounces things as the desktop's does, and
+found, and the last every sentence and word. The second checks the voice pronounces things as the desktop's does, and
 that speeding it up keeps its pitch.
 
 ## Which way the work flows
 
-`py/` holds three modules copied from the desktop app — `layout.py`,
-`citations.py` and `speech.py`, about 700 lines that decide what on a page is
-worth reading and in what order. They are the hardest-won code in either
+`py/` holds four modules copied from the desktop app — `document.py`,
+`layout.py`, `citations.py` and `speech.py`, about 1,300 lines that decide what
+on a page is worth reading, in what order, and which word is where. They are the hardest-won code in either
 project and there is **one copy that matters**, the one in `mimick`.
 
 **Fix things there, then bring them across:**
@@ -55,7 +57,8 @@ tools/port.sh ../Mimick
 
 Never edit `py/` here. An edit made here is lost the next time that script
 runs, and before it is lost it makes the two versions read documents
-differently — which `tools/check_spike.mjs` is there to catch.
+differently — which `tools/check_spike.mjs` and `tools/check_reading.mjs` are
+there to catch.
 `py/PORTED-FROM.txt` records which commit the copies came from.
 
 ## What is vendored, and why

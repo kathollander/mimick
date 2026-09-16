@@ -221,3 +221,20 @@ worker now takes one message at a time. None of the Node checks can see this --
 it needs the worker and threads -- so it was found, and checked, in Chrome:
 eight passages requested at once, then Measure, 1×, 2×, 3× and 4× in a row,
 all without an error.
+
+## Step 4a — the words on the page
+
+**Done, 16 September 2026.** The reader's sentences and word rectangles come
+from the desktop's own `document.py`, run unchanged under Pyodide as the package
+`mimick` (`js/python.js`). Nothing in it needed changing: it asks for a path, and
+Pyodide has a file system to give it one.
+
+One change was made on the desktop side first: `align_marks`, which puts the
+voice's words onto the page's, moved from `player.py` into `document.py`.
+`player.py` imports sounddevice and Qt; the function needed neither.
+
+`node tools/check_reading.mjs` compares everything against the desktop's own
+output for the sample: 272 sentences cleaned up and 396 as extracted, 8,395
+words each way, every index, text and rectangle, and where the voice's words
+land. All identical. Opening the sample both ways takes 4.3s in Node, against
+1.2s natively.

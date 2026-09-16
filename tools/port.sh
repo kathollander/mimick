@@ -11,7 +11,7 @@ set -euo pipefail
 SRC="${1:-../Mimick}"
 [ -d "$SRC/mimick" ] || { echo "No mimick package at $SRC" >&2; exit 1; }
 
-for name in layout.py citations.py speech.py; do
+for name in layout.py citations.py speech.py document.py; do
     cp "$SRC/mimick/$name" "py/$name"
     echo "  $name"
 done
