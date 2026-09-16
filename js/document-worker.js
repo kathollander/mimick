@@ -4,7 +4,8 @@
  * this is still opening.
  *
  * Messages in:
- *   { type: "open", id, bytes, name }     bytes: ArrayBuffer, transferred
+ *   { type: "open", id, bytes, name, options? }   bytes: ArrayBuffer, transferred;
+ *       options: { skip_citations, clean_text, read_footnotes }, each true unless said
  *   { type: "sentences", id, start?, count?, source? }   source: "document" or "selection"
  *   { type: "align", id, sentence, marks, source? }  marks: [[seconds, word]] from the voice
  *   { type: "sentenceAt", id, page, x, y }  x, y in PDF points
@@ -63,13 +64,15 @@ self.onmessage = ({ data }) => {
   });
 };
 
-async function open(py, { id, bytes, name }) {
+async function open(py, { id, bytes, name, options = {} }) {
   const t0 = performance.now();
   // A typed array reaches Python as a JsProxy; to_bytes() copies it once, so
   // reader.py only ever sees plain bytes, as it would on the desktop.
-  const openFrom = py.runPython("lambda js, name: reader.open_document(js.to_bytes(), name)");
+  const openFrom = py.runPython(
+    "lambda js, name, o: reader.open_document(js.to_bytes(), name, o.skip_citations, o.clean_text, o.read_footnotes)");
+  const settings = { skip_citations: true, clean_text: true, read_footnotes: true, ...options };
   try {
-    const info = openFrom(new Uint8Array(bytes), name);
+    const info = openFrom(new Uint8Array(bytes), name, settings);
     const out = info.toJs({ dict_converter: Object.fromEntries });
     info.destroy();
     self.postMessage({ type: "opened", id, ...out, openMs: performance.now() - t0 });
@@ -109,7 +112,7 @@ function align(py, { id, sentence, marks, source = "document" }) {
 const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "word_at", "sentence_span",
                        "page_span", "caret_step", "caret_place",
                        "annotations", "annotation_add", "annotation_set", "annotation_remove",
-                       "snapshot", "restore", "notes_pdf", "set_author"]);
+                       "snapshot", "restore", "notes_pdf", "set_author", "set_reading"]);
 
 function call(py, { id, name, args = [] }) {
   if (!CALLS.has(name)) throw new Error(`reader.py has no ${name} for the page`);

@@ -194,7 +194,8 @@
         // This one first: the voice makes sentences in the order it is asked.
         const current = clip(i);
         prefetch(i);
-        const waiting = setTimeout(() => mine === session && setState("buffering"), 60);
+        // Paused stays paused: a pause in these 60 ms used to be undone by this.
+        const waiting = setTimeout(() => mine === session && state !== "paused" && setState("buffering"), 60);
         let made;
         try {
           made = await current;

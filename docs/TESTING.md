@@ -51,6 +51,21 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Display switches, and Help
+
+Added 16 September, late.
+
+- [ ] **Display ▾ → Click to read** off: clicking a sentence no longer reads; right-click → *Start reading from here* still does. Back on: clicking reads again
+- [ ] **Clean up text for reading** off: the status line says "reading the PDF verbatim" and the reference list gets read. Back on: it's skipped again
+- [ ] **Skip citations while reading** off: citations like "(Smith 2020)" are read out. Back on: passed over
+- [ ] **Read footnotes** is greyed out on a paper without footnotes; on one with them, turning it off skips them
+- [ ] Flipping any of these while it reads carries on from about the same place
+- [ ] Highlights stay on the same words after flipping them
+- [ ] The switches are remembered when you open the next PDF
+- [ ] Pausing straight after pressing Read aloud stays paused
+- [ ] **Help ▾ → Keyboard shortcuts** (or the `?` key) lists the keys, and every one listed works
+- [ ] **Help ▾ → About Mimick** and **Source code** open
+
 ## Highlights and notes
 
 Added 16 September, late. Reload the page first. Try it on your own PDFs, not

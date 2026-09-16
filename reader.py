@@ -24,8 +24,10 @@ _selection: list = []
 _folder = Path(tempfile.mkdtemp())
 
 
-def open_document(pdf_bytes: bytes, name: str) -> dict:
-    """Open a PDF, closing whatever was open, and describe it."""
+def open_document(pdf_bytes: bytes, name: str, skip_citations: bool = True,
+                  clean_text: bool = True, read_footnotes: bool = True) -> dict:
+    """Open a PDF, closing whatever was open, and describe it. The switches are
+    the desktop's Display menu, as the reader last left them."""
     global _document, _store
     close()
     # Document wants a path; Pyodide's file system gives it one. The name is
@@ -33,7 +35,8 @@ def open_document(pdf_bytes: bytes, name: str) -> dict:
     path = _folder / (Path(name).name or "document.pdf")
     path.write_bytes(pdf_bytes)
     try:
-        _document = Document(path)
+        _document = Document(path, skip_citations=bool(skip_citations), clean_text=bool(clean_text),
+                             read_footnotes=bool(read_footnotes))
     finally:
         path.unlink(missing_ok=True)
     try:
@@ -46,7 +49,26 @@ def open_document(pdf_bytes: bytes, name: str) -> dict:
         "pages": [list(_document.page_size(n)) for n in range(_document.page_count)],
         "sentences": len(_document.sentences),
         "words": len(_document.words),
+        "has_footnotes": _document.has_footnotes,
     }
+
+
+def set_reading(switch: str, on: bool, anchor: int = -1) -> dict:
+    """Flip one of the reading switches and rebuild the sentences.
+
+    Sentence numbers mean nothing across a rebuild, so the reader's place is
+    held by a word -- ``anchor`` -- whose index does not change, and the answer
+    says which sentence now reaches it (MainWindow._sentence_for_word). Word
+    indices, and with them every highlight, stay where they were."""
+    document = _open()
+    setter = {"skip_citations": document.set_skip_citations, "clean_text": document.set_clean_text,
+              "read_footnotes": document.set_read_footnotes}[switch]
+    setter(bool(on))
+    resume = 0
+    if anchor >= 0:
+        resume = next((s.index for s in document.sentences if s.words and s.words[-1].index >= anchor),
+                      max(len(document.sentences) - 1, 0))
+    return {"sentences": len(document.sentences), "words": len(document.words), "resume": resume}
 
 
 def _open() -> Document:

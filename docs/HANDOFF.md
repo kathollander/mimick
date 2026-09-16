@@ -66,6 +66,7 @@ node tools/check_reading.mjs
 node tools/check_reader.mjs
 node tools/check_selecting.mjs       # needs serve.py running; starts its own headless Chrome
 node tools/check_notes.mjs           # the same
+node tools/check_display.mjs         # the same
 ```
 
 **A headless Chrome, driven from Node, is the easiest way to test the page**,
@@ -172,6 +173,15 @@ checks share. Three decisions worth knowing:
 - **Header menus.** The browser has no menu bar, so **Notes ▾** and
   **Display ▾** hold what the desktop's menus did. Later switches (reading
   order, footnotes, citations, click to read) belong in **Display ▾**.
+
+**Then the Display switches and Help.** Click to read, Skip citations, Read
+footnotes and Clean up text, each remembered and passed to `reader.open_document`;
+flipping one calls `reader.set_reading`, which holds the place by word as the
+desktop's `_toggle_clean_text` does. **Help ▾** has the key list, About, and
+the source link that used to sit in the header (the AGPL wants it offered).
+`tools/check_display.mjs` covers them. Found on the way: **a pause in the first
+60 ms of reading was undone** by `read-aloud.js`'s buffering timer, which set
+"buffering" over "paused". Fixed.
 
 **Kat to test:** the new sections at the top of `TESTING.md`.
 

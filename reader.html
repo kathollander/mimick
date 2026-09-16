@@ -130,6 +130,16 @@
                     border: 1px solid var(--border); border-radius: 6px; }
   dialog label { display: grid; gap: 4px; }
   dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; }
+  .long { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+  .long .scroll { overflow-y: auto; max-height: calc(100vh - 160px); padding-right: 6px; }
+  .long h2 { font-size: 13px; margin: 14px 0 4px; }
+  .long h2:first-child { margin-top: 0; }
+  .long table { border-collapse: collapse; }
+  .long td { padding: 3px 14px 3px 0; vertical-align: top; }
+  .long td:first-child { white-space: nowrap; font-weight: 600; }
+  .long td:last-child, .long p { color: var(--dim); }
+  .long p { margin: 0 0 12px; }
+  .long p b { color: var(--text); }
   #style-sample { background: #1a1d23; padding: 10px; border-radius: 7px; }
   #style-sample .note-card { cursor: default; }
 
@@ -174,7 +184,7 @@
   </div>
   <div class="right">
     <span id="title" class="dim"></span>
-    <a class="dim" href="https://github.com/kathollander/mimick-web" target="_blank" rel="noopener">Source</a>
+    <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
   </div>
 </header>
 
@@ -262,6 +272,103 @@
       <button id="style-cancel" type="button">Cancel</button>
       <button class="primary" type="submit">Done</button>
     </div>
+  </form>
+</dialog>
+
+<dialog id="keys-dialog" class="long" aria-label="Keyboard shortcuts">
+  <form method="dialog">
+    <div class="scroll">
+      <h2>Reading</h2>
+      <table>
+        <tr><td>Space</td><td>Start reading, or pause it</td></tr>
+        <tr><td>Enter</td><td>Read the selected text, then stop</td></tr>
+        <tr><td>←  →</td><td>Back or forward one sentence, while it is reading</td></tr>
+      </table>
+      <h2>Choosing what gets read</h2>
+      <table>
+        <tr><td>Click a sentence</td><td>Start reading from there. Turn this off under Display → Click to read.</td></tr>
+        <tr><td>Drag across text</td><td>Select a passage</td></tr>
+        <tr><td>Double-click</td><td>Select the whole sentence</td></tr>
+        <tr><td>Right-click</td><td>Start reading from that point, whichever way Click to read is set</td></tr>
+        <tr><td>Ctrl+A</td><td>Select every word on the page</td></tr>
+        <tr><td>Ctrl+C</td><td>Copy the selected text, or the highlight you have clicked</td></tr>
+        <tr><td>Esc</td><td>Clear the selection</td></tr>
+      </table>
+      <h2>Moving the cursor — while reading is paused</h2>
+      <table>
+        <tr><td>←  →</td><td>Back or forward one word</td></tr>
+        <tr><td>↑  ↓</td><td>Up or down one line</td></tr>
+        <tr><td>Home / End</td><td>Start or end of the line</td></tr>
+        <tr><td>Ctrl+← / Ctrl+→</td><td>Start of the previous or next sentence</td></tr>
+        <tr><td>Shift+←  Shift+→</td><td>Select word by word, then Ctrl+H or Ctrl+M</td></tr>
+        <tr><td>Shift+↑  Shift+↓</td><td>Select line by line</td></tr>
+        <tr><td>Shift+Home / Shift+End</td><td>Select to the start or end of the line</td></tr>
+        <tr><td>Ctrl+Shift+← / Ctrl+Shift+→</td><td>Select to the next sentence</td></tr>
+      </table>
+      <h2>Moving around</h2>
+      <table>
+        <tr><td>Page Up / Page Down</td><td>Turn the page</td></tr>
+        <tr><td>Ctrl+↑ / Ctrl+↓</td><td>Turn the page</td></tr>
+        <tr><td>Ctrl+Home / Ctrl+End</td><td>First or last page</td></tr>
+        <tr><td>Ctrl++ / Ctrl+−</td><td>Zoom in or out</td></tr>
+        <tr><td>Ctrl+0</td><td>Back to 125%</td></tr>
+      </table>
+      <h2>Highlights and notes</h2>
+      <table>
+        <tr><td>Ctrl+H</td><td>Highlight the selected text</td></tr>
+        <tr><td>Ctrl+M</td><td>Highlight it and write a note</td></tr>
+        <tr><td>Ctrl+J / Ctrl+K</td><td>Jump to the next or previous note</td></tr>
+        <tr><td>Ctrl+Z</td><td>Take back the last highlight or note</td></tr>
+        <tr><td>Ctrl+Shift+Z</td><td>Put it back again</td></tr>
+        <tr><td>Click a highlight</td><td>Select it, on the page or in the panel</td></tr>
+        <tr><td>Double-click it</td><td>Edit the note, its heading or its colour</td></tr>
+        <tr><td>Right-click it</td><td>Copy the passage, the note, or both</td></tr>
+      </table>
+      <h2>Files</h2>
+      <table>
+        <tr><td>Ctrl+O</td><td>Open a PDF</td></tr>
+        <tr><td>Ctrl+S</td><td>Download a copy with your notes in it — they are also kept in this browser as you work</td></tr>
+      </table>
+      <h2>Showing and hiding</h2>
+      <table>
+        <tr><td>Ctrl+Shift+H</td><td>The Highlight and Add note buttons</td></tr>
+        <tr><td>Ctrl+B</td><td>The notes panel beside the page</td></tr>
+        <tr><td>?</td><td>This list</td></tr>
+      </table>
+    </div>
+    <div class="buttons"><button class="primary" value="close">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="about-dialog" class="long" aria-label="About Mimick">
+  <form method="dialog">
+    <div class="scroll">
+      <h2 style="font-size:20px">Mimick for the web</h2>
+      <p>Read any PDF out loud in a natural voice, slow or fast, with the words lit as they are spoken — in a browser tab,
+        with nothing installed. Your document is opened by your own browser and never leaves your computer.</p>
+      <h2>What this does</h2>
+      <p><b>Read aloud in a natural voice</b><br>A Piper voice, running in this tab. It is downloaded once, and works offline after that.</p>
+      <p><b>Follow along</b><br>As Mimick reads, the sentence and the word being said are lit on the page.</p>
+      <p><b>Read at your speed</b><br>From 0.75× to 4×, changed at any moment.</p>
+      <p><b>Highlight and annotate</b><br>Four colours, and notes beside the page. They are kept in this browser, and
+        Download a copy gives you the PDF with them in it, as regular PDF annotations other readers can see.</p>
+      <p><b>Keeps your place</b><br>Come back to a document and pick up where you left off.</p>
+      <h2>Built on</h2>
+      <p><a href="https://mupdf.com/" target="_blank" rel="noopener">MuPDF</a> (pages, text and annotations) ·
+        <a href="https://pyodide.org/" target="_blank" rel="noopener">Pyodide</a> (Python in the browser) ·
+        <a href="https://github.com/OHF-Voice/piper1-gpl" target="_blank" rel="noopener">Piper</a> and
+        <a href="https://github.com/espeak-ng/espeak-ng" target="_blank" rel="noopener">espeak-ng</a> (the voice) ·
+        <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime</a> (running it)</p>
+      <h2>Written by</h2>
+      <p>Claude Code</p>
+      <h2>Arranged by</h2>
+      <p style="color:var(--text)">Kat Hollander · <a href="https://github.com/kathollander" target="_blank" rel="noopener">github.com/kathollander</a></p>
+      <h2>License</h2>
+      <p>Please remix, fix, and break as you please! We're built on open source software, so we're giving it back as open source software.</p>
+      <p><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">GNU Affero General Public License, version 3</a> ·
+        <a href="https://github.com/kathollander/mimick-web" target="_blank" rel="noopener">the source code</a></p>
+    </div>
+    <div class="buttons"><button class="primary" value="close">Close</button></div>
   </form>
 </dialog>
 

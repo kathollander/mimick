@@ -18,7 +18,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Word and sentence lit, page follows
 - ✅ Speed 0.75–4×, applied straight away (desktop goes to 5×)
 - ✅ Click a sentence to read from it
-- ⬜ **Display → Click to read** on/off
+- ✅ **Display → Click to read** on/off
 - ✅ Right-click → *Start reading from here*
 - ✅ Select text and press `Enter` (or right-click → *Read the selection*)
 - ⬜ Read aloud while a long document is still opening
@@ -52,13 +52,13 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 ## What gets read
 
 - ⬜ **Show reading order** (`Ctrl`+`R`): regions drawn, click to include or skip, remembered per document; Reset
-- ⬜ **Skip citations** switch (on already, not switchable)
-- ⬜ **Read footnotes** switch
-- ⬜ **Clean up text for reading** switch (on already, not switchable)
+- ✅ **Skip citations** switch
+- ✅ **Read footnotes** switch, greyed out where there are none
+- ✅ **Clean up text for reading** switch
 
 ## Audio and the rest
 
 - ⬜ Convert to MP3: document, page range or selection, with estimates and cancel
-- ⬜ Keyboard shortcuts window
-- ⬜ About window
+- ✅ Keyboard shortcuts window (**Help ▾**, or `?`)
+- ✅ About window, and a link to the source
 - ⬜ Forget this document (clear what the browser keeps)

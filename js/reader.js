@@ -118,7 +118,8 @@
     if (mine !== generation) return;
     // Every worker needs its own copy; the document worker takes the original.
     const copies = pool.map(() => buffer.slice(0));
-    const sentences = reading.ask({ type: "open", bytes: buffer, name }, [buffer]);
+    const options = Object.fromEntries(SWITCHES.map((s) => [s, switchOn(s)]));
+    const sentences = reading.ask({ type: "open", bytes: buffer, name, options }, [buffer]);
     const opened = pool.map((worker, i) =>
       worker.ask({ type: "open", bytes: copies[i], name }, [copies[i]]).then((info) => {
         if (mine === generation) { worker.openedFor = mine; update(); }
@@ -152,7 +153,7 @@
     try {
       const done = await sentences;
       if (mine !== generation) return;
-      Object.assign(doc, { sentences: done.sentences, words: done.words });
+      Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes });
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
       openedStatus = `${doc.pages.length} pages · ${done.sentences} sentences to read · opened in ${seconds}s`;
       voice.open(done.sentences);
@@ -866,7 +867,7 @@
       setSelection(null);
       if (!doc.sentences) return;
       return reading.ask({ type: "sentenceAt", page: was.at.page, x: was.at.x, y: was.at.y }).then(({ sentence }) => {
-        if (clicks === doubleClicks && mine === generation) readFrom(sentence);
+        if (clicks === doubleClicks && mine === generation && switchOn("click_read")) readFrom(sentence);
       });
     });
   });
@@ -895,7 +896,7 @@
   // --- the right-click menu -----------------------------------------------------
 
   const menu = $("menu");
-  function closeMenu() { menu.hidden = true; menu.replaceChildren(); }
+  function closeMenu() { menu.hidden = true; menu.replaceChildren(); delete menu.dataset.from; }
 
   function showMenu(x, y, items) {
     menu.replaceChildren();
@@ -964,6 +965,70 @@
   // The desktop's keys, where a browser lets a page have them. See "Shortcuts"
   // in the desktop repo's docs/FUTURE-FEATURES.md.
 
+  // --- what gets read: the Display menu's switches ------------------------------
+  // Each is remembered, and the document worker is told at open. Changing one
+  // rebuilds the sentences; the reader's place is held by the word being read,
+  // whose index a rebuild never changes (desktop trap 9).
+
+  const SWITCHES = ["skip_citations", "read_footnotes", "clean_text"];
+  const switchOn = (name) => recall("mimick-" + name) !== "0";
+
+  async function setSwitch(name, on) {
+    remember("mimick-" + name, on ? "1" : "0");
+    const said = {
+      click_read: on ? "Click any sentence to read from there" : "Clicking never starts reading — select text and press Enter",
+      skip_citations: on ? "Citations will be skipped" : "Citations will be read aloud",
+      read_footnotes: on ? "Footnotes will be read" : "Footnotes will be passed over",
+    }[name];
+    if (name === "click_read" || !doc?.sentences) { if (said) status(said); return; }
+    const mine = generation, wasReading = isReading();
+    const anchor = voice.source === "document" && lit.made ? lit.made.words[0][0] : -1;
+    voice.stop();
+    const { sentences: count, resume } = await call("set_reading", name, on, anchor);
+    if (mine !== generation) return;
+    doc.sentences = count;
+    voice.open(count, "document");
+    openedStatus = `${doc.pages.length} pages · ${count} sentences to read`;
+    status(said ?? `${count} sentences · ${on ? "tidied for reading" : "reading the PDF verbatim"}`);
+    if (wasReading) { voice.prepare(); voice.play(resume); }
+  }
+
+  function displayMenu() {
+    return [
+      { label: "Click to read", checked: switchOn("click_read"), run: () => setSwitch("click_read", !switchOn("click_read")) },
+      { label: "Skip citations while reading", checked: switchOn("skip_citations"),
+        run: () => setSwitch("skip_citations", !switchOn("skip_citations")) },
+      // Greyed out where there are none: a live switch that changes nothing reads as broken.
+      { label: "Read footnotes", checked: switchOn("read_footnotes"), enabled: !doc || !!doc.hasFootnotes,
+        run: () => setSwitch("read_footnotes", !switchOn("read_footnotes")) },
+      { label: "Clean up text for reading", checked: switchOn("clean_text"),
+        run: () => setSwitch("clean_text", !switchOn("clean_text")) },
+      "-",
+      ...notes.displayMenu(),
+      "-",
+      { label: "Zoom in", keys: "Ctrl++", run: () => setZoom(zoom * L.ZOOM_STEP) },
+      { label: "Zoom out", keys: "Ctrl+−", run: () => setZoom(zoom / L.ZOOM_STEP) },
+      { label: "Reset zoom", keys: "Ctrl+0", run: () => setZoom(L.ZOOM_DEFAULT) },
+    ];
+  }
+
+  const dropDown = (id, items) => {
+    $(id).onclick = (e) => {
+      const b = e.currentTarget.getBoundingClientRect();
+      if (!menu.hidden && menu.dataset.from === id) { closeMenu(); return; }
+      showMenu(b.left, b.bottom + 4, items());
+      menu.dataset.from = id;
+    };
+  };
+  dropDown("display-menu", displayMenu);
+  dropDown("help-menu", () => [
+    { label: "Keyboard shortcuts", keys: "?", run: () => $("keys-dialog").showModal() },
+    { label: "About Mimick", run: () => $("about-dialog").showModal() },
+    // The AGPL asks that a program served over a network offer its source.
+    { label: "Source code", run: () => window.open("https://github.com/kathollander/mimick-web", "_blank", "noopener") },
+  ]);
+  for (const id of ["keys-dialog", "about-dialog"]) $(id).addEventListener("close", () => view.focus());
+
   // --- highlights and notes -----------------------------------------------------
   // js/notes.js; this is what it needs of the reader.
 
@@ -997,7 +1062,7 @@
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
                 || e.target instanceof HTMLTextAreaElement;
-    if (notes.editing) return;
+    if (notes.editing || document.querySelector("dialog[open]")) return;
     if (!menu.hidden) {
       if (e.key === "Escape") { e.preventDefault(); closeMenu(); view.focus(); }
       return;
@@ -1022,6 +1087,7 @@
       return;
     }
     if (key === "Escape") { anchor = null; setSelection(null); return; }
+    if (key === "?" && !ctrl) { e.preventDefault(); $("keys-dialog").showModal(); return; }
     if (ctrl && !e.shiftKey && key === "a") { e.preventDefault(); selectPage(); return; }
     if (ctrl && !e.shiftKey && key === "c") { e.preventDefault(); copySelection(); return; }
     const notesKey = {

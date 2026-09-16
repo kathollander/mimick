@@ -727,7 +727,6 @@
     }
 
     $("notes-menu").onclick = (e) => { const b = e.currentTarget.getBoundingClientRect(); ctx.showMenu(b.left, b.bottom + 4, notesMenu()); };
-    $("display-menu").onclick = (e) => { const b = e.currentTarget.getBoundingClientRect(); ctx.showMenu(b.left, b.bottom + 4, displayMenu()); };
 
     panel.hidden = !settings.panel;
     placeBar(settings.home);
@@ -736,7 +735,7 @@
     return {
       COLOURS,
       open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download, menuItems,
-      pageShown, connect, refreshAll,
+      pageShown, connect, refreshAll, displayMenu,
       togglePanel: () => setPanel(!settings.panel),
       toggleBar: () => setBar(!settings.bar),
       get active() { return activeItem(); },
