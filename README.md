@@ -5,9 +5,10 @@ speaks it — in a browser tab, with nothing installed and nothing uploaded. You
 document is opened by your own browser and never leaves your machine.
 
 **Nothing works yet.** This repository is at the spike stage: enough to prove
-the foundation, and no reader on top of it. What runs today is
-[`index.html`](index.html), which loads MuPDF into the page and puts the sample
-paper through the desktop app's layout analysis.
+the foundation, and no reader on top of it. What runs today is two test pages:
+[`index.html`](index.html) puts the sample paper through the desktop app's
+layout analysis, and [`voice.html`](voice.html) reads a passage aloud with a
+Piper voice, up to 4×.
 
 This is the browser version of **[Mimick](https://github.com/kathollander/mimick)**,
 the installed Linux and Windows app. That one is the original and still where
@@ -32,10 +33,12 @@ To check the foundation without a browser:
 
 ```bash
 node tools/check_spike.mjs
+node tools/check_voice.mjs
 ```
 
-That runs the layout analysis under Pyodide and compares every region against
-what the desktop app produced from the same PDF. It must match exactly.
+The first compares every region of the sample against what the desktop app
+found. The second checks the voice pronounces things as the desktop's does, and
+that speeding it up keeps its pitch.
 
 ## Which way the work flows
 
@@ -57,12 +60,13 @@ differently — which `tools/check_spike.mjs` is there to catch.
 
 ## What is vendored, and why
 
-`vendor/` holds Pyodide and the PyMuPDF WebAssembly wheel, served from this
-site rather than from a CDN. Whoever controls a CDN can run code in a tab that
+`vendor/` holds Pyodide, the PyMuPDF WebAssembly wheel, espeak-ng and ONNX
+Runtime, served from this site rather than from a CDN. Whoever controls a CDN can run code in a tab that
 has the reader's documents open in it, so there is no CDN. The wheel's SHA-256
 is checked against PyPI's before it goes in, and its version is pinned to the
 desktop app's — see [`docs/PORT-LOG.md`](docs/PORT-LOG.md) for what turned up
-when it was not.
+when it was not. Voices are the one thing fetched from elsewhere, from Hugging
+Face, pinned to a revision and checked against a hash before use.
 
 ## Where the plan lives
 

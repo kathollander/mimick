@@ -26,20 +26,42 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
 ## Where it stands
 
 - **Step 1, the spike: done.** `node tools/check_spike.mjs` passes — the sample
-  reads into the same 71 regions as the desktop app.
-- **PyMuPDF is pinned to 1.28.2**, matching the desktop. Pyodide's bundled
-  1.26.3 made twelve regions a character longer. Bump both repos together.
-- **Runs in a real tab.** Clicked in Chrome 153 on 16 September: Python ready in
-  2.4s, MuPDF 1.3s, 12 pages analysed in 2.5s, 71 regions. Claude in Chrome is
-  connected and can drive the page; click by screen position, since clicking by
-  element reference did nothing here.
-- **Local only.** One commit, no remote. The public GitHub repo is Kat's call.
+  reads into the same 71 regions as the desktop app, in Node and in Chrome.
+- **Step 2, Piper in a worker: done.** `voice.html`. 6.5× real time at 4
+  threads, 3.5× on one, in Chrome on this 12-core machine; 4× reads with no
+  stalls when threaded. `node tools/check_voice.mjs` passes. Details and
+  findings in `PORT-LOG.md`.
+- **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
+- **Local only.** No remote. The public GitHub repo is Kat's call.
+
+## Running it
+
+```bash
+python3 -m http.server 8731          # then http://localhost:8731/voice.html
+node tools/check_spike.mjs
+node tools/check_voice.mjs           # needs en_US-lessac-low from the desktop app
+```
+
+Claude in Chrome drives these pages: click by screen position, not by element
+reference. A reading at 1× outlasts the 45-second limit on one script call, so
+start it and read the log afterwards -- and never start a second driver script
+on a page where one may still be running; they stop each other's playback.
+
+## Traps so far
+
+1. **`<audio>` never starts in a tab that has not been in front.** Play through
+   Web Audio. See `PORT-LOG.md`.
+2. **Speed-up is ours.** Web Audio raises pitch with rate; `stretch` in
+   `js/piper-core.js` keeps it, and keeps length exactly input / rate.
+3. **The browser's espeak-ng pronounces some numbers slightly differently.**
+   `KNOWN_DRIFT` in `tools/check_voice.mjs`; do not add to it without listening.
 
 ## Next
 
-**Step 2: Piper in a Web Worker.** One sentence, audible, at 1× and 4×. Print
-synthesis time against audio length. Run it with and without
-`coi-serviceworker`: the gap is how much threading matters. On an ordinary
-laptop this is the step that can still say the port does not work.
+**Try `voice.html` on an ordinary laptop** — two to four cores, not this
+machine. That is the last open question from steps 1–3.
 
-Then step 3, word timing with a check tool written alongside it.
+**Step 3: word timing, with a check tool written alongside it.** The desktop
+estimates word marks from text and duration (`estimate_marks`); the browser has
+the phoneme ids per sentence as well, which could do better. Whatever it does,
+timings scale by exactly the rate, because `stretch` guarantees that.
