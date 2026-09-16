@@ -72,15 +72,7 @@ class Sentence:
         A word hyphenated across a line break is rejoined, so "creat- ing"
         is spoken as "creating" rather than as two syllables.
         """
-        parts: list[str] = []
-        for word in self.words:
-            if not word.spoken:
-                continue
-            if word.joins_next and word.text.endswith("-"):
-                parts.append(word.text[:-1])
-            else:
-                parts.append(word.text + " ")
-        assembled = "".join(parts).strip()
+        assembled = _join_words([word for word in self.words if word.spoken])
         if self.strip_citations:
             # A second pass over the finished text, because a citation with a
             # full stop stuck to it -- "[53]." -- is not a whole word.
@@ -91,6 +83,24 @@ class Sentence:
         """Merge the rectangles of words[first:last+1] into per-line boxes."""
         chosen = self.words[max(first, 0) : last + 1]
         return _merge_rects([word.rect for word in chosen])
+
+
+def _join_words(words: list[Word]) -> str:
+    """Words as one string, with a word broken across a line put back together.
+
+    A break before a lower-case letter is the typesetter's -- "creat- ing" is
+    "creating". A break before a capital is a real hyphen that fell at the end
+    of a line -- "Piatek- Jimenez" is "Piatek-Jimenez" -- so the hyphen stays
+    and only the space goes, or the voice pauses in the middle of a name.
+    """
+    parts: list[str] = []
+    for word, following in zip(words, words[1:] + [None]):
+        if word.joins_next and word.text.endswith("-"):
+            real = following is not None and following.text[:1].isupper()
+            parts.append(word.text if real else word.text[:-1])
+        else:
+            parts.append(word.text + " ")
+    return "".join(parts).strip()
 
 
 def align_marks(sentence: Sentence, marks: list[tuple[float, str]]) -> list[tuple[float, int]]:
@@ -373,8 +383,9 @@ class Document:
                 continue
             if word.region != following.region:
                 continue
-            # The next word has to sit on a later line for this to be a break.
-            if following.rect[1] > word.rect[1] + 1.0 and following.text[:1].islower():
+            # The next word has to sit on a later line for this to be a break,
+            # and start with a letter; _join_words decides what the hyphen was.
+            if following.rect[1] > word.rect[1] + 1.0 and following.text[:1].isalpha():
                 word.joins_next = True
 
     def _emit_run(self, run: list[Word]) -> None:
@@ -501,13 +512,7 @@ class Document:
         first, last = max(0, min(first, last)), min(max(first, last), len(self.words) - 1)
         if first > last:
             return ""
-        parts: list[str] = []
-        for word in self.words[first : last + 1]:
-            if word.joins_next and word.text.endswith("-"):
-                parts.append(word.text[:-1])
-            else:
-                parts.append(word.text + " ")
-        return "".join(parts).strip()
+        return _join_words(self.words[first : last + 1])
 
     # -- moving a cursor through the text ----------------------------------
     #
