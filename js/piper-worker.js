@@ -6,7 +6,8 @@
  * Messages out:
  *   { type: "progress", loaded, total }
  *   { type: "ready", voice, threads, isolated, cached, loadMs }
- *   { type: "spoken", id, samples, sampleRate, phonemizeMs, inferMs, stretchMs, audioMs, heardMs }
+ *   { type: "spoken", id, samples, sampleRate, marks, exactTiming,
+ *     phonemizeMs, inferMs, timingMs, stretchMs, audioMs, heardMs }
  *   { type: "error", id?, message }
  *
  * The thread count is fixed once a voice is loaded -- ONNX Runtime reads it
@@ -14,6 +15,7 @@
  */
 importScripts("../vendor/piper/piper_phonemize.js",
               "../vendor/onnxruntime/ort.wasm.min.js",
+              "timing.js",
               "piper-core.js");
 
 // Pinned to one revision of rhasspy/piper-voices and checked by hash, so the
@@ -61,8 +63,10 @@ async function load({ voice: key, threads }) {
     ort, phonemize,
     config: JSON.parse(new TextDecoder().decode(json.bytes)),
     model: model.bytes,
+    timing: MimickTiming,
   });
   self.postMessage({ type: "ready", voice: key, threads: ort.env.wasm.numThreads, isolated,
+                     exactTiming: voice.exactTiming,
                      cached: model.cached, loadMs: performance.now() - t0 });
 }
 
@@ -70,7 +74,9 @@ async function speak({ id, text, rate }) {
   if (!voice) throw new Error("no voice loaded");
   const r = await voice.speak(text, { rate });
   self.postMessage({ type: "spoken", id, samples: r.samples, sampleRate: voice.sampleRate,
-                     phonemizeMs: r.phonemizeMs, inferMs: r.inferMs, stretchMs: r.stretchMs,
+                     marks: r.marks, exactTiming: r.exactTiming,
+                     phonemizeMs: r.phonemizeMs, inferMs: r.inferMs, timingMs: r.timingMs,
+                     stretchMs: r.stretchMs,
                      audioMs: r.audioMs, heardMs: r.heardMs },
                    [r.samples.buffer]);
 }

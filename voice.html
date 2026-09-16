@@ -32,13 +32,18 @@
          white-space:pre-wrap; min-height:2.5rem; }
   blockquote { margin:.6rem 0; padding:.2rem 1rem; border-left:3px solid var(--line); color:var(--dim); }
   .good { color:var(--good); } .bad { color:var(--bad); }
+  :root { --mark:#ffe28a; --mark-ink:#14161a; }
+  @media (prefers-color-scheme: dark) { :root { --mark:#6b5a1e; --mark-ink:#fff6d8; } }
+  #passage span.now { background:var(--mark); color:var(--mark-ink); border-radius:3px; }
+  #passage span.said { color:var(--ink); }
 </style>
 
 <main>
   <h1>Mimick spike: Piper in a tab</h1>
   <p class="lede">
     Step 2. A Piper voice runs in a Web Worker, entirely in this browser. The
-    question is whether it makes speech fast enough to read aloud at 4×.
+    question is whether it makes speech fast enough to read aloud at 4×, and
+    whether each word can be highlighted as it is spoken.
   </p>
   <p id="state">…</p>
 
@@ -57,8 +62,9 @@
   <div class="log" id="measureLog">—</div>
 
   <h2>3. Listen</h2>
-  <p class="lede">Reads the passage aloud, making each sentence just ahead of when it is needed. A
-    stall is a moment the voice had to wait for the next sentence.</p>
+  <p class="lede">Reads the passage aloud, making each sentence just ahead of when it is needed, and
+    highlights each word in the passage above as it is spoken. A stall is a moment the voice had to
+    wait for the next sentence.</p>
   <div class="row">
     <button class="read" data-rate="1" disabled>Read at 1×</button>
     <button class="read" data-rate="2" disabled>2×</button>
@@ -83,7 +89,15 @@ const PASSAGE = [
   "Section 5.2 sets out the numbers, and the appendix gives every question as it was asked.",
   "The short version is simple enough: listen twice, and write down the second answer.",
 ];
-$("passage").textContent = PASSAGE.join(" ");
+// One span per word, split the way the voice's marks are: on whitespace.
+const wordSpans = PASSAGE.map((sentence, s) => sentence.split(/\s+/).map((word) => {
+  const span = document.createElement("span");
+  span.textContent = word;
+  return span;
+}));
+wordSpans.forEach((spans, s) => spans.forEach((span, w) => {
+  $("passage").append(span, " ");
+}));
 
 const cores = navigator.hardwareConcurrency || 1;
 for (const n of [...new Set([1, 2, 4, cores])].filter((n) => n <= cores).sort((a, b) => a - b)) {
@@ -163,10 +177,11 @@ $("measure").onclick = async () => {
     let audio = 0, work = 0;
     for (let i = 0; i < PASSAGE.length; i++) {
       const r = await speak(PASSAGE[i], 4);
-      const spent = r.phonemizeMs + r.inferMs + r.stretchMs;
+      const spent = r.phonemizeMs + r.inferMs + r.timingMs + r.stretchMs;
       if (i > 0) { audio += r.audioMs; work += spent; }
       say(`${String(i + 1).padStart(2)}  ${(r.audioMs / 1000).toFixed(1).padStart(4)}s of speech in ` +
-          `${(spent / 1000).toFixed(2)}s  (phonemes ${r.phonemizeMs.toFixed(0)} ms, speed-up ${r.stretchMs.toFixed(0)} ms)  ` +
+          `${(spent / 1000).toFixed(2)}s  (phonemes ${r.phonemizeMs.toFixed(0)} ms, word timing ${r.timingMs.toFixed(0)} ms` +
+          `${r.exactTiming ? "" : " ESTIMATED"}, speed-up ${r.stretchMs.toFixed(0)} ms)  ` +
           `${(r.audioMs / spent).toFixed(1)}×${i === 0 ? "  warm-up" : ""}`);
     }
     const ratio = audio / work;
@@ -203,6 +218,14 @@ async function read(rate) {
   // sound, and each plays for as long as its sped-up audio lasts. A muted
   // machine still plays, so this holds whether or not anyone can hear it.
   let stalls = 0, stalledMs = 0, quiet = 0, expectedMs = 0, playedMs = 0;
+  // The highlight, and a record of it: how many words it reached, whether it
+  // ever went backwards, and how many sentences had exact timings.
+  let lit = 0, words = 0, backwards = 0, exactSentences = 0, worstLateMs = 0;
+  // A hidden tab gets no animation frames; fall back to a timer, which the
+  // browser slows right down -- the lateness figure below will show it.
+  const nextFrame = (fn) => (document.hidden ? setTimeout(fn, 10) : requestAnimationFrame(fn));
+  const cancelFrame = (id) => { cancelAnimationFrame(id); clearTimeout(id); };
+  document.querySelectorAll("#passage span").forEach((s) => s.classList.remove("now", "said"));
   const started = performance.now();
   try {
     for (let i = 0; i < PASSAGE.length && !stopped; i++) {
@@ -221,13 +244,43 @@ async function read(rate) {
       source.buffer = buffer;
       source.connect(context.destination);
       const playStart = performance.now();
-      await new Promise((resolve) => { finish = resolve; source.onended = resolve; source.start(); });
+      words += r.marks.length;
+      if (r.exactTiming) exactSentences++;
+      const spans = wordSpans[i];
+      let shown = -1, frame = 0;
+      const startedAt = context.currentTime + 0.02;
+      // Follow the audio clock, not the page's: it is what the ear hears.
+      const follow = () => {
+        const heardMs = (context.currentTime - startedAt) * 1000;
+        let k = shown;
+        while (k + 1 < r.marks.length && r.marks[k + 1].heardAtMs <= heardMs) k++;
+        if (k < shown) backwards++;
+        if (k !== shown) {
+          worstLateMs = Math.max(worstLateMs, heardMs - r.marks[shown + 1].heardAtMs);
+          if (shown >= 0) spans[r.marks[shown].index]?.classList.replace("now", "said");
+          spans[r.marks[k].index]?.classList.add("now");
+          lit += k - shown;
+          shown = k;
+        }
+        frame = nextFrame(follow);
+      };
+      await new Promise((resolve) => {
+        finish = resolve;
+        source.onended = resolve;
+        source.start(startedAt);
+        frame = nextFrame(follow);
+      });
+      cancelFrame(frame);
+      if (shown >= 0) spans[r.marks[shown].index]?.classList.replace("now", "said");
       if (!stopped) { playedMs += performance.now() - playStart; expectedMs += r.heardMs; }
     }
     say(`${stopped ? "Stopped" : "Finished"} at ${rate}× after ${((performance.now() - started) / 1000).toFixed(1)}s — ` +
         (stalls ? `${stalls} stall${stalls > 1 ? "s" : ""}, ${(stalledMs / 1000).toFixed(1)}s in all` : "no stalls"));
     if (!stopped) {
       const off = playedMs / expectedMs;
+      say(`Highlighted ${lit} of ${words} words${backwards ? `, going back ${backwards} times` : ", never going back"}; ` +
+          `at worst ${worstLateMs.toFixed(0)} ms after the voice reached a word; ` +
+          `timings exact in ${exactSentences} of ${PASSAGE.length} sentences.`);
       say(`Sound in ${PASSAGE.length - quiet} of ${PASSAGE.length} sentences. Played for ${(playedMs / 1000).toFixed(1)}s ` +
           `against ${(expectedMs / 1000).toFixed(1)}s expected at ${rate}× — ` +
           (Math.abs(off - 1) < 0.1 ? "the rate is honoured." : `off by ${((off - 1) * 100).toFixed(0)}%.`));

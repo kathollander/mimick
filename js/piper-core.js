@@ -15,24 +15,31 @@
   "use strict";
 
   // Load the phonemizer once and call it once per sentence. Its runtime is
-  // built not to exit, so callMain can run again; each call prints one line
-  // of JSON, which `print` hands to whichever sentence is waiting for it.
+  // built not to exit, so callMain can run again. Each call takes a list of
+  // texts and prints one line of JSON for each, in order.
   async function createPhonemizer(createPiperPhonemize, locateFile) {
-    let waiting = null;
+    let lines = null, failure = null;
     const module = await createPiperPhonemize({
-      print: (line) => { if (waiting) { const w = waiting; waiting = null; w.resolve(line); } },
-      printErr: (line) => { if (waiting) { const w = waiting; waiting = null; w.reject(new Error(line)); } },
+      print: (line) => { if (lines) lines.push(line); },
+      printErr: (line) => { failure = line; },
       locateFile,
     });
     let queue = Promise.resolve();
-    return function phonemize(text, espeakVoice) {
-      const run = () => new Promise((resolve, reject) => {
-        waiting = { resolve, reject };
-        module.callMain(["-l", espeakVoice, "--input", JSON.stringify([{ text }]),
+    // phonemize(text, voice) -> one result; phonemize([texts], voice) -> a list.
+    return function phonemize(texts, espeakVoice) {
+      const many = Array.isArray(texts);
+      const list = many ? texts : [texts];
+      const run = () => {
+        lines = []; failure = null;
+        module.callMain(["-l", espeakVoice, "--input", JSON.stringify(list.map((text) => ({ text }))),
                          "--espeak_data", "/espeak-ng-data"]);
-        if (waiting) { waiting = null; reject(new Error("the phonemizer printed nothing")); }
-      }).then((line) => JSON.parse(line));
-      // One sentence at a time: callMain shares one `print`.
+        const got = lines; lines = null;
+        if (got.length !== list.length)
+          throw new Error(failure || `the phonemizer printed ${got.length} lines for ${list.length} texts`);
+        const results = got.map((line) => JSON.parse(line));
+        return many ? results : results[0];
+      };
+      // One call at a time: every call shares the one `print`.
       const result = queue.then(run, run);
       queue = result.catch(() => {});
       return result;
@@ -40,18 +47,27 @@
   }
 
   // A loaded voice. `config` is the model's .onnx.json; `model` its bytes.
-  async function createVoice({ ort, phonemize, config, model, speaker = 0 }) {
-    const session = await ort.InferenceSession.create(model, { executionProviders: ["wasm"] });
+  // Word timings come from the model when it can give them (js/timing.js),
+  // which needs `timing`; without it, or for a model that cannot, they are
+  // the desktop's estimate.
+  async function createVoice({ ort, phonemize, config, model, speaker = 0, timing = null }) {
+    const patched = timing ? timing.patchForAlignment(model) : { model, name: null };
+    const session = await ort.InferenceSession.create(patched.model, { executionProviders: ["wasm"] });
+    const alignmentOutput = session.outputNames.includes(patched.name) ? patched.name : null;
+    const hop = config.hop_length || (timing ? timing.DEFAULT_HOP_LENGTH : 256);
     const multiSpeaker = Object.keys(config.speaker_id_map || {}).length > 0;
 
     return {
       sampleRate: config.audio.sample_rate,
+      exactTiming: !!alignmentOutput,
 
       /* One sentence to samples, with the time each half took.
        * lengthScale below 1 speaks faster -- but Piper shortens phonemes and
        * not the pauses between them (desktop trap 13), so the page plays fast
        * speech by rate instead and this stays at the model's own pace. */
-      async speak(text, { lengthScale, rate = 1 } = {}) {
+      // `steady` turns off the model's randomness, so two runs of a sentence
+      // give the same samples; tools/check_timing.mjs relies on it.
+      async speak(text, { lengthScale, rate = 1, steady = false } = {}) {
         const t0 = now();
         const phonemes = await phonemize(text, config.espeak.voice);
         const ids = phonemes.phoneme_ids;
@@ -61,22 +77,50 @@
           input: new ort.Tensor("int64", BigInt64Array.from(ids, BigInt), [1, ids.length]),
           input_lengths: new ort.Tensor("int64", BigInt64Array.from([BigInt(ids.length)])),
           scales: new ort.Tensor("float32", Float32Array.from(
-            [inf.noise_scale, lengthScale ?? inf.length_scale, inf.noise_w])),
+            [steady ? 0 : inf.noise_scale, lengthScale ?? inf.length_scale, steady ? 0 : inf.noise_w])),
         };
         if (multiSpeaker) feeds.sid = new ort.Tensor("int64", BigInt64Array.from([BigInt(speaker)]));
-        const { output } = await session.run(feeds);
+        const results = await session.run(feeds);
         const t2 = now();
-        const natural = new Float32Array(output.data);
-        output.dispose?.();
-        const samples = stretch(natural, rate, config.audio.sample_rate);
+        const natural = new Float32Array(results.output.data);
+        let samplesPerId = null;
+        if (alignmentOutput) {
+          samplesPerId = Array.from(results[alignmentOutput].data, (frames) => Math.round(frames * hop));
+        }
+        for (const tensor of Object.values(results)) tensor.dispose?.();
+
+        // Word timings, in samples at the model's own pace.
+        const words = text.split(/\s+/).filter(Boolean);
+        let marks = null;
+        if (timing && samplesPerId) {
+          const groups = timing.spokenGroups({ ids, phonemes: phonemes.phonemes, samplesPerId,
+                                               idMap: config.phoneme_id_map });
+          if (groups) {
+            const alone = (await phonemize(words, config.espeak.voice)).map((r) => r.phonemes);
+            marks = timing.alignWords(words, alone, groups);
+          }
+        }
+        const exact = !!marks;
+        if (!marks && timing) marks = timing.estimateMarks(words, natural.length);
         const t3 = now();
+
+        const samples = stretch(natural, rate, config.audio.sample_rate);
+        const t4 = now();
+        const ms = (n) => (n / config.audio.sample_rate) * 1000;
         return {
           samples,
           ids,
+          samplesPerId,
           phonemes: phonemes.phonemes,
+          // Seconds are what the reader needs; the rate divides them exactly,
+          // because stretch keeps a sentence's length exactly input / rate.
+          marks: marks && marks.map((m) => ({ word: m.word, index: m.index,
+                                              atMs: ms(m.start), heardAtMs: ms(m.start) / rate })),
+          exactTiming: exact,
           phonemizeMs: t1 - t0,
           inferMs: t2 - t1,
-          stretchMs: t3 - t2,
+          timingMs: t3 - t2,
+          stretchMs: t4 - t3,
           // Length of the sentence at its own pace, and as it will be heard.
           audioMs: (natural.length / config.audio.sample_rate) * 1000,
           heardMs: (samples.length / config.audio.sample_rate) * 1000,

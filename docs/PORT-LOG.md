@@ -142,3 +142,60 @@ building a newer espeak-ng to WebAssembly ourselves -- not now.
 Chrome; clicking by screen position works. And after `?coi=0` the service
 worker removes itself with a reload, which swallows a click made just before
 it.
+
+## Step 3 — word timing, with a check tool
+
+**Done, 16 September 2026. Word timings are exact, not estimated.**
+
+The desktop app spreads a sentence's length over its words by letter count
+(`estimate_marks`). A Piper model already decides how long every phoneme lasts
+and simply does not output it. Piper 1.8 ships a patch that exposes it
+(`piper/patch_voice_with_alignment.py`); `patchForAlignment` in `js/timing.js`
+makes the same change to the model's bytes in memory, after the hash check,
+without touching the stored file. The rest of `timing.js` turns phoneme
+durations into word start times.
+
+`node tools/check_timing.mjs`:
+
+```
+  ok    exposing them changes not one sample of the audio  — 62976 vs 62976 samples
+  ok    the durations add up to the sentence  — 62976 vs 62976 samples
+  ok    "1,204" takes the four groups it is spoken as
+  ok    "of the", run together, share one group in order
+  ok    a mark for every word, in order, inside the sentence
+  ok    after every comma, the word highlighted is the word heard  — 6 of 6; the desktop's estimate manages 4
+          sound returns, ms after the mark:     in +5, how +98, but +124, and +42, write +14, then +41
+          and after the desktop's estimate:     -91, +98, +179, +275, +259, +14
+  ok    at 4× the marks are exactly a quarter
+  ok    and at 4× too, in the sped-up audio
+```
+
+In Chrome, reading the passage at 4×: 128 of 128 words highlighted in order,
+never jumping back, at worst 32 ms after the voice reached each word, exact
+timings in 8 of 8 sentences. Timing costs about 30 ms a sentence; 4× still
+holds at 6.1× real time on 4 threads.
+
+### What it found
+
+**Espeak's word breaks are not the text's.** It runs "of the" into one spoken
+group and says "1,204" as four. `alignWords` phonemizes each word alone, in one
+call, to learn how many sounds and groups it makes by itself, then matches
+words to groups by shortest path. Several words sharing a group split its time
+by their sound counts; that is the only estimate left.
+
+**"On the mark" is the wrong test.** Checked against the audio, the sound after
+a pause comes back 5–124 ms after the word's mark, never before. That is
+phonetics, not error: "but" opens with the silent closure of /b/, "how" with
+breath too quiet to measure. The test that matters for a highlight is whether
+the word lit is the word being heard, and that holds for every case. The
+offsets are printed so they can be watched.
+
+**Hidden tabs get no animation frames.** The page highlights from the audio
+clock, via `requestAnimationFrame` when visible and a timer when not. While
+audio plays the timer is not slowed much -- the 32 ms above was measured in a
+hidden tab.
+
+**The desktop app could have exact timing too.** `piper-tts` 1.8 supports it
+with `include_alignments=True` and the `onnx` package; the same word matching
+would be needed. Not done -- the desktop is where changes start, so that is a
+decision for the desktop repo.

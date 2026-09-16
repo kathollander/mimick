@@ -31,6 +31,9 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
   threads, 3.5× on one, in Chrome on this 12-core machine; 4× reads with no
   stalls when threaded. `node tools/check_voice.mjs` passes. Details and
   findings in `PORT-LOG.md`.
+- **Step 3, word timing: done.** Exact, from the model's own phoneme durations
+  (`js/timing.js`). `node tools/check_timing.mjs` passes; `voice.html` now
+  highlights each word of the passage as it is spoken.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
 - **Local only.** No remote. The public GitHub repo is Kat's call.
 
@@ -39,7 +42,8 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
 ```bash
 python3 -m http.server 8731          # then http://localhost:8731/voice.html
 node tools/check_spike.mjs
-node tools/check_voice.mjs           # needs en_US-lessac-low from the desktop app
+node tools/check_voice.mjs           # these two need en_US-lessac-low from the desktop app
+node tools/check_timing.mjs
 ```
 
 Claude in Chrome drives these pages: click by screen position, not by element
@@ -55,13 +59,20 @@ on a page where one may still be running; they stop each other's playback.
    `js/piper-core.js` keeps it, and keeps length exactly input / rate.
 3. **The browser's espeak-ng pronounces some numbers slightly differently.**
    `KNOWN_DRIFT` in `tools/check_voice.mjs`; do not add to it without listening.
+4. **A word's mark comes before its sound, by up to about 125 ms.** Correct:
+   stops and breathy consonants start quiet. Do not "fix" marks to loudness.
+5. **No animation frames in a hidden tab.** Anything that follows playback
+   must also work from a timer.
 
 ## Next
 
 **Try `voice.html` on an ordinary laptop** — two to four cores, not this
-machine. That is the last open question from steps 1–3.
+machine. Steps 1–3 answered every other open question.
 
-**Step 3: word timing, with a check tool written alongside it.** The desktop
-estimates word marks from text and duration (`estimate_marks`); the browser has
-the phoneme ids per sentence as well, which could do better. Whatever it does,
-timings scale by exactly the rate, because `stretch` guarantees that.
+**Step 4: the reader.** Page rendering, scrolling, the highlight on the page
+rather than in a quotation. Words on the page come from the desktop's
+`Document` (not yet ported -- `spike.py` stands in); the voice's marks are per
+whitespace-split word of a sentence's text, so they still have to be matched to
+page words the way the desktop's `player.align_marks` does. Port that with a
+check. The layout follows the desktop app, Photopea-style; the shortcuts are
+already shared (`FUTURE-FEATURES.md`, **Shortcuts**).
