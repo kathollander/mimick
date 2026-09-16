@@ -39,23 +39,35 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
   `align_marks`, moved into it for the purpose. `node tools/check_reading.mjs`
   passes: 272 sentences and 8,395 words, identical to the desktop's to the
   rectangle, both with the cleanup on and off.
+- **Step 4b, the pages: done.** `reader.html`: open a PDF (button, Ctrl+O, drop
+  it on the page, or the sample), scroll, turn pages, zoom 40–400%, in the
+  desktop's colours and bar layout. Pyodide runs in `js/document-worker.js`;
+  pages are drawn only while on screen or next to it (`js/page-layout.js`).
+  `node tools/check_reader.mjs` passes. Nothing reads aloud yet.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
 - **Local only.** No remote. The public GitHub repo is Kat's call.
 
 ## Running it
 
 ```bash
-python3 -m http.server 8731          # then http://localhost:8731/voice.html
+python3 -m http.server 8731          # then http://localhost:8731/reader.html
 node tools/check_spike.mjs
 node tools/check_voice.mjs           # these two need en_US-lessac-low from the desktop app
 node tools/check_timing.mjs
 node tools/check_reading.mjs
+node tools/check_reader.mjs
 ```
 
 Claude in Chrome drives these pages: click by screen position, not by element
 reference. A reading at 1× outlasts the 45-second limit on one script call, so
 start it and read the log afterwards -- and never start a second driver script
 on a page where one may still be running; they stop each other's playback.
+
+**The tab Claude drives counts as hidden.** No animation frames, no scroll
+events from a script, and after a few minutes timers fire about once a minute,
+so a scripted test of the reader crawls or stalls. Test it with real input
+instead -- the scroll, click and key actions, then a screenshot, which makes the
+page draw -- or ask Kat to bring the tab to the front.
 
 ## Traps so far
 
@@ -78,14 +90,16 @@ on a page where one may still be running; they stop each other's playback.
 
 ## Next
 
+**Kat to try `reader.html`**: does it feel like the desktop app, and is
+anything missing before reading goes on top of it?
+
 **Try `voice.html` on an ordinary laptop** — two to four cores, not this
 machine. Steps 1–3 answered every other open question.
 
 **Step 4: the reader**, in three parts:
 
 - **4a, the words on the page -- done.** See above.
-- **4b, the pages.** Pyodide and MuPDF in their own worker (roadblock 3), pages
-  rendered there and drawn only while on screen (desktop trap 4).
+- **4b, the pages -- done.** See above.
 - **4c, reading on the page.** The word highlight drawn over the page from
   `Word.rect`, click a sentence to read from it, play, pause and speed. The
   voice's marks go through `align_marks` in the document worker.

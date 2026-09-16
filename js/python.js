@@ -4,7 +4,8 @@
  * desktop repo by tools/port.sh and never edited here. document.py imports the
  * others relatively, as the package `mimick`, so that is what they are written
  * into Pyodide's file system as -- with an empty __init__.py, since the
- * desktop's own pulls in nothing the reading needs. reading.py sits beside it.
+ * desktop's own pulls in nothing the reading needs. reading.py (for the checks)
+ * and reader.py (for the page) sit beside it.
  *
  * Shared by the browser and tools/check_reading.mjs, so what the check proves
  * is what the page loads.
@@ -28,7 +29,7 @@
     py.FS.writeFile(HOME + "/mimick/__init__.py", "");
     const sources = await Promise.all(PACKAGE.map((name) => readText("py/" + name)));
     PACKAGE.forEach((name, i) => py.FS.writeFile(`${HOME}/mimick/${name}`, sources[i]));
-    py.FS.writeFile(HOME + "/reading.py", await readText("reading.py"));
+    for (const name of ["reading.py", "reader.py"]) py.FS.writeFile(`${HOME}/${name}`, await readText(name));
     py.runPython(`import sys\nif "${HOME}" not in sys.path: sys.path.insert(0, "${HOME}")`);
     return py;
   }

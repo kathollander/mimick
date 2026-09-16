@@ -238,3 +238,37 @@ output for the sample: 272 sentences cleaned up and 396 as extracted, 8,395
 words each way, every index, text and rectangle, and where the voice's words
 land. All identical. Opening the sample both ways takes 4.3s in Node, against
 1.2s natively.
+
+## Step 4b — the pages
+
+**Done, 16 September 2026.** `reader.html` opens a PDF and shows it: scrolling,
+page number and arrows, Page Up/Down, Ctrl+Up/Down/Home/End, zoom by buttons,
+slider, typed percentage, Ctrl +/−/0 and Ctrl-wheel or pinch. The desktop's
+colours and bottom bar; open by button, Ctrl+O, dropping a file, or the sample.
+
+**How it is built.** `js/document-worker.js` holds Pyodide, MuPDF and an open
+`Document` (through `reader.py`), one message at a time. The page asks it for
+one page at a time -- on screen first, nearest the middle first, then one either
+side -- and gets back an `ImageBitmap`. Pages that leave that band give their
+pixels back. A page drawn at the old zoom stays up, stretched, until the sharper
+one arrives. No page is drawn with more than 12 million pixels.
+
+**Numbers, in Chrome here.** Python ready in 5.4s from a cold tab; the sample
+opens in 1.4s; a page draws in about 80 ms at 150%. In Node, opening is the
+same 1.4s.
+
+`node tools/check_reader.mjs` covers the layout arithmetic (positions, which
+page is where, what counts as on screen, holding your place through a zoom,
+the pixel cap) and opening and drawing the sample under Pyodide. It found one
+real bug: a view whose top sat in the gap between two pages jumped up to 16px on
+every zoom, because the gap was kept as a fraction of the page below.
+
+### What it found
+
+**Scripted testing does not work in the tab Claude drives.** It counts as
+hidden: no animation frames, so the page's updates never ran; no scroll events
+for a script's scroll; and before long, timers throttled to once a minute. The
+page now updates from a timer when hidden, as trap 5 says it must -- but the
+reliable test is real input and a screenshot. Scrolling to page 2, zooming to
+190% and keeping the place, and typing 12 into the page box were all checked
+that way.

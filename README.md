@@ -4,11 +4,11 @@ A PDF reader that reads aloud in natural voices, highlighting each word as it
 speaks it — in a browser tab, with nothing installed and nothing uploaded. Your
 document is opened by your own browser and never leaves your machine.
 
-**Nothing works yet.** This repository is at the spike stage: enough to prove
-the foundation, and no reader on top of it. What runs today is two test pages:
-[`index.html`](index.html) puts the sample paper through the desktop app's
-layout analysis, and [`voice.html`](voice.html) reads a passage aloud with a
-Piper voice, up to 4×.
+**It does not read aloud yet.** [`reader.html`](reader.html) opens a PDF and
+shows it -- scrolling, page turning, zoom -- and the reading comes next. Two
+test pages prove the rest of the foundation: [`index.html`](index.html) puts the
+sample paper through the desktop app's layout analysis, and
+[`voice.html`](voice.html) reads a passage aloud with a Piper voice, up to 4×.
 
 This is the browser version of **[Mimick](https://github.com/kathollander/mimick)**,
 the installed Linux and Windows app. That one is the original and still where
@@ -26,7 +26,7 @@ the page fetches its own Python.
 
 ```bash
 python3 -m http.server 8000
-# then open http://localhost:8000
+# then open http://localhost:8000/reader.html
 ```
 
 To check the foundation without a browser:
@@ -36,6 +36,7 @@ node tools/check_spike.mjs
 node tools/check_voice.mjs
 node tools/check_timing.mjs
 node tools/check_reading.mjs
+node tools/check_reader.mjs
 ```
 
 The first compares every region of the sample against what the desktop app
