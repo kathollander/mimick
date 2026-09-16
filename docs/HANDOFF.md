@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026,
-and updated that evening after Kat tested the reader.
+and updated that evening after Kat tested the reader, and again once it read aloud.
 
 ## Read first
 
@@ -135,13 +135,27 @@ page draw -- or ask Kat to bring the tab to the front.
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
 
+**Kat asked on 16 September, and neither exists yet:**
+
+- **Read aloud while a long document is still opening.** Read aloud is greyed
+  out until every sentence is built -- 45s for the 598-page book. `Document`
+  builds them all in its constructor, in the desktop's shared `document.py`,
+  so reading early means building page by page (change it there, then port)
+  and letting the player start on pages already built. Word indices must stay
+  what a full build gives (desktop trap 9).
+- **Right-click.** The desktop's page menu -- *Start reading from here*, read
+  the selection, copy, delete a highlight (`main_window.build_page_menu`) --
+  is not in the browser; a right-click gets the browser's own menu. *Start
+  reading from here* can come now; the rest needs selection first.
+
 **Next, in order:**
 
-1. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
+1. **Right-click → Start reading from here**, and reading while opening, above.
+2. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
    needs its hashes in `piper-worker.js`'s `VOICES`, and a sample clip.
-2. **Keep the reader's place across a reload** (scroll and zoom, not only the
+3. **Keep the reader's place across a reload** (scroll and zoom, not only the
    sentence), which `FUTURE-FEATURES.md`'s **Shortcuts** asks for.
-3. Selection, highlights and notes -- step 5 of the build order.
+4. Selection, highlights and notes -- step 5 of the build order.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are already
 shared (`FUTURE-FEATURES.md`, **Shortcuts**).
