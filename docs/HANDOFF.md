@@ -29,8 +29,10 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
   reads into the same 71 regions as the desktop app.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Pyodide's bundled
   1.26.3 made twelve regions a character longer. Bump both repos together.
-- **Not yet run in a real browser tab.** Only under Node. The Claude in Chrome
-  connection is not working yet; the desktop handoff has its exact state.
+- **Runs in a real tab.** Clicked in Chrome 153 on 16 September: Python ready in
+  2.4s, MuPDF 1.3s, 12 pages analysed in 2.5s, 71 regions. Claude in Chrome is
+  connected and can drive the page; click by screen position, since clicking by
+  element reference did nothing here.
 - **Local only.** One commit, no remote. The public GitHub repo is Kat's call.
 
 ## Next
