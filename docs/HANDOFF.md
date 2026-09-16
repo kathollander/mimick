@@ -5,8 +5,9 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
 ## Read first
 
 1. [`../README.md`](../README.md) — what this is, how to run it, which way work flows.
-2. [`PORT-LOG.md`](PORT-LOG.md) — what step 1 cost and found.
-3. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
+2. [`PORT-LOG.md`](PORT-LOG.md) — what each step cost and found.
+3. [`TESTING.md`](TESTING.md) — the checklist for what only a person can judge.
+4. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
    desktop handoff, `../Mimick/docs/HANDOFF.md`, has the traps that apply to
    the shared reading code.
 
@@ -90,19 +91,31 @@ page draw -- or ask Kat to bring the tab to the front.
 
 ## Next
 
-**Kat to try `reader.html`**: does it feel like the desktop app, and is
-anything missing before reading goes on top of it?
-
-**Try `voice.html` on an ordinary laptop** — two to four cores, not this
-machine. Steps 1–3 answered every other open question.
+**Kat is working through `TESTING.md`**: `reader.html` by hand, and `voice.html`
+on an ordinary laptop. Ask what she found before building on either.
 
 **Step 4: the reader**, in three parts:
 
 - **4a, the words on the page -- done.** See above.
 - **4b, the pages -- done.** See above.
-- **4c, reading on the page.** The word highlight drawn over the page from
-  `Word.rect`, click a sentence to read from it, play, pause and speed. The
-  voice's marks go through `align_marks` in the document worker.
+- **4c, reading on the page -- next.** What it needs, in order:
+  1. **Sentences to the page.** A document-worker message that gives each
+     sentence's text and its words' indices, pages and rectangles, and one that
+     runs `align_marks` for a sentence and the voice's marks. The alignment
+     stays in Python -- one copy, the desktop's.
+  2. **The voice in the reader.** `js/piper-worker.js` as it is; a Load voice
+     control, since the first load is 63 MB. Prefetch several sentences ahead
+     as the desktop's `player.py` does (`PREFETCH = 5`), and play through Web
+     Audio from the audio clock, as `voice.html` does -- its `read()` is the
+     working model, stalls and hidden-tab timer included.
+  3. **The highlight.** The current sentence and word drawn over the page from
+     their rectangles times the zoom, in the desktop's `SENTENCE_TINT` and
+     `WORD_TINT` (`mimick/ui/theme.py`). Keep the spoken word in view.
+  4. **Transport.** Play/pause (`Space` on the desktop -- check
+     `main_window._build_shortcuts`), speed 1–4×, and click a sentence to read
+     from it (`Document.sentence_at_point`).
+  A check tool alongside, as roadblock 2 says: the words lit must be the
+  page's own words, in order, for every sentence of the sample.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are already
 shared (`FUTURE-FEATURES.md`, **Shortcuts**).
