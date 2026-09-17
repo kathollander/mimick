@@ -1,14 +1,16 @@
 # Handoff
 
-Where the browser version stands, for a fresh session. Written 16 September 2026,
-and updated that evening after Kat tested the reader, and again once it read aloud.
+Where the browser version stands, for a fresh session. Written 16 September 2026;
+last updated late that night, after highlights, notes and the Display switches
+went in.
 
 ## Read first
 
 1. [`../README.md`](../README.md) — what this is, how to run it, which way work flows.
 2. [`PORT-LOG.md`](PORT-LOG.md) — what each step cost and found.
-3. [`TESTING.md`](TESTING.md) — the checklist for what only a person can judge.
-4. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
+3. [`PARITY.md`](PARITY.md) — every desktop feature, and which the browser has. **The to-do list.**
+4. [`TESTING.md`](TESTING.md) — the checklist for what only a person can judge.
+5. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
    desktop handoff, `../Mimick/docs/HANDOFF.md`, has the traps that apply to
    the shared reading code.
 
@@ -47,13 +49,34 @@ and updated that evening after Kat tested the reader, and again once it read alo
   pages are drawn only while on screen or next to it (`js/page-layout.js`).
   `node tools/check_reader.mjs` passes. **Kat has
   tested it by hand** (`TESTING.md`): everything on the list works.
-- **Step 4c, reading on the page: done.** See **Next**.
+- **Step 4c, reading on the page: done.** One voice, `en_US-lessac-low`;
+  speed 0.75–4×, changed at once; the sentence and word lit; the place in each
+  document remembered. Scans are drawn ahead by page workers and kept.
+- **Step 5 is under way: the desktop's features, one group at a time**, from
+  `PARITY.md`. Done: right-click, selecting and the text cursor, highlights and
+  notes (panel, movable strip, undo, kept in the browser, Download a copy), the
+  Display switches, and Help. Not done: see **Next**.
 - **PyMuPDF is pinned to 1.28.2**, matching the desktop. Bump both repos together.
 - **Local only.** No remote. The public GitHub repo is Kat's call.
 - **`sample readings/` is Kat's own documents**, git-ignored because they are
   not ours to redistribute, and **to be deleted before this goes anywhere near
   public**. Use them for testing until then: a 598-page scanned book
   (*Constructing meaning*) and a 212-page curriculum.
+
+## How the page fits together
+
+| File | Holds |
+| --- | --- |
+| `reader.html` | The layout, styles, dialogs. Dark only, in the desktop's colours. |
+| `js/reader.js` | Opening, pages, zoom, the reading controls, selecting and the cursor, the right-click and Display menus, every key. |
+| `js/read-aloud.js` | The player: prefetch, Web Audio, speed, which word is lit. No DOM. |
+| `js/notes.js` | Highlights on the page, the notes panel, note editor, undo, the movable strip, the Notes menu. |
+| `js/notes-store.js`, `js/page-store.js` | IndexedDB: notes (never evicted), drawn scan pages (evicted). |
+| `js/document-worker.js` + `reader.py` | Pyodide with the desktop's `document.py` and `annotations.py`: sentences, words, the cursor's steps, highlights. The page asks through one generic `call` message for most of it. |
+| `js/page-worker.js` + `pages.py` | Drawing pages, without annotations. |
+| `js/piper-worker.js`, `piper-core.js`, `timing.js` | The voice. |
+| `serve.py` | The test server. Use it, not `http.server` -- trap 10. |
+| `tools/cdp.mjs` | Headless Chrome with real input, shared by the three page checks. |
 
 ## Running it
 
@@ -126,90 +149,52 @@ page draw -- or ask Kat to bring the tab to the front.
 
 ## Next
 
-**Done on 16 September, after Kat's test** (`PORT-LOG.md` has the detail):
+**Kat to test first:** the three newest sections at the top of `TESTING.md`
+-- *Display switches, and Help*, *Highlights and notes*, *Speed, right-click,
+selecting and the cursor*. Nothing in them has been used by hand yet; every
+one is covered by a Chrome check, which says it works, not that it feels right.
+She may leave notes in `docs/TESTING DONE.txt` (untracked, hers -- do not commit
+it); read it at the start of a session.
 
-- **Pages are drawn apart from the reading**, by two or three page workers, so
-  a long book shows its pages in seconds and builds sentences meanwhile.
-- **Scans are drawn ahead.** A document whose pages take over 400ms is drawn
-  page by page in the background at 150 dpi and kept in IndexedDB; reopening
-  it is instant. The PDF is never changed.
-- **A page that fails to draw no longer stops the rest** -- the likeliest
-  cause of Kat's blank pages, which could not be reproduced here.
-- **Step 4c is done: it reads aloud.** One voice, `en_US-lessac-low`. Read
-  aloud / Pause, ↶ ↷, `Space`, `←` `→`, speed 0.75–4×, click a sentence to
-  read from it, the sentence and word lit, the page following, and the place
-  in each document remembered.
+**What happened on 16 September, in order** (`git log` has the rest):
 
-**Done on 16 September, evening, after Kat's test of reading aloud:**
-
-- **[`PARITY.md`](PARITY.md) lists every desktop feature** and which the
-  browser has. Work down it.
-- **Speed changes at once**, mid-sentence, from the word reached. Clips are
-  kept at the model's own pace too, so nothing is made again. The likelier
-  reason Kat heard no change was trap 10: her browser was running old scripts.
-- **Right-click menu:** *Start reading from here*, *Read the selection*, *Copy*.
-- **Selecting and the text cursor**, as on the desktop: drag, double-click,
-  `Ctrl`+`A`, `Esc`, `Ctrl`+`C`, `Enter` reads it; the cursor follows the voice,
-  blinks when paused, and the arrows (with `Ctrl` for sentences and `Shift` to
-  select) move it. `reader.py` answers every where-is-this-word question with
-  the desktop's own `document.py`, through one `call` message.
-  `tools/check_selecting.mjs` drives all of it in Chrome with real clicks and keys.
-
-**Done later on 16 September: highlights and notes**, everything in
-`PARITY.md`'s section of that name. `js/notes.js` is the desktop's page_view
-notes, note_dialog and markup_bar; the highlights themselves are the desktop's
-`annotations.py`, now ported too, in the document worker. `tools/check_notes.mjs`
-drives all of it in Chrome (36 checks), `tools/cdp.mjs` is what both Chrome
-checks share. Three decisions worth knowing:
-
-- **Notes are kept in IndexedDB as plain data** (`reader.snapshot`), not as a
-  PDF: a scanned book's PDF is ~100 MB a save. The PDF is made only for
-  **Download a copy**. Reopening the same bytes calls `reader.restore`, which
-  replaces the file's own highlights with the snapshot, rectangles as saved.
-- **Page workers now draw pages without annotations** (`pages.py`,
-  `annots=False`); the page draws highlights itself, from the live list. Scans
-  kept in `mimick-pages` from before this still have any highlights the PDF
-  itself carried baked in -- harmless, and gone once the store evicts them.
-- **Header menus.** The browser has no menu bar, so **Notes ▾** and
-  **Display ▾** hold what the desktop's menus did. Later switches (reading
-  order, footnotes, citations, click to read) belong in **Display ▾**.
-
-**Then the Display switches and Help.** Click to read, Skip citations, Read
-footnotes and Clean up text, each remembered and passed to `reader.open_document`;
-flipping one calls `reader.set_reading`, which holds the place by word as the
-desktop's `_toggle_clean_text` does. **Help ▾** has the key list, About, and
-the source link that used to sit in the header (the AGPL wants it offered).
-`tools/check_display.mjs` covers them. Found on the way: **a pause in the first
-60 ms of reading was undone** by `read-aloud.js`'s buffering timer, which set
-"buffering" over "paused". Fixed.
-
-**Kat to test:** the new sections at the top of `TESTING.md`.
+1. Speed changed only from the next sentence, and Kat's Chrome was running old
+   scripts anyway (trap 10). Speed now applies mid-sentence; `serve.py` added.
+2. Right-click menu, selecting, the text cursor.
+3. Highlights and notes. Decisions: notes are kept in IndexedDB as plain data
+   (`reader.snapshot` / `restore`), not as a PDF -- a scanned book would be
+   ~100 MB a save; the PDF is only made for Download a copy. Pages are drawn
+   without annotations and the page draws highlights live. The browser has no
+   menu bar, so **Notes ▾ / Display ▾ / Help ▾** in the header stand in.
+4. Display switches (`reader.set_reading` holds the place by word) and Help.
+   A pause in the first 60 ms of reading used to be undone; fixed.
 
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
 
-**Kat asked on 16 September, and neither exists yet:**
+**Next, in order** -- the rest of `PARITY.md`:
 
-- **Read aloud while a long document is still opening.** Read aloud is greyed
-  out until every sentence is built -- 45s for the 598-page book. `Document`
-  builds them all in its constructor, in the desktop's shared `document.py`,
-  so reading early means building page by page (change it there, then port)
-  and letting the player start on pages already built. Word indices must stay
-  what a full build gives (desktop trap 9).
-- **Right-click.** The desktop's page menu -- *Start reading from here*, read
-  the selection, copy, delete a highlight (`main_window.build_page_menu`) --
-  is not in the browser; a right-click gets the browser's own menu. *Start
-  reading from here* can come now; the rest needs selection first.
-
-**Next, in order:**
-
-1. **Reading while a long document opens**, above.
-2. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
+1. **Show reading order** (`Ctrl`+`R`): regions drawn over the page, click one
+   to read or skip it, remembered per document, Reset. The desktop's
+   `page_view` plan overlay and `MainWindow._apply_region_choices`;
+   `Document.set_region_reads` does the work. Its item goes in **Display ▾**.
+2. **Read aloud while a long document is still opening.** Read aloud is greyed
+   out until every sentence is built -- 45s for the 598-page book. `Document`
+   builds them all in its constructor, in the desktop's shared `document.py`,
+   so reading early means building page by page (change it there, then port).
+   Word indices must stay what a full build gives (desktop trap 9) -- and
+   highlights are now keyed to them too.
+3. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
    needs its hashes in `piper-worker.js`'s `VOICES`, and a sample clip.
-3. **Keep the reader's place across a reload** (scroll and zoom, not only the
-   sentence), which `FUTURE-FEATURES.md`'s **Shortcuts** asks for.
-4. The rest of `PARITY.md`.
+   Nicknames after that.
+4. **Keep scroll and zoom per document across a reload**, and **Forget this
+   document** (notes, drawn pages, position).
+5. **Convert to MP3**, then **Open Recent** (Chrome can keep file handles).
 
-The layout follows the desktop app, Photopea-style; the shortcuts are already
-shared (`FUTURE-FEATURES.md`, **Shortcuts**).
+The layout follows the desktop app, Photopea-style; the shortcuts are shared
+(`FUTURE-FEATURES.md`, **Shortcuts**).
+
+**State to leave tidy:** `serve.py` may still be running on 8731 from the last
+session (started in the background); it is harmless, and restarting it is
+`python3 serve.py`. Nothing is pushed anywhere -- this repo has no remote.
