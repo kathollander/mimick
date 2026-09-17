@@ -54,9 +54,10 @@ Built and tested in **Google Chrome** on a Linux desktop; it is meant for
 laptops and desktops on any system Chrome runs on. **Brave, Microsoft Edge and other Chromium browsers** run the same
 engine and should work the same, but have not been tried.
 
-**Firefox** (154, on Linux) has been tried by script, not yet by hand: it opens
-PDFs and Word files, reads aloud with each word lit, finds text, shows the
-table of contents and keeps itself for offline use. **Safari is untested.**
+**Firefox** (154, on Linux) passes a scripted check, though no one has used it by
+hand yet: it opens PDFs and Word files, reads aloud with each word lit, finds
+text, shows the table of contents, keeps highlights, saves copies and exported
+notes as downloads, and keeps itself for offline use. **Safari is untested.**
 Where they differ from Chrome: saving a copy or an MP3 downloads it when it is
 finished, instead of asking where first, because they have no
 `showSaveFilePicker`; Open Recent is Chromium's only; installing as an app is

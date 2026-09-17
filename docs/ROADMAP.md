@@ -141,4 +141,4 @@ Then Kat makes the repository public and sends the link.
 - **Other languages.** Piper has many; the cleanup in `document.py` and the
   reading-time constant are English-tuned.
 - **A sleep timer** and **skip back 10 seconds**.
-- **Firefox and Safari** properly, if people ask.
+- 🟡 **Firefox and Safari** properly, if people ask. Firefox passes `tools/check_firefox.mjs` (17 September); Safari untried.

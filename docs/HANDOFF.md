@@ -58,7 +58,10 @@ best started with Kat.
    POST `/session` with `-headless`, then WebDriver): it went cross-origin
    isolated, cached itself for offline, opened the test paper and the `.docx`,
    showed the contents panel, found text, downloaded Norman and read aloud with
-   the word lit. Not tried there: highlights, saving, Convert. Safari: nothing.
+   the word lit. **`tools/check_firefox.mjs`** now does that and more
+   (highlight kept over a reload, Save a copy and Export notes as downloads, a
+   Word file; `--voice` to read aloud) -- all pass. Not tried there: Convert to
+   MP3, media keys. Safari: nothing.
 4. Work through the new sections at the top of `TESTING.md` -- every one of
    tonight's features is checked by a script, which says it works, not that it
    feels right.
@@ -333,6 +336,7 @@ node tools/check_forget.mjs          # the same
 node tools/check_recent.mjs          # the same
 node tools/check_access.mjs          # the same
 node tools/check_say.mjs             # the same; reuses the voice check_convert downloaded
+node tools/check_firefox.mjs         # Firefox through geckodriver; --voice also reads aloud
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run
