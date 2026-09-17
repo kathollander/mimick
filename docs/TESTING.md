@@ -195,3 +195,4 @@ model and what **Measure** says.
 - [ ] With an offline voice, the highlight keeps up with the voice, especially
       straight after a comma or full stop
 - [ ] At 4–5×, the highlight still keeps up
+- [ ] On a paper with footnotes, `Ctrl`+`R` shows the footnotes as read (numbered) while **Read footnotes** is on, and clicking one skips it
