@@ -4,6 +4,13 @@ Where the browser version stands, for a fresh session. Written 16 September 2026
 last updated late that night, after highlights, notes and the Display switches
 went in.
 
+## Releasing
+
+Kat means to release in a fresh session. **Start with the desktop repo's
+`docs/HANDOFF.md`, section Releasing**, which covers both versions. For this
+one, in short: check the voice licences (**Next**, item 0), delete `sample
+readings/`, and Kat makes the GitHub repository.
+
 ## Read first
 
 1. [`../README.md`](../README.md) — what this is, how to run it, which way work flows.
