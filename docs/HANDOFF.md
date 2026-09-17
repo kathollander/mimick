@@ -55,19 +55,22 @@ wanted yet). Work flows as before: desktop first for shared code, then
 `tools/port.sh`; re-stamp after changing any served file; run one browser check
 at a time (they share Chrome's port 9333).
 
-**In progress, 17 September: choosing voices on purpose** (session
-`mimick-web-b1`; decisions under *Decided*). Written and not yet committed:
-`js/voices.js` now holds the fetching, hash check, `kept`, `keptKeys` and
-`remove` (moved out of `piper-worker.js`, which calls `fetchVoice`), and marks
-Norman `mp3: true`; `js/voice-picker.js` is the new picker and
-`keepDefault()`; `voices/README.md`. **Still to do**, once the menus session
-has committed `reader.html`, `reader.js` and `convert.js`: the dialog's markup
-and styles (`#voices-dialog`, `#voices-list`, `#voices-status`,
-`#voices-progress`, `#voices-space`, `#voices-download`, `#voices-close`) and
-the script tag; the voice box built from `keptKeys()` plus *Select a new
-voice…*, dropping `#voice-sample` and `voiceKept`; `keepDefault()` when not on
-localhost or with `?release`; Convert's list filtered to `mp3`, with its note;
-`check_display`'s ▶ test moved into a picker check; re-stamp; run the checks.
+**Done, 17 September: choosing voices on purpose** (asked for by Kat; the
+decisions are under *Decided*). `js/voices.js` holds the fetching, hash check,
+`kept`, `keptKeys` and `remove` (moved out of `piper-worker.js`), and marks
+Norman `mp3: true, bundled: true`. **Norman's model ships in `voices/`**
+(`en_US-norman-medium.onnx`, 64 MB, hashes as pinned), served beside the app
+rather than from Hugging Face, and deliberately **not** in `stamp_offline.py`'s
+list: the app cache is refilled whole on every new version, so 64 MB would come
+down again with each update. Instead `MimickVoicePicker.keepDefault()` copies
+it into `mimick-voices-v1` (versionless, hash-checked) once Python is up, on
+every host, and asks for `navigator.storage.persist()`. `js/voice-picker.js`
+is the picker (`#voices-dialog` in `reader.html`); `fillVoices` in
+`js/reader.js` builds the voice box from Norman, the kept voices and the voice
+chosen, then *Select a new voice…*; `#voice-sample` is gone. Convert lists only
+`mp3` voices, with `#convert-voice-note` when the reading voice is another.
+Checks: `check_display` (the box, the picker, Norman kept), `check_convert`
+(Norman alone), `check_media`, `check_offline`, `check_voice` pass.
 
 **Not done from Ship 2: read aloud while a long document is still opening.** It
 needs `Document` in the desktop's shared `document.py` to build page by page
@@ -358,18 +361,19 @@ the reason down rather than stopping to ask.
   September). All seven would be about 450 MB, too much to push on everyone
   (small school laptops, capped connections, and most people use one voice).
   So:
-  - **Norman is the default, and the only voice downloaded without asking**, in
-    the background on the real site (not on localhost, so the checks don't each
-    fetch 61 MB), with `navigator.storage.persist()` asked for. It is the one
-    voice with no licence question (public domain). The faster "low" voices
-    (Kathleen, Southern English) sit on Ryan, CC BY-NC-SA, so they don't qualify.
-  - **The voice box lists only kept voices**, and ends with **Select a new
+  - **Norman is the default and comes with Mimick**: its model is in
+    `voices/`, kept in the browser on the first visit, and cannot be removed,
+    so there is always one voice, offline too (Kat: "simply pre-downloaded ...
+    integrated in regardless"). It is the one voice with no licence question
+    (public domain). The faster "low" voices (Kathleen, Southern English) sit
+    on Ryan, CC BY-NC-SA, so they don't qualify.
+  - **The voice box lists Norman and the voices kept**, and ends with **Select a new
     voice…**, which opens the voice picker (`js/voice-picker.js`), modelled on
     the desktop's `OfflineVoicesDialog`. It shows all seven, each with a ▶ for its shipped rainbow
     clip (nothing downloads to hear one), its size, **MP3 ✓** or **Reading
     only**, and a tick box. Several ticked voices download one after another,
-    with progress and a Stop button; a kept voice can be removed, except the one
-    in use. The ▶ beside the voice box goes, since the picker plays the samples.
+    with progress and a Stop button; a kept voice can be removed, except Norman
+    and the one in use. The ▶ beside the voice box goes, since the picker plays the samples.
   - **Convert to MP3 offers only `mp3: true` voices, which today means Norman**,
     with a short note that the other voices read aloud here but their licences
     (non-commercial, share-alike, possibly research-only through Lessac) make

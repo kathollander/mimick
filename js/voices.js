@@ -7,6 +7,14 @@
  * is recorded saying, ships in voices/ so a voice can be heard before its
  * model is downloaded. Two files hold many speakers (vctk 109, libritts_r 904);
  * both speak as speaker 0, the one the clip plays.
+ *
+ * Only voices kept in this browser are offered for reading; the rest are
+ * chosen, heard and downloaded in the voice picker (js/voice-picker.js), on
+ * purpose, rather than fetched by trying each one in turn. The default,
+ * `bundled: true`, comes with the app in voices/ and is kept on the first
+ * visit, so there is always one voice, offline too. `mp3: true` marks a
+ * voice whose licence has no question over it at all, the only kind Convert to
+ * MP3 offers: see voices/README.md.
  */
 (function (root) {
   "use strict";
@@ -25,7 +33,7 @@
       path: "en/en_US/joe/medium/en_US-joe-medium",
       onnx: "58afce0321b8d9c46d7cdf9c16500cc55a793b4220212dba6b70fb788b3baf06",
       json: "3d6d5410b3795cb1950595247ef8f06190719e6fdbfa3a2356d8ec368e1aad33" },
-    { key: "en_US-norman-medium", name: "Norman", accent: "US", note: "older man, newsreader", mb: 61,
+    { key: "en_US-norman-medium", name: "Norman", accent: "US", note: "older man, newsreader", mb: 61, mp3: true, bundled: true,
       path: "en/en_US/norman/medium/en_US-norman-medium",
       onnx: "b9739443232a80a59c7d18810dd856899bf16a7964725f5ab81ea49b1351cb71",
       json: "6c2db7f558a4a8deb9fe822583c1c5105f6c4e834dd0f9de8ad17a888ee9fe1d" },
@@ -43,11 +51,89 @@
       json: "b471dc60d2d8335e819c393d196d6fbf792817f40051257b269878505bc9afb3" },
   ];
   const byKey = Object.fromEntries(LIST.map((v) => [v.key, v]));
+  const CACHE = "mimick-voices-v1";
+  // The default voice ships in voices/, beside the app, so it is kept on the
+  // first visit whatever happens; the rest come from Hugging Face when chosen.
+  // voices/ is a folder up from a worker in js/, and beside the page.
+  const base = root.location ? new URL(typeof document === "undefined" ? "../" : "./", root.location.href).href : "";
+  const modelUrl = (key, ext) => byKey[key].bundled ? `${base}voices/${key}${ext}`
+    : `https://huggingface.co/rhasspy/piper-voices/resolve/${REVISION}/${byKey[key].path}${ext}`;
+
+  // A file from the cache if it is there, else from the network. Either way it
+  // is hashed before use; a download is only cached once it has passed.
+  async function fetchVerified(url, sha256, onProgress, signal) {
+    const cache = await caches.open(CACHE);
+    let response = await cache.match(url);
+    const cached = !!response;
+    let bytes;
+    if (response) {
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } else {
+      response = await fetch(url, { signal });
+      if (!response.ok) throw new Error(`${url} answered ${response.status}`);
+      bytes = await readAll(response, onProgress);
+    }
+    const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
+      .map((b) => b.toString(16).padStart(2, "0")).join("");
+    if (digest !== sha256) {
+      await cache.delete(url);
+      throw new Error(`${url.split("/").pop()} did not match its expected hash`);
+    }
+    if (!cached) await cache.put(url, new Response(bytes));
+    return { bytes, cached };
+  }
+
+  async function readAll(response, onProgress) {
+    const total = Number(response.headers.get("content-length")) || 0;
+    const reader = response.body.getReader();
+    const parts = [];
+    let loaded = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      loaded += value.length;
+      if (onProgress) onProgress(loaded, total);
+    }
+    const bytes = new Uint8Array(loaded);
+    let at = 0;
+    for (const part of parts) { bytes.set(part, at); at += part.length; }
+    return bytes;
+  }
+
+  /* Both of a voice's files, from the cache or the network; `bytes` are the model's. */
+  async function fetchVoice(key, onProgress, signal) {
+    const entry = byKey[key];
+    if (!entry) throw new Error(`no such voice: ${key}`);
+    const json = await fetchVerified(modelUrl(key, ".onnx.json"), entry.json, null, signal);
+    const model = await fetchVerified(modelUrl(key, ".onnx"), entry.onnx, onProgress, signal);
+    return { json: json.bytes, model: model.bytes, cached: model.cached };
+  }
+
+  /* Whether a voice is kept in this browser. Its config goes in after its model, so both are asked. */
+  async function kept(key) {
+    try {
+      const cache = await caches.open(CACHE);
+      return !!(await cache.match(modelUrl(key, ".onnx"))) && !!(await cache.match(modelUrl(key, ".onnx.json")));
+    } catch { return false; }
+  }
+
+  async function keptKeys() {
+    const out = [];
+    for (const v of LIST) if (await kept(v.key)) out.push(v.key);
+    return out;
+  }
+
+  async function remove(key) {
+    const cache = await caches.open(CACHE);
+    await cache.delete(modelUrl(key, ".onnx"));
+    await cache.delete(modelUrl(key, ".onnx.json"));
+  }
 
   root.MimickVoices = {
     REVISION, LIST, byKey,
     DEFAULT: "en_US-norman-medium", // the one public-domain voice; see voices/README.md
-    modelUrl: (key, ext) => `https://huggingface.co/rhasspy/piper-voices/resolve/${REVISION}/${byKey[key].path}${ext}`,
+    CACHE, modelUrl, fetchVoice, kept, keptKeys, remove,
     sampleUrl: (key) => `voices/${key}.mp3`,
   };
 })(typeof self !== "undefined" ? self : globalThis);

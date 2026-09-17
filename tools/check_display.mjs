@@ -102,17 +102,37 @@ await r.key("Escape"); await sleep(200);
 // 4. The voice. Nothing is downloaded here: a model is 60 MB.
 // A fresh page: the click that gave the page the keyboard above also started reading.
 await r.load();
-const voices = await ev(`[...document.getElementById("voice").options].map((o) => o.value)`);
-check("the voice box offers the seven voices, Kathleen first", voices.length === 7 && voices[0] === "en_US-kathleen-low", voices);
-await ev(`(() => { const s = document.getElementById("voice"); s.value = "en_US-joe-medium"; s.dispatchEvent(new Event("change")); })()`);
 await sleep(500);
-check("choosing one says what it is like, and what it costs", /Joe \(US\) — older man, warm/.test(await r.status()), await r.status());
-await r.click(await r.centre("#voice-sample")); await sleep(1000);
-check("▶ plays its sample, and does not start reading",
-      (await ev(`document.getElementById("voice-sample").textContent`)) === "■" && (await ev(`document.getElementById("play").textContent`)) === "Read aloud");
-await r.click(await r.centre("#voice-sample")); await sleep(300);
-await r.load();
-check("the voice is remembered", (await ev(`document.getElementById("voice").value`)) === "en_US-joe-medium");
+const voices = await ev(`[...document.getElementById("voice").options].map((o) => o.value)`);
+// This profile may have kept a voice from an earlier run, so ask which.
+const keptNow = await ev(`MimickVoices.keptKeys()`);
+const MimickVoicesOrder = await ev(`MimickVoices.LIST.map((v) => v.key)`);
+check("the voice box offers the voices kept and the one in use, then Select a new voice…",
+      JSON.stringify(voices) === JSON.stringify([...MimickVoicesOrder.filter((k) => keptNow.includes(k) || k === "en_US-norman-medium"), "select-a-new-voice"]),
+      [voices, keptNow]);
+await ev(`(() => { const s = document.getElementById("voice"); s.value = "select-a-new-voice"; s.dispatchEvent(new Event("change")); })()`);
+await wait(`document.getElementById("voices-list").children.length === 7`, 5000);
+check("Select a new voice… opens the picker with all seven, and leaves the box on the voice in use",
+      (await ev(`document.getElementById("voices-dialog").open`)) && (await ev(`document.getElementById("voice").value`)) === "en_US-norman-medium");
+const marks = await ev(`[...document.querySelectorAll("#voices-list .voice-row")].map((row) => row.querySelector(".voice-mp3").textContent)`);
+check("Norman is built in: no tick, no Remove", await ev(`(() => { const row = [...document.querySelectorAll("#voices-list .voice-row")].find((r) => r.textContent.includes("Norman"));
+  return !row.querySelector(".voice-tick") && !row.querySelector(".voice-remove") && row.textContent.includes("Built in"); })()`));
+check("…marking Norman alone as good for MP3", marks.filter((m) => m === "MP3 ✓").length === 1
+      && (await ev(`[...document.querySelectorAll("#voices-list .voice-row")].find((row) => row.textContent.includes("MP3 ✓")).textContent.includes("Norman")`)), marks);
+await ev(`document.querySelector('.voice-row .voice-play[aria-label="Hear Joe"]').click()`); await sleep(1000);
+check("▶ plays a sample, and does not start reading",
+      (await ev(`document.querySelector('.voice-play[aria-label="Hear Joe"]').textContent`)) === "■" && (await ev(`document.getElementById("play").textContent`)) === "Read aloud");
+check("Download waits for a tick", await ev(`document.getElementById("voices-download").disabled`));
+await ev(`(() => { for (const n of ["Joe", "Kusal"]) { const b = document.querySelector('.voice-tick[aria-label="Download ' + n + '"]'); b.checked = true; b.dispatchEvent(new Event("change")); } })()`);
+check("ticking two says how much they download", (await ev(`document.getElementById("voices-download").textContent`)) === "Download 2 voices (120 MB)",
+      await ev(`document.getElementById("voices-download").textContent`));
+await ev(`document.getElementById("voices-close").click()`); await sleep(300);
+check("Done closes it, and stops the sample", !(await ev(`document.getElementById("voices-dialog").open`)));
+await wait(`MimickVoices.kept("en_US-norman-medium")`, 60000);
+check("Norman, shipped with the app, is kept in the browser once the page is ready", true);
+await ev(`localStorage.setItem("mimick-voice", "en_US-joe-medium")`);
+await r.load(); await sleep(500);
+check("the voice is remembered, and listed though not downloaded yet", (await ev(`document.getElementById("voice").value`)) === "en_US-joe-medium");
 for (const width of [1300, 1024]) {
   await r.t.send("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: false });
   await sleep(300);

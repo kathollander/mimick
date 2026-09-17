@@ -214,17 +214,17 @@ Added 17 September.
 
 ## Choosing voices
 
-Added 17 September, **not built into the page yet**. This replaces the ▶
-beside the voice box in *The voice*, below. Reload the page first.
+Added 17 September. This replaces the ▶ beside the voice box in *The voice*,
+below. Reload the page first.
 
-- [ ] On a first visit to the real site, Norman downloads by itself, and reading aloud then works with the internet off
-- [ ] The **Voice** box lists only voices you have downloaded, then **Select a new voice…**
+- [ ] After a first visit (or clearing site data), Norman reads with the internet off, without downloading anything
+- [ ] The **Voice** box lists Norman and the voices you have downloaded, then **Select a new voice…**
 - [ ] **Select a new voice…** opens a window with all seven voices, and says which can be used for MP3s
 - [ ] ▶ on each plays the rainbow sample straight away, with nothing downloading; ■ stops it
 - [ ] Tick two voices: the button says how many MB, and they download one after the other with progress
 - [ ] **Stop downloading** stops, and keeps any voice already finished
 - [ ] New voices appear in the Voice box, and read offline
-- [ ] **Remove** frees a voice, and can't remove the one in use
+- [ ] **Remove** frees a voice; Norman says *Built in* instead, and the voice in use can't be removed
 - [ ] The line about space used and room left looks right
 - [ ] It feels deliberate without being annoying
 

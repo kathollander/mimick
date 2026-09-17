@@ -26,8 +26,8 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Select text and press `Enter` (or right-click → *Read the selection*)
 - ⬜ Read aloud while a long document is still opening
 - ✅ Voice picker: the seven voices, with a sample of each; Norman by default
-- 🟡 **Choosing voices on purpose** (17 September, in progress): the voice box lists only kept voices, and *Select a new voice…* opens a picker like the desktop's *Offline voices*, with samples, tick boxes to download several, Remove, and which voices can make MP3s. Only Norman downloads without asking. *For the desktop:* it has the dialog, but not the MP3 marking or the MP3 rule below
-- 🟡 **Convert to MP3 uses only voices with no licence question** (Norman, for now), with a note saying why — *the desktop's export offers every voice*
+- ✅ **Choosing voices on purpose** (17 September): Norman comes with the app; the voice box lists it and the voices kept, and *Select a new voice…* opens a picker like the desktop's *Offline voices*, with samples, tick boxes to download several, Remove, and which voices can make MP3s. *For the desktop:* it has the dialog, but not the MP3 marking or the MP3 rule below
+- ✅ **Convert to MP3 uses only voices with no licence question** (Norman, for now), with a note saying why — *the desktop's export offers every voice*
 - ✖ Nicknames for voices — not wanted for now: seven voices need no renaming (17 September)
 - ✖ Microsoft online voices, Kokoro — a web page cannot reach them
 

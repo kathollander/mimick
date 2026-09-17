@@ -78,6 +78,8 @@
     if (!doc) status("Ready. Open a PDF or a document to begin.");
     // Python is loaded, and kept as it came: now keep the rest for offline use.
     MimickOffline.complete();
+    // And the default voice, which ships with the app: always one voice, offline too.
+    MimickVoicePicker.keepDefault().then((kept) => { if (kept) fillVoices(); });
   };
   const reading = startWorker("js/document-worker.js", () => { pythonReady = true; readyNow(); });
   // Each is a Python of its own, so a few, not one a core.
@@ -971,56 +973,55 @@
   $("forward").onclick = () => { voice.skip(1); view.focus(); };
 
   // --- the voice ------------------------------------------------------------------
-  // The seven in js/voices.js. Each model downloads the first time it reads and
-  // is kept; the ▶ beside the box plays the clip shipped for it, so a voice can
-  // be heard before anything is downloaded.
+  // The box lists the voices kept in this browser, the default (it ships with
+  // the app, and is kept once Python is up), and the one chosen, then
+  // "Select a new voice…", which opens the picker (js/voice-picker.js): the only
+  // place a voice is heard and downloaded, so voices are chosen, not tried.
 
-  for (const v of Voices.LIST) {
-    const option = new Option(`${v.name} (${v.accent}) — ${v.note}`, v.key);
-    $("voice").append(option);
-  }
-  $("voice").value = voice.voice;
-  const describeVoice = () => { const v = Voices.byKey[$("voice").value]; $("voice").title = `${v.name}: ${v.note}`; };
-  describeVoice();
-
-  /* Whether a voice's model is already kept in this browser. */
-  async function voiceKept(key) {
-    try { return !!(await (await caches.open("mimick-voices-v1")).match(Voices.modelUrl(key, ".onnx"))); }
-    catch { return false; }
-  }
-
-  $("voice").onchange = async () => {
-    const key = $("voice").value;
+  const PICK = "select-a-new-voice";
+  async function fillVoices() {
+    const kept = new Set(await Voices.keptKeys());
+    const box = $("voice");
+    box.replaceChildren();
+    for (const v of Voices.LIST) {
+      if (!kept.has(v.key) && !v.bundled && v.key !== voice.voice) continue;
+      box.append(new Option(`${v.name} (${v.accent}) — ${v.note}`, v.key));
+    }
+    box.append(new Option("Select a new voice…", PICK));
+    box.value = voice.voice;
     describeVoice();
-    stopSample();
+  }
+  const describeVoice = () => { const v = Voices.byKey[voice.voice]; $("voice").title = `${v.name}: ${v.note}`; };
+
+  const voicePicker = MimickVoicePicker.create({
+    current: () => voice.voice,
+    pauseReading: () => { if (isReading()) voice.pause(); },
+    status,
+    async changed({ added }) {
+      if (added.length) chooseVoice(added[0]);
+      await fillVoices();
+    },
+  });
+
+  function chooseVoice(key) {
     voice.setVoice(key);
     remember("mimick-voice", key);
-    view.focus();
-    if (isReading()) return;
-    const v = Voices.byKey[key];
-    status(`${voiceLabel(key)} — ${v.note}. `
-      + ((await voiceKept(key)) ? "Ready to read." : `Downloads ${v.mb} MB the first time it reads; ▶ plays a sample now.`));
-  };
-
-  let sample = null;
-  function stopSample() {
-    if (!sample) return;
-    sample.pause();
-    sample = null;
-    $("voice-sample").textContent = "▶";
-    $("voice-sample").title = "Hear this voice";
+    $("voice").value = key;
+    describeVoice();
+    if (!isReading()) status(`${voiceLabel(key)} — ${Voices.byKey[key].note}. Ready to read.`);
   }
-  $("voice-sample").onclick = () => {
-    if (sample) { stopSample(); view.focus(); return; }
-    // Not over the reading: pause it first.
-    if (isReading()) voice.pause();
-    const playing = sample = new Audio(Voices.sampleUrl($("voice").value));
-    $("voice-sample").textContent = "■";
-    $("voice-sample").title = "Stop the sample";
-    playing.onended = playing.onerror = () => { if (sample === playing) stopSample(); };
-    playing.play().catch((err) => { if (sample === playing) { stopSample(); status("The sample could not play: " + err.message); } });
+
+  $("voice").onchange = () => {
+    const key = $("voice").value;
+    if (key === PICK) {
+      $("voice").value = voice.voice;
+      voicePicker.open();
+      return;
+    }
+    chooseVoice(key);
     view.focus();
   };
+  fillVoices();
 
   for (const speed of SPEEDS) $("speed").append(new Option(`${speed}×`, speed));
   const savedRate = Number(recall("mimick-rate"));
@@ -1763,7 +1764,7 @@
   for (const type of ["click", "keydown"]) document.addEventListener(type, () => setTimeout(showSwitches), true);
 
   const convert = MimickConvert.create({
-    call, status, voiceKept, speeds: SPEEDS,
+    call, status, voiceKept: Voices.kept, speeds: SPEEDS,
     ready: () => !!doc?.sentences,
     title: () => doc.title,
     pageCount: () => doc.pages.length,
@@ -1808,7 +1809,7 @@
   MimickOffline.onChange((state) => {
     const about = $("about-offline");
     if (!state.supported) about.textContent = "This browser cannot keep Mimick for offline use.";
-    else if (state.ready) about.textContent = "Ready: everything Mimick needs is kept in this browser, so it opens and reads with no internet connection. Each voice downloads once, the first time it reads.";
+    else if (state.ready) about.textContent = "Ready: everything Mimick needs is kept in this browser, so it opens and reads with no internet connection. Norman comes with Mimick; any other voice downloads once, when you choose it.";
     else if (state.error) about.textContent = `Not yet: ${state.error}. It tries again next time the page opens.`;
     else if (state.total) about.textContent = `Getting ready to work offline: ${state.done} of ${state.total} files kept.`;
     if (wasReady === false && state.ready && voice.state === "stopped") status("Ready to work offline — everything Mimick needs is kept in this browser");

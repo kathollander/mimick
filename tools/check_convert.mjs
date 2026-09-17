@@ -33,6 +33,8 @@ const labels = await r.menuLabels();
 check("File lists Open, Find, Save, Export notes, Forget and Convert to MP3", JSON.stringify(labels) === JSON.stringify(["Open…", "Find in document…", "Save a copy (PDF)…", "Export notes…", "Forget this document…", "Convert to MP3…"]), labels);
 await r.menu("Convert to MP3…");
 check("Convert to MP3 opens its window", await ev(`document.getElementById("convert-dialog").open`));
+check("…offering only the voice with no licence question, Norman",
+      JSON.stringify(await ev(`[...document.getElementById("convert-voice").options].map((o) => o.value)`)) === JSON.stringify(["en_US-norman-medium"]));
 await wait(`/^Conversion from text to audio: /.test(document.getElementById("convert-time").textContent)`, 20000);
 check("…with the name, and an estimate for the whole document",
       (await ev(`document.getElementById("convert-name").value`)).startsWith("Listening to the Page") && (await ev(`document.getElementById("convert-time").dataset.sentences`)) === "29",

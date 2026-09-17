@@ -273,6 +273,27 @@
   #convert-dialog .form > span:nth-child(odd) { color: var(--dim); text-align: right; }
   #convert-dialog .suffix { display: flex; align-items: center; gap: 6px; }
   #convert-range { display: flex; align-items: center; gap: 8px; }
+  #convert-voice-note { font-size: 12px; }
+  #convert-voice-note:empty { display: none; }
+
+  /* The voice picker; js/voice-picker.js. */
+  #voices-dialog { width: min(640px, calc(100vw - 32px)); }
+  #voices-dialog h2 { font-size: 15px; margin: 0; }
+  #voices-dialog p { margin: 0; }
+  #voices-dialog blockquote { margin: 0; padding: 8px 10px; background: var(--panel-hi); border-radius: 6px; color: var(--dim); font-style: italic; }
+  #voices-list { display: grid; gap: 2px; max-height: 50vh; overflow-y: auto; }
+  .voice-row { display: grid; grid-template-columns: 1.6em auto 1fr auto 5.5em; gap: 10px; align-items: center;
+               padding: 4px 6px; border-radius: 6px; }
+  .voice-row:hover { background: var(--panel-hi); }
+  .voice-row label.voice-name { display: block; cursor: pointer; }
+  .voice-row.kept label.voice-name { cursor: default; }
+  .voice-kept { color: var(--accent); text-align: center; }
+  .voice-size { text-align: right; }
+  .voice-remove { justify-self: end; }
+  .voice-mp3 { font-size: 11px; padding: 1px 6px; border-radius: 9px; border: 1px solid var(--accent); color: var(--accent); white-space: nowrap; }
+  .voice-mp3.no { border-color: var(--border); color: var(--dim); }
+  #voices-progress { width: 100%; }
+  #voices-status { min-height: 1.4em; }
   #convert-range[hidden] { display: none; }
   #convert-range input { width: 84px; }
   #convert-estimate { background: var(--panel-hi); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: grid; gap: 4px; }
@@ -325,7 +346,6 @@
   <div class="right">
     <label class="dim" for="voice">Voice</label>
     <select id="voice" title="Who reads to you" aria-label="Voice"></select>
-    <button id="voice-sample" class="square" aria-label="Hear this voice" title="Hear this voice">▶</button>
     <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
     <button id="switches-toggle" class="square" aria-controls="switches" aria-expanded="false"
             aria-label="Quick switches" title="Show the quick switches: night or day, what is read, the timer, the panels">
@@ -437,6 +457,7 @@
     <div class="form">
       <span>File name</span><span class="suffix"><input id="convert-name" type="text" aria-label="File name"><span class="dim">.mp3</span></span>
       <span>Voice</span><select id="convert-voice"></select>
+      <span></span><div id="convert-voice-note" class="dim"></div>
       <span>Speed</span><select id="convert-speed" aria-label="Speed"></select>
       <span>Convert</span><select id="convert-scope" aria-label="What to convert"></select>
       <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number" aria-label="From page"> to <input id="convert-to" type="number" aria-label="To page"></div>
@@ -457,6 +478,26 @@
   <div id="convert-progress-detail" class="dim"></div>
   <div class="buttons"><button id="convert-stop" type="button">Cancel</button></div>
 </div>
+
+<dialog id="voices-dialog" aria-label="Select a new voice">
+  <form method="dialog">
+    <h2>Select a new voice</h2>
+    <p class="dim">Listen first with ▶: every voice reads the same passage, and nothing downloads to hear it.
+      Tick the ones you like and download them, about 60–75 MB each, once. They then work offline. Norman comes with Mimick.</p>
+    <blockquote>“When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow.”</blockquote>
+    <div id="voices-list"></div>
+    <p class="dim"><span class="voice-mp3">MP3 ✓</span> voices have no licence questions, so Convert to MP3 can use them.
+      <span class="voice-mp3 no">Reading only</span> voices read aloud in Mimick, but their licences aren't clear enough
+      for making audio files to keep or share. About → Voices has the details.</p>
+    <progress id="voices-progress" hidden></progress>
+    <p id="voices-status" class="dim" role="status"></p>
+    <p id="voices-space" class="dim"></p>
+    <div class="buttons">
+      <button id="voices-close" type="button">Done</button>
+      <button id="voices-download" class="primary" type="button" disabled>Download</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="note-dialog" aria-label="Note">
   <form id="note-form" method="dialog">
@@ -608,7 +649,7 @@
       <p>Read any PDF out loud in a natural voice, slow or fast, with the words lit as they are spoken — in a browser tab,
         with nothing installed. Your document is opened by your own browser and never leaves your computer.</p>
       <h2>What this does</h2>
-      <p><b>Read aloud in a natural voice</b><br>A Piper voice, running in this tab. It is downloaded once, and works offline after that.</p>
+      <p><b>Read aloud in a natural voice</b><br>A Piper voice, running in this tab. Norman comes with Mimick; more voices download once, when you choose them, and work offline after that.</p>
       <p><b>Follow along</b><br>As Mimick reads, the sentence and the word being said are lit on the page.</p>
       <p><b>More than PDFs</b><br>Word (.docx), OpenDocument (.odt), EPUB and plain text files open too, laid out as pages.
         A scanned PDF with no text can have its words recognised (Reading ▾ → Recognise text), here in the browser.</p>
@@ -624,13 +665,12 @@
       <p><b>Works offline</b><br><span id="about-offline">Once it has loaded fully, Mimick opens and reads with no internet connection.</span></p>
       <h2>How to use it</h2>
       <p><b>Open a PDF, Word (.docx), OpenDocument (.odt), EPUB or .txt file</b> with File ▾, Ctrl+O, or by dropping it on the page. <b>Press Space</b> to read and pause —
-        the first time, the voice downloads once (about 60 MB). Change the <b>voice</b> and <b>speed</b> in the top bar;
-        ▶ plays a sample first. <b>Click a sentence</b> to read from there, or select text and press Enter.
+        Norman reads to start with; <b>Select a new voice…</b> in the voice box hears and downloads others (about 60–75 MB each, once). Change the <b>speed</b> in the top bar. <b>Click a sentence</b> to read from there, or select text and press Enter.
         <b>Ctrl+F</b> finds text. <b>Ctrl+H</b> highlights, <b>Ctrl+M</b> adds a note, <b>Ctrl+S</b> saves a copy with
         them in it. Every key is under Help ▾ → Keyboard shortcuts.</p>
       <h2>Privacy</h2>
       <p>Every document you open stays on this computer: your own browser reads it, and nothing is uploaded.
-        Mimick downloads only the page itself, the first time, and each voice you use, once, from Hugging Face —
+        Mimick downloads only the page itself, with Norman, the first time, and each other voice you choose, once, from Hugging Face —
         checked against a fixed hash. Your highlights, notes, reading positions and settings are kept in this
         browser's storage and nowhere else. No accounts, no analytics, no tracking.</p>
       <h2>Browsers</h2>
@@ -717,6 +757,7 @@
 <script src="js/page-store.js"></script>
 <script src="js/piper-core.js"></script>
 <script src="js/voices.js"></script>
+<script src="js/voice-picker.js"></script>
 <script src="js/read-aloud.js"></script>
 <script src="js/notes-store.js"></script>
 <script src="js/notes.js"></script>

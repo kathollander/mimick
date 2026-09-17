@@ -25,9 +25,8 @@ importScripts("../vendor/piper/piper_phonemize.js",
 
 // Pinned to one revision of rhasspy/piper-voices and checked by hash, so the
 // file cannot change underneath us or arrive altered. See "Security and
-// privacy" in the desktop repo's docs/FUTURE-FEATURES.md. The revision and
-// the hashes are in js/voices.js.
-const CACHE = "mimick-voices-v1";
+// privacy" in the desktop repo's docs/FUTURE-FEATURES.md. The revision, the
+// hashes and the fetching are in js/voices.js.
 
 let voice = null;
 
@@ -54,11 +53,7 @@ self.onmessage = ({ data }) => {
 
 async function load({ voice: key, threads }) {
   const t0 = performance.now();
-  const entry = MimickVoices.byKey[key];
-  if (!entry) throw new Error(`no such voice: ${key}`);
-
-  const json = await fetchVerified(MimickVoices.modelUrl(key, ".onnx.json"), entry.json, false);
-  const model = await fetchVerified(MimickVoices.modelUrl(key, ".onnx"), entry.onnx, true);
+  const files = await MimickVoices.fetchVoice(key, (loaded, total) => self.postMessage({ type: "progress", loaded, total }));
 
   // Without cross-origin isolation there is no SharedArrayBuffer, and ONNX
   // Runtime quietly runs on one thread whatever it is asked for.
@@ -70,13 +65,13 @@ async function load({ voice: key, threads }) {
     (file) => new URL("../vendor/piper/" + file, self.location.href).href);
   voice = await MimickPiper.createVoice({
     ort, phonemize,
-    config: JSON.parse(new TextDecoder().decode(json.bytes)),
-    model: model.bytes,
+    config: JSON.parse(new TextDecoder().decode(files.json)),
+    model: files.model,
     timing: MimickTiming,
   });
   self.postMessage({ type: "ready", voice: key, threads: ort.env.wasm.numThreads, isolated,
                      exactTiming: voice.exactTiming,
-                     cached: model.cached, loadMs: performance.now() - t0 });
+                     cached: files.cached, loadMs: performance.now() - t0 });
 }
 
 async function speak({ id, text, rate, say = [] }) {
@@ -94,46 +89,4 @@ async function speak({ id, text, rate, say = [] }) {
                      stretchMs: r.stretchMs,
                      audioMs: r.audioMs, heardMs: r.heardMs },
                    natural ? [r.samples.buffer, natural.buffer] : [r.samples.buffer]);
-}
-
-// A file from the cache if it is there, else from the network. Either way it
-// is hashed before use; a download is only cached once it has passed.
-async function fetchVerified(url, sha256, reportProgress) {
-  const cache = await caches.open(CACHE);
-  let response = await cache.match(url);
-  const cached = !!response;
-  let bytes;
-  if (response) {
-    bytes = new Uint8Array(await response.arrayBuffer());
-  } else {
-    response = await fetch(url);
-    if (!response.ok) throw new Error(`${url} answered ${response.status}`);
-    bytes = await readAll(response, reportProgress);
-  }
-  const digest = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
-    .map((b) => b.toString(16).padStart(2, "0")).join("");
-  if (digest !== sha256) {
-    await cache.delete(url);
-    throw new Error(`${url.split("/").pop()} did not match its expected hash`);
-  }
-  if (!cached) await cache.put(url, new Response(bytes));
-  return { bytes, cached };
-}
-
-async function readAll(response, reportProgress) {
-  const total = Number(response.headers.get("content-length")) || 0;
-  const reader = response.body.getReader();
-  const parts = [];
-  let loaded = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    parts.push(value);
-    loaded += value.length;
-    if (reportProgress) self.postMessage({ type: "progress", loaded, total });
-  }
-  const bytes = new Uint8Array(loaded);
-  let at = 0;
-  for (const part of parts) { bytes.set(part, at); at += part.length; }
-  return bytes;
 }

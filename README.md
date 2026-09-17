@@ -21,11 +21,11 @@ it works with no internet connection, and Chrome can install it as an app.
    page. It opens in your browser and is not uploaded anywhere. Documents that
    are not PDFs are laid out as pages first; headings, paragraphs and text come
    through well, while lists lose their bullets and tables their borders.
-2. **Press `Space`** (or **Read aloud**) to start and pause. The first time,
-   the voice downloads once -- about 60 MB -- and is kept, so after that it
-   starts straight away, even offline.
-3. **Change the voice and speed** in the top bar. The **▶** beside the voice
-   plays a sample before you download it.
+2. **Press `Space`** (or **Read aloud**) to start and pause. Norman, the voice
+   Mimick comes with, reads straight away, even offline.
+3. **Change the voice and speed** in the top bar. **Select a new voice…**, at
+   the bottom of the voice box, lets you hear every voice before choosing, and
+   downloads the ones you tick (about 60–75 MB each, once).
 4. **Click a sentence** to read from there, or select some text and press
    `Enter` to read just that. `←` and `→` go back and forward a sentence.
 5. **Find text** with `Ctrl`+`F`; `Enter` goes to the next match.
@@ -73,7 +73,7 @@ still reads, more slowly, on one thread. Phones and tablets are not supported.
 
 Every document you open stays on your computer: it is read by your own
 browser, and nothing is uploaded. The only things Mimick downloads are the page
-itself, the first time, and each voice you use, once, from
+itself, with its Norman voice, the first time, and each other voice you choose, once, from
 [Hugging Face](https://huggingface.co/rhasspy/piper-voices) -- checked against a
 fixed hash, so it cannot be swapped. Your highlights, notes, reading positions
 and settings are kept in this browser's storage and nowhere else; clearing the
