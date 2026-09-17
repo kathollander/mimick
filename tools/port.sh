@@ -5,10 +5,10 @@
 # ever be edited here -- an edit made here is lost the next time this runs, and
 # worse, it makes the two copies disagree about what a page says out loud.
 #
-#     tools/port.sh ../Mimick
+#     tools/port.sh ../Mimick-linux
 #
 set -euo pipefail
-SRC="${1:-../Mimick}"
+SRC="${1:-../Mimick-linux}"
 [ -d "$SRC/mimick" ] || { echo "No mimick package at $SRC" >&2; exit 1; }
 
 for name in layout.py citations.py speech.py document.py annotations.py; do

@@ -148,7 +148,7 @@ project and there is **one copy that matters**, the one in `mimick`.
 **Fix things there, then bring them across:**
 
 ```bash
-tools/port.sh ../Mimick
+tools/port.sh ../Mimick-linux
 ```
 
 Never edit `py/` here. An edit made here is lost the next time that script

@@ -346,8 +346,8 @@ the reason down rather than stopping to ask.
 4. [`TESTING.md`](TESTING.md) — the checklist for what only a person can judge.
    Sweep it for personal information before it goes public (*To do first*, item 4).
 5. [`ROADMAP.md`](ROADMAP.md) — what to build, in order, to ship to classmates.
-6. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
-   desktop handoff, `../Mimick/docs/HANDOFF.md`, has the traps that apply to
+6. The plan, in the desktop repo: `../Mimick-linux/docs/FUTURE-FEATURES.md`. The
+   desktop handoff, `../Mimick-linux/docs/HANDOFF.md`, has the traps that apply to
    the shared reading code.
 
 ## Decided
@@ -380,7 +380,7 @@ the reason down rather than stopping to ask.
     (non-commercial, share-alike, possibly research-only through Lessac) make
     MP3s to keep or share risky. See `voices/README.md`.
 - **Laptop and desktop only.**
-- **Work flows one way:** fix in `../Mimick`, then `tools/port.sh ../Mimick`.
+- **Work flows one way:** fix in `../Mimick-linux`, then `tools/port.sh ../Mimick-linux`.
   Never edit `py/` here.
 - **Nothing from a CDN.** Everything is in `vendor/`.
 - **No voice nicknames**, for now (17 September). Seven voices need no
