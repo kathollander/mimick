@@ -154,6 +154,8 @@ node tools/check_notes.mjs           # the same
 node tools/check_display.mjs         # the same
 node tools/check_order.mjs           # the same
 node tools/check_find.mjs            # the same
+node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
+python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run
 ```
 
@@ -178,6 +180,24 @@ events from a script, and after a few minutes timers fire about once a minute,
 so a scripted test of the reader crawls or stalls. Test it with real input
 instead -- the scroll, click and key actions, then a screenshot, which makes the
 page draw -- or ask Kat to bring the tab to the front.
+
+## Offline
+
+`sw.js` is the one service worker (it replaced `coi-serviceworker.js`): it adds
+the isolation headers and keeps the app in a cache named for its `VERSION`.
+**`VERSION` and the file list are written by `python3 tools/stamp_offline.py`,
+and must be re-stamped after any change to a file the app serves** -- otherwise
+people who have visited keep the old version for ever. `check_offline.mjs`
+fails when the stamp is stale. On the real site the cache comes first and a new
+version is taken whole: straight away if the tab has nothing open yet,
+otherwise from **Help ▾ → Update Mimick**. On localhost the server comes first
+and the cache is only the fallback, so edits show on reload (trap 10 still
+applies to `python3 -m http.server`); `reader.html?release` makes localhost
+behave like the real site. A first visit caches only the small files before the
+worker takes over (so the reload into isolation is quick); the rest is kept as
+the page loads it, then filled in once Python is up. `index.html` now sends you
+to `reader.html`; the old spike page is `spike.html`. Installed as an app, a PDF
+opened from the file manager arrives through `launchQueue`.
 
 ## Traps so far
 

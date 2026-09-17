@@ -29,7 +29,7 @@ The worker already holds every sentence's words and rectangles
 selection drawing in `js/reader.js`. Right-click a match → *Start reading
 from here* should work, since a match is a place on the page.
 
-**2. Works offline, installs as an app.** Today nothing is cached:
+**2. ✅ Works offline, installs as an app.** Done 17 September: `sw.js` (one worker, isolation headers and the cache), `js/offline.js`, `manifest.json`, `icons/`, `tools/stamp_offline.py`, `tools/check_offline.mjs`; see `HANDOFF.md`, *Offline*. Today nothing is cached:
 `coi-serviceworker.js` only sets the isolation headers, and the 62 MB in
 `vendor/` is fetched again whenever Chrome's cache lets go of it. Voice
 models are already kept in IndexedDB. Needed: a service worker that

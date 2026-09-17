@@ -16,6 +16,10 @@
 (function () {
   "use strict";
 
+  // The page is about to reload to put itself in the service worker's hands
+  // (js/offline.js); starting four Pythons first would only waste the download.
+  if (window.MimickOffline?.reloading) return;
+
   const L = MimickLayout;
   const Store = MimickPageStore;
   const $ = (id) => document.getElementById(id);
@@ -69,9 +73,11 @@
   // Said once: each page worker that comes up later would otherwise write it
   // over whatever the status line has said since.
   const readyNow = () => {
-    if (saidReady || !pythonReady || !pageWorkersReady || doc) return;
+    if (saidReady || !pythonReady || !pageWorkersReady) return;
     saidReady = true;
-    status("Ready. Open a PDF to begin.");
+    if (!doc) status("Ready. Open a PDF to begin.");
+    // Python is loaded, and kept as it came: now keep the rest for offline use.
+    MimickOffline.complete();
   };
   const reading = startWorker("js/document-worker.js", () => { pythonReady = true; readyNow(); });
   // Each is a Python of its own, so a few, not one a core.
@@ -1291,9 +1297,38 @@
     { label: convert.running ? "Converting to MP3…" : "Convert to MP3…", enabled: !!doc?.sentences && !convert.running,
       run: convert.open },
   ]);
+  // --- working offline, and updates ------------------------------------------------
+  // js/offline.js and sw.js. The status line says once when everything is kept;
+  // About says where it stands. A new version waiting is taken straight away if
+  // nothing is open yet, and otherwise offered under Help.
+
+  let wasReady = null, offeredUpdate = false;
+  MimickOffline.onChange((state) => {
+    const about = $("about-offline");
+    if (!state.supported) about.textContent = "This browser cannot keep Mimick for offline use.";
+    else if (state.ready) about.textContent = "Ready: everything Mimick needs is kept in this browser, so it opens and reads with no internet connection. Each voice downloads once, the first time it reads.";
+    else if (state.error) about.textContent = `Not yet: ${state.error}. It tries again next time the page opens.`;
+    else if (state.total) about.textContent = `Getting ready to work offline: ${state.done} of ${state.total} files kept.`;
+    if (wasReady === false && state.ready && voice.state === "stopped") status("Ready to work offline — everything Mimick needs is kept in this browser");
+    if (state.ready || state.total || state.error) wasReady = state.ready;
+    if (state.updateReady && !offeredUpdate) {
+      offeredUpdate = true;
+      if (!doc && performance.now() < 15000) { status("Updating Mimick…"); MimickOffline.update(); }
+      else if (voice.state === "stopped") status("A new version of Mimick is ready — Help ▾ → Update Mimick");
+    }
+  });
+
+  // Opened from the computer's own file manager, once installed as an app.
+  if ("launchQueue" in window) {
+    window.launchQueue.setConsumer(async ({ files }) => {
+      if (files?.length) openFile(await files[0].getFile());
+    });
+  }
+
   dropDown("help-menu", () => [
     { label: "Keyboard shortcuts", keys: "?", run: () => $("keys-dialog").showModal() },
     { label: "About Mimick", run: () => $("about-dialog").showModal() },
+    ...(MimickOffline.state.updateReady ? [{ label: "Update Mimick (reloads the page)", run: () => MimickOffline.update() }] : []),
     // The AGPL asks that a program served over a network offer its source.
     { label: "Source code", run: () => window.open("https://github.com/kathollander/mimick-web", "_blank", "noopener") },
   ]);

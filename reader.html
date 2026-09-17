@@ -3,10 +3,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mimick</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📖</text></svg>">
-<!-- The voice wants threads (step 4c), and threads want cross-origin
-     isolation, which GitHub Pages can only get from this shim. -->
-<script src="coi-serviceworker.js"></script>
+<link rel="icon" type="image/png" href="icons/icon-64.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#191d24">
+<meta name="description" content="A PDF reader that reads aloud in natural voices, with each word lit as it is spoken. Everything stays on your computer.">
+<!-- Kept for offline use, and cross-origin isolated so the voice gets threads,
+     which GitHub Pages can only give through a service worker: sw.js. -->
+<script src="js/offline.js"></script>
 <style>
   /* The desktop app's colours, from mimick/ui/theme.py. It is dark only, and so
      is this, for now. */
@@ -443,6 +447,7 @@
         Download a copy gives you the PDF with them in it, as regular PDF annotations other readers can see.</p>
       <p><b>Take it with you</b><br>Convert a document, some pages of it or a passage to an MP3.</p>
       <p><b>Keeps your place</b><br>Come back to a document and pick up where you left off.</p>
+      <p><b>Works offline</b><br><span id="about-offline">Once it has loaded fully, Mimick opens and reads with no internet connection.</span></p>
       <h2>Built on</h2>
       <p><a href="https://mupdf.com/" target="_blank" rel="noopener">MuPDF</a> (pages, text and annotations) ·
         <a href="https://pyodide.org/" target="_blank" rel="noopener">Pyodide</a> (Python in the browser) ·

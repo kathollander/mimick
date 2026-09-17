@@ -50,7 +50,7 @@ async function openTab(url) {
 
 /* A headless Chrome showing reader.html, with localStorage and the notes kept
  * in the browser cleared. `name` names the scratch profile. */
-export async function startReader(name) {
+export async function startReader(name, { port = 8731 } = {}) {
   const profile = path.join(os.tmpdir(), "mimick-" + name);
   fs.mkdirSync(profile, { recursive: true });
   const downloads = fs.mkdtempSync(path.join(os.tmpdir(), "mimick-downloads-"));
@@ -71,7 +71,7 @@ export async function startReader(name) {
   await t.send("Runtime.enable");
   await t.send("Network.enable");
   await t.send("Network.clearBrowserCache");
-  await t.send("Browser.grantPermissions", { origin: "http://localhost:8731",
+  await t.send("Browser.grantPermissions", { origin: `http://localhost:${port}`,
                                              permissions: ["clipboardReadWrite", "clipboardSanitizedWrite"] });
   await t.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: downloads });
   await t.send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -87,8 +87,8 @@ export async function startReader(name) {
 
   const r = {
     t, ev, wait, errors, downloads, sleep,
-    async load() {
-      await t.send("Page.navigate", { url: "http://localhost:8731/reader.html" });
+    async load(query = "") {
+      await t.send("Page.navigate", { url: `http://localhost:${port}/reader.html${query}` });
       await sleep(2500);
       await wait(`/Ready/.test(document.getElementById("status")?.textContent || "")`);
     },

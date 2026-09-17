@@ -2,13 +2,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Mimick spike — Piper in a tab</title>
-<script>
-  // ?coi=0 takes the service worker away, to measure the page as GitHub Pages
-  // would serve it without one: no cross-origin isolation, so one thread.
-  if (new URLSearchParams(location.search).get("coi") === "0")
-    window.coi = { shouldRegister: () => false, shouldDeregister: () => true };
-</script>
-<script src="coi-serviceworker.js"></script>
+<!-- The reader's service worker, for the isolation headers threads need. -->
+<script src="js/offline.js"></script>
 <style>
   :root { color-scheme: light dark; --ink:#14161a; --dim:#5d6470; --line:#d9dde3; --bg:#fbfbfc; --panel:#fff;
           --good:#1f7a3f; --bad:#b3261e; }

@@ -7,7 +7,7 @@ document is opened by your own browser and never leaves your machine.
 **It reads aloud, with one voice so far.** [`reader.html`](reader.html) opens a
 PDF, shows it, and reads it with the word being said lit on the page. Scanned
 books are drawn ahead in the background and kept in the browser, so they scroll
-quickly. Two test pages prove the foundation: [`index.html`](index.html) puts the
+quickly. Two test pages prove the foundation: [`spike.html`](spike.html) puts the
 sample paper through the desktop app's layout analysis, and
 [`voice.html`](voice.html) reads a passage aloud with a Piper voice, up to 4×.
 
@@ -31,7 +31,10 @@ python3 serve.py
 ```
 
 Any static server works, but `serve.py` tells the browser to check for new
-files every time. `python3 -m http.server` does not, and Chrome then keeps
+files every time. After changing any file the page serves, run
+`python3 tools/stamp_offline.py`: the service worker keeps a copy of the whole
+app for offline use, and the stamp is how browsers that have one learn there is
+a new version. `python3 -m http.server` does not, and Chrome then keeps
 running old copies of the scripts after they change.
 
 To check the foundation without a browser:
