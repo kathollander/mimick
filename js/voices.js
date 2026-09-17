@@ -84,7 +84,9 @@
   }
 
   async function readAll(response, onProgress) {
-    const total = Number(response.headers.get("content-length")) || 0;
+    // A compressed answer's length is of the compressed bytes, not the ones read
+    // (GitHub Pages gzips the bundled voice), so it is not a total then.
+    const total = response.headers.get("content-encoding") ? 0 : Number(response.headers.get("content-length")) || 0;
     const reader = response.body.getReader();
     const parts = [];
     let loaded = 0;
@@ -106,7 +108,8 @@
     const entry = byKey[key];
     if (!entry) throw new Error(`no such voice: ${key}`);
     const json = await fetchVerified(modelUrl(key, ".onnx.json"), entry.json, null, signal);
-    const model = await fetchVerified(modelUrl(key, ".onnx"), entry.onnx, onProgress, signal);
+    const sized = onProgress && ((loaded, total) => onProgress(loaded, Math.max(total || entry.mb * 1048576, loaded)));
+    const model = await fetchVerified(modelUrl(key, ".onnx"), entry.onnx, sized, signal);
     return { json: json.bytes, model: model.bytes, cached: model.cached };
   }
 

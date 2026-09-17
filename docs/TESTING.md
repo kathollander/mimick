@@ -51,188 +51,18 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
-## Menus: Reading ▾ and the quick switches
-
-Added 17 September, asked for by Kat.
-
-- [ ] The top bar reads File ▾, Notes ▾, Reading ▾, Display ▾, Speed … Help ▾, ⌄ -- and **Mimick** sits at the bottom left
-- [ ] **Reading ▾** has the timer, How to say words, the four reading switches, and the reading order; **Display ▾** has only the theme, the panels and zoom
-- [ ] **⌄** opens a row of switches under the top bar and turns into ⌃; again closes it; open or closed is kept after a reload
-- [ ] Each switch lights when on, and agrees with the menus after changing it either way (and after `F9`, `Ctrl`+`B`, `Ctrl`+`Shift`+`H`)
-- [ ] The ☾ / ☀ switch flips night and day at once
-- [ ] The timer switch opens the timer's choices, then shows the one picked ("15 min", "End of page"), and goes back to *Timer off* when it stops reading
-- [ ] At a narrow window (about 1000px) the top bar still fits and the switches show as icons alone
-- [ ] The document's title is in the bottom bar, beside the zoom, not the top bar
-- [ ] **Reading ▾ → Read from the top of this page** starts at the page on screen
-- [ ] **Reading ▾ → Back 10 seconds** (or `Shift`+`←` while reading, or a headset's skip back) goes back about ten seconds of speech -- mid-sentence, or into the sentence before -- and a paused reading stays paused
-- [ ] Scroll away while reading, pause, then **Reading ▾ → Go to where the voice is** brings the lit word back into view
-- [ ] **Recognise text in this scan** is in Reading ▾ now, not File ▾
-
-## Recognising text in a scan
-
-Added 17 September. Use a scanned reading with no text layer (if you can select no text in it elsewhere, it has none).
-
-- [ ] Opening it says it has no text, and points to **Reading ▾ → Recognise text in this scan**
-- [ ] Recognising shows progress page by page, with time left; **Stop recognising text** stops it
-- [ ] Afterwards it reads aloud, and the lit words sit over the words in the picture
-- [ ] Find, highlights and Save a copy work; the saved copy is searchable in another PDF reader
-- [ ] Opening the same scan again is quick, with no recognising
-- [ ] A long scan (100+ pages): how long it takes, and whether the tab stays usable
-- [ ] A reading with a typed first page and scanned pages after: it says how many pages are pictures, and recognising reads only those
-
-## Sleep timer
-
-Added 17 September. Needs a voice.
-
-- [ ] **Reading ▾ → Stop reading → In 15 minutes** while reading: after about 15 minutes it stops between two sentences, and says so
-- [ ] **At the end of this page** and **At the end of this section** stop in the right place
-- [ ] Space carries on from where it stopped
-
-## Firefox
-
-Added 17 September. A script has already opened a PDF and read it aloud in Firefox 154; this is the by-hand pass.
-
-- [ ] Open, read aloud, speed, voice change, click a sentence
-- [ ] Highlight, note, Save a copy (downloads), Export notes (downloads)
-- [ ] Convert to MP3 (downloads at the end)
-- [ ] Anything that looks or behaves differently from Chrome
-
-## How to say words
-
-Added 17 September. Needs a voice.
-
-- [ ] Select one word the voice gets wrong, right-click → **How to say "…"…**; write how it sounds, press Enter
-- [ ] Reading that sentence again, the voice says it your way, and the word is still lit as it is said
-- [ ] Try a two-part sound-alike ("nee cha" for Nietzsche) -- it sounds right, not like two separate words
-- [ ] The word with an ending ("Foucault's") is said your way too
-- [ ] **Reading ▾ → How to say words…** lists them; ✕ removes one; the list is still there after a reload
-- [ ] Convert to MP3 uses the list
-
-## Light theme, and accessibility
-
-Added 17 September.
-
-- [ ] A first visit (or after clearing site data) opens in Night, whatever the computer is set to
-- [ ] **Display ▾ → Theme → Day / Night** switches it, and stays after a reload with no flash of the other
-- [ ] **Display ▾ → Theme → Match the system**: with the computer set to light mode, Mimick is light; set to dark, dark -- without reloading
-- [ ] Everything is readable in the light theme: dim text, disabled buttons, the find box, menus, dialogs, note cards
-- [ ] With "reduce motion" on in the system, the text cursor does not blink
-- [ ] With a screen reader (Orca, NVDA or VoiceOver), the top and bottom bar buttons are read as words
-- [ ] The four highlight colours can be told apart -- ask a colour-blind classmate if you can
-
-## Open Recent
-
-Added 17 September. Chrome, Edge or Brave only.
-
-- [ ] **File ▾ → Open…** (and `Ctrl`+`O`) opens the system's own open window, showing PDFs and documents
-- [ ] After opening two files, **File ▾** lists both under *Open recent*, newest first
-- [ ] Close the browser, open it again: choosing a recent file asks permission once, then opens it
-- [ ] A file dropped on the page appears in the list too
-- [ ] Rename or move a listed file: choosing it says it cannot be found, and it leaves the list
-- [ ] **Clear recent files** empties it; **Forget this document** takes that one out
-
-## Keeping your place, and Forget this document
-
-Added 17 September.
-
-- [ ] Scroll a long PDF to the middle and zoom in; reload the tab and open it again: same page, same zoom
-- [ ] A different PDF still opens at its own place
-- [ ] **File ▾ → Forget this document…** says what it will remove, and warns to save a copy first if there are notes
-- [ ] Cancel changes nothing; **Forget it** closes the document and says so
-- [ ] Opened again, it starts at the top with none of your highlights, and Read aloud starts from the beginning
-
-## Word, OpenDocument and EPUB
-
-Added 17 September. Try real ones: a reading in Word, something saved from
-LibreOffice or Google Docs as `.odt`, and an EPUB without DRM.
-
-- [ ] A `.docx`, `.odt` and `.epub` each open (File ▾, `Ctrl`+`O`, and dropped), laid out as pages
-- [ ] Headings show in the contents panel and go to the right place
-- [ ] Reading aloud, highlights and notes work, and come back when the file is opened again
-- [ ] Anything badly wrong: missing text, pictures, footnotes, tables -- note the file type and what happened
-- [ ] A long EPUB (a whole book) opens in reasonable time
-
-## Voice credits
-
-- [ ] **Help ▾ → About Mimick** has a *Voices* table; every link opens the right dataset or licence
-
-## Media keys
-
-Added 17 September. Needs a keyboard with media keys, or a headset with buttons.
-
-- [ ] Play/pause on the keyboard starts reading a document you have open, and pauses it
-- [ ] Next and previous skip a sentence
-- [ ] They still work with another tab in front, and with the browser minimised
-- [ ] Chrome's media button (top right of the toolbar) shows the document's title and "Mimick · voice", and its controls work
-- [ ] A Bluetooth headset's play/pause button works
-- [ ] Nothing audible comes from the silent audio Mimick plays to get the keys
-
-## Save a copy, and Export notes
-
-Added 17 September.
-
-- [ ] `Ctrl`+`S` opens Chrome's save window, named "… (notes).pdf"; saved, the PDF opens elsewhere with the highlights and notes in it
-- [ ] Closing the save window does nothing and says nothing wrong
-- [ ] **File ▾ → Save a copy (PDF)…** and **Notes ▾ → Save a copy with your notes (PDF)…** do the same
-- [ ] **File ▾ → Export notes…** saves "… (notes).md"; opened in a text editor it reads well: title, each note under its page (and section, if the PDF has bookmarks), the passage quoted, your heading and note
-- [ ] Pasted into Google Docs or Word it is still readable
-
-## A PDF with no text
-
-Added 17 September.
-
-- [ ] A scanned PDF with no text layer opens, shows its pages, and the bottom bar says it has no text to read and may be a scan
-- [ ] Hovering the greyed **Read aloud** says the same
-- [ ] In **Show reading order**, skipping every region says "Nothing here is set to be read"; clicking one back makes Read aloud work again
-
-## Contents panel, and the panel tabs
-
-Added 17 September. Use a PDF with bookmarks -- a textbook or a thesis; most
-exported from Word have them -- and one without (the poem, `sample/sample.pdf`).
-
-- [ ] Opening a PDF with bookmarks shows them on the left, straight away, before "sentences to read" appears
-- [ ] Nested entries are indented; ▾ / ▸ open and close a level
-- [ ] With the keyboard: Tab into the list, ↑ ↓ move, → ← open and close, Enter goes there
-- [ ] Clicking an entry goes to its heading, near the top of the view, and lights it
-- [ ] Scrolling lights the section you are in, and a long list follows along
-- [ ] Right-click an entry → **Start reading from here** reads from that heading
-- [ ] The **‹** hides the panel and the page widens; the **Contents** tab on the left edge brings it back
-- [ ] `F9` and **Display ▾ → Contents panel** do the same; hidden stays hidden after a reload
-- [ ] The notes panel's **›** hides it; the **Notes** tab on the right edge brings it back
-- [ ] A PDF without bookmarks shows no panel, and the tab is greyed with a tooltip saying why
-- [ ] With both panels hidden the page sits in the middle and nothing overlaps the tabs
-- [ ] On a narrow window (about 1000px) both panels together still leave room to read
-
 ## How long it takes to read
 
 Added 17 September.
 
-- [ ] Open a PDF: the bottom-left corner says how long it takes to read at the speed in the **Speed** box, and only that
-- [ ] Changing **Speed** changes it straight away, every time
-- [ ] While it reads, it says how long is left at the current speed, and counts down
-- [ ] Roughly right: time a few minutes of reading against what it said
-
-## Choosing voices
-
-Added 17 September. This replaces the ▶ beside the voice box in *The voice*,
-below. Reload the page first.
-
-- [ ] After a first visit (or clearing site data), Norman reads with the internet off, without downloading anything
-- [ ] The **Voice** box lists Norman and the voices you have downloaded, then **Select a new voice…**
-- [ ] **Select a new voice…** opens a window with all seven voices, and says which can be used for MP3s
-- [ ] ▶ on each plays the rainbow sample straight away, with nothing downloading; ■ stops it
-- [ ] Tick two voices: the button says how many MB, and they download one after the other with progress
-- [ ] **Stop downloading** stops, and keeps any voice already finished
-- [ ] New voices appear in the Voice box, and read offline
-- [ ] **Remove** frees a voice; Norman says *Built in* instead, and the voice in use can't be removed
-- [ ] The line about space used and room left looks right
-- [ ] It feels deliberate without being annoying
+- [x] Open a PDF: the bottom-left corner says how long it takes to read at the speed in the **Speed** box, and only that
+- [x] Changing **Speed** changes it straight away, every time
+- [x] While it reads, it says how long is left at the current speed, and counts down
+- [x] Roughly right: time a few minutes of reading against what it said
 
 ## Convert to MP3
 
 Added 17 September. Reload the page first.
-
-- [ ] **Only Norman is offered**, with a note saying why the other voices are for reading only
 
 - [ ] **File ▾** in the top left has **Open…** and **Convert to MP3…**; Open still works, and so do `Ctrl`+`O` and dropping a PDF
 - [ ] **Convert to MP3…** shows the file name, voice, speed and what to convert, with how long converting takes and how long the audio runs
@@ -252,7 +82,7 @@ Added 17 September. Reload the page first.
 
 - [ ] The **Voice** box, top right, lists eight voices; Lessac is chosen to start with
 - [ ] Hovering over the box says what the chosen voice is like
-- [ ] ▶ plays a short sample of the chosen voice straight away, before anything downloads; ■ stops it
+- [x] ▶ plays a short sample of the chosen voice straight away, before anything downloads; ■ stops it
 - [ ] Choosing a voice you haven't used says how big it is to download
 - [ ] **Read aloud** with a new voice downloads it (the status line counts the MB), then reads
 - [ ] The second time, that voice starts at once
@@ -266,22 +96,22 @@ Added 17 September. Reload the page first.
 
 Added 17 September. Reload the page first.
 
-- [ ] `Ctrl`+`R` (or **Reading ▾ → Show reading order**) outlines each part of the page: numbered in blue where it's read, greyed and labelled where it's skipped
+- [ ] `Ctrl`+`R` (or **Display ▾ → Show reading order**) outlines each part of the page: numbered in blue where it's read, greyed and labelled where it's skipped
 - [ ] The numbers run in the order you'd read the page, down each column
 - [ ] Clicking a numbered part greys it out, and reading then skips it; clicking it again puts it back
 - [ ] Clicking doesn't start reading or select anything while the outlines are showing
 - [ ] Doing it while it reads carries on from about the same place
 - [ ] Highlights stay on the same words
 - [ ] Close the tab and open the same PDF again: your changes are still there
-- [ ] **Reading ▾ → Reset reading order** undoes all of them
+- [ ] **Display ▾ → Reset reading order** undoes all of them
 - [ ] `Ctrl`+`R` again hides the outlines, and clicking reads as before
 - [ ] On a two-column paper and on the scanned book, the outlines look sensible
 
-## Reading switches, and Help
+## Display switches, and Help
 
 Added 16 September, late.
 
-- [ ] **Reading ▾ → Click to read** off: clicking a sentence no longer reads; right-click → *Start reading from here* still does. Back on: clicking reads again
+- [ ] **Display ▾ → Click to read** off: clicking a sentence no longer reads; right-click → *Start reading from here* still does. Back on: clicking reads again
 - [ ] **Clean up text for reading** off: the status line says "reading the PDF verbatim" and the reference list gets read. Back on: it's skipped again
 - [ ] **Skip citations while reading** off: citations like "(Smith 2020)" are read out. Back on: passed over
 - [ ] **Read footnotes** is greyed out on a paper without footnotes; on one with them, turning it off skips them
@@ -369,7 +199,7 @@ copies of the scripts, which may be why speed seemed to do nothing.
 Added 16 September. Reload the page first (`Ctrl`+`Shift`+`R`) so the browser
 picks up the new version.
 
-**A long scanned book**
+**A scanned book** (*Constructing meaning*)
 - [ ] The first pages show within a few seconds, before "sentences to read" appears
 - [ ] The status line counts "drawing pages ahead", and scrolling past those pages shows them at once
 - [ ] Every page you scroll to loads -- none stays blank
