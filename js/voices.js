@@ -13,10 +13,6 @@
 
   const REVISION = "1162a9173d0ce503555aed757976b7a9912eae4c";
   const LIST = [
-    { key: "en_US-lessac-low", name: "Lessac", accent: "US", note: "measured, instructional", mb: 60,
-      path: "en/en_US/lessac/low/en_US-lessac-low",
-      onnx: "f7d01dde371555732c4c314111ac79672b1a5ce2fc19266ab42178fd8df7f375",
-      json: "45754dfdebb3b8661c3fc564713772deec6e064feeb5b4e9594857dc7305193a" },
     { key: "en_US-kathleen-low", name: "Kathleen", accent: "US", note: "calm and unhurried", mb: 60,
       path: "en/en_US/kathleen/low/en_US-kathleen-low",
       onnx: "87adf17f5326bc0782282147a8b9788406236245f0f9b0e68dacb651bc1de8b6",
@@ -50,7 +46,7 @@
 
   root.MimickVoices = {
     REVISION, LIST, byKey,
-    DEFAULT: LIST[0].key,
+    DEFAULT: "en_US-norman-medium", // the one public-domain voice; see voices/README.md
     modelUrl: (key, ext) => `https://huggingface.co/rhasspy/piper-voices/resolve/${REVISION}/${byKey[key].path}${ext}`,
     sampleUrl: (key) => `voices/${key}.mp3`,
   };

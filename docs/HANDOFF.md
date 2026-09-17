@@ -11,13 +11,98 @@ Kat means to release in a fresh session. **Start with the desktop repo's
 one, in short: check the voice licences (**Next**, item 0), delete `sample
 readings/`, and Kat makes the GitHub repository.
 
+## To do first: the 17 September review
+
+A code review of the uncommitted work found the following. All of it is
+mechanical; do it in this order, run every check in **Running it**, and tick
+each item off here. Nothing below needs a decision from Kat except where it
+says so.
+
+**Broken -- must fix before anything else**
+
+1. **The sample PDF was renamed** from `sample/mdpi-sample.pdf` to
+   `sample/sample.pdf`, but nothing was updated. Change every reference to the
+   new name: `index.html:86`; `tools/check_convert.mjs:18`,
+   `check_display.mjs:15`, `check_order.mjs:15`, `check_notes.mjs:19`,
+   `check_selecting.mjs:20`, `check_reader.mjs:106` and `:114` (the name
+   passed as the second argument too), `check_reading.mjs:38`,
+   `check_spike.mjs:13` and `:35`; `reading.py:11`. `check_notes.mjs:144`
+   expects the download to be called `mdpi-sample (notes).pdf` -- it becomes
+   `sample (notes).pdf`. Until this is done the demo page cannot open a
+   document and every check fails before it starts.
+2. **`voice.html` still loads `en_US-lessac-low`** (`voice.html:53` and
+   `:161`), which was removed from `Voices.LIST`, so the worker throws
+   `no such voice`. Point it at `en_US-norman-medium`. `sample/expected-phonemes.json:2`
+   pins Lessac too, for `check_voice.mjs` and `check_timing.mjs`; regenerate
+   it for Norman (the check's own header says how), or leave those two checks
+   on the Lessac model still on this machine and say so in **Running it**.
+3. **The default voice is now Norman** (`js/voices.js` `DEFAULT`,
+   `js/read-aloud.js` `DEFAULT_VOICE`), the one voice whose dataset is public
+   domain. Check nothing else assumes Kathleen: `tools/check_display.mjs:96`
+   tests the *list order* (Kathleen first), which is unchanged and fine; a
+   saved `localStorage` voice still wins (`js/reader.js:547`). Update
+   `docs/PARITY.md` if it names the default.
+
+**Before this goes public**
+
+4. **Sweep the whole repo for personal information and for documents that
+   are not ours.** `docs/TESTING.md` was deleted for this reason and has been
+   restored; read it, `docs/HANDOFF.md`, `docs/PORT-LOG.md`, `docs/PARITY.md`,
+   `README.md`, the comments in `tools/` and `js/`, and `git log`, for: Kat's
+   full name or email, paths under `/home/komputer`, the titles or text of the
+   `sample readings/` documents (a 598-page scanned book, a 212-page
+   curriculum) and any other copyrighted document, and screenshots. Replace
+   with neutral wording ("a long scanned book"). Then check `git log -p` for
+   the same, since the history goes public with the repo -- if anything is
+   there, tell Kat; rewriting history is her call.
+5. **`voices/README.md` contradicts itself.** The table says Kathleen is CC0,
+   the prose below says it was built on Ryan (CC BY-NC-SA); Joe and Kusal are
+   CC0 in the table but flagged as possibly research-only in the prose. Make
+   the table say what the prose says, one line per voice, with the reason. The
+   same goes for **Next**, item 0.
+
+**Bugs and rough edges from the review**
+
+6. `reader.py:242` -- `_source` hands back a cached `_alternate` without
+   checking its `clean_text` matches the request. If `forget_alternate` is
+   ever missed (the dialog's close handler fires it and swallows errors),
+   verbatim text is served as tidied. Guard it: if
+   `_alternate.clean_text != bool(clean_text)`, rebuild.
+7. `reader.py:244` -- the alternate is a whole second `Document` from
+   `doc.tobytes()`, plus a second layout pass, held until the dialog closes:
+   on the big book another ~45s with no cancel, and double the memory, in a
+   WASM worker. At least show a cancellable status; better, build only the
+   pages asked for. Note it in `PARITY.md` if it stays.
+8. `reader.html:287` -- the tooltip says "For this file only" but the
+   override lasts one conversion (the box resets to Display's setting when
+   the dialog reopens, `js/convert.js:116`). Say "For this conversion only".
+9. `js/convert.js:89` -- `textsFor`'s parameter `clean` shadows the `clean()`
+   accessor above it. Rename the parameter (`tidy`).
+10. `js/convert.js:150` -- `forget_alternate` is sent on every close with
+    errors swallowed. Send it only when the box differed from Display, and
+    log a failure to the console rather than hiding it.
+11. `tools/check_convert.mjs:53` -- the unticked-cleanup check only asserts
+    page 1's sentence count differs, which is sample-specific and never
+    confirms the text is verbatim. Assert on a known verbatim-only string
+    from the sample (a running header or a reference) instead.
+
+**Do not** touch `py/` (it is ported from the desktop repo), and do not
+change the licence conclusions in item 5 or **Next** item 0 -- record them.
+
+**Then [`ROADMAP.md`](ROADMAP.md), Ship 1, in its order.** That is the list
+for getting this to Kat's classmates; it takes over from **Next** below as
+the thing to work on. Where the roadmap says *your call*, decide and write
+the reason down rather than stopping to ask.
+
 ## Read first
 
 1. [`../README.md`](../README.md) — what this is, how to run it, which way work flows.
 2. [`PORT-LOG.md`](PORT-LOG.md) — what each step cost and found.
 3. [`PARITY.md`](PARITY.md) — every desktop feature, and which the browser has. **The to-do list.**
 4. [`TESTING.md`](TESTING.md) — the checklist for what only a person can judge.
-5. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
+   Sweep it for personal information before it goes public (*To do first*, item 4).
+5. [`ROADMAP.md`](ROADMAP.md) — what to build, in order, to ship to classmates.
+6. The plan, in the desktop repo: `../Mimick/docs/FUTURE-FEATURES.md`. The
    desktop handoff, `../Mimick/docs/HANDOFF.md`, has the traps that apply to
    the shared reading code.
 
@@ -25,7 +110,7 @@ readings/`, and Kat makes the GitHub repository.
 
 - **Piper voices only**, no Microsoft voices. **English only** for now.
 - **Speed caps at 4×**, not the desktop's 5×.
-- **Eight voices**, listed in `piper.RECOMMENDED` in the desktop repo. Ship
+- **Seven voices** (Lessac removed 17 September), listed in `piper.RECOMMENDED` in the desktop repo. Ship
   their sample clips; fetch a model on first use and keep it in IndexedDB. Two
   of them hold many speakers (109 and 904); a picker for those comes after the
   reader works.
@@ -33,10 +118,10 @@ readings/`, and Kat makes the GitHub repository.
 - **Work flows one way:** fix in `../Mimick`, then `tools/port.sh ../Mimick`.
   Never edit `py/` here.
 - **Nothing from a CDN.** Everything is in `vendor/`.
-- **No voice nicknames**, for now (17 September). Eight voices need no
+- **No voice nicknames**, for now (17 September). Seven voices need no
   renaming, and Kat finds most voices beyond them mid at best.
 - **Not a commercial venture.** Free, open source (AGPL-3.0), free to edit.
-  The voice licences still have to be checked against that -- see **Next**.
+  Voice licences: see **Next**, item 0.
 
 ## Where it stands
 
@@ -233,26 +318,16 @@ desktop repo if at all.
 
 **Next, in order.**
 
-0. **First: the voice licences.** Search out the terms of use for each of the
-   eight voices in `js/voices.js` and say plainly whether Mimick may use them
-   as it does. Mimick is free, open source and not commercial -- but AGPL lets
-   anyone reuse it, commercially included, so note where a licence turns on
-   that. Three uses to check separately: **fetching** each model from
-   `rhasspy/piper-voices` at run time; **shipping** each sample clip in
-   `voices/`; and **people's MP3s** made with a voice. For each voice, read the
-   model card and follow it to the dataset's own licence. Known so far
-   (`voices/README.md`): Kathleen and Joe CC0, Norman public domain, Southern
-   English CC BY-SA 4.0, VCTK and LibriTTS CC BY 4.0. **Lessac** points at the
-   Blizzard 2013 Lessac licence (CSTR, Edinburgh), whose terms have to be read;
-   **Kusal**'s card says only "See URL", MycroftAI/mimic2. Also check the
-   `piper-voices` repository's own licence, and whether CC BY and BY-SA need an
-   attribution in the page (About is the obvious place). Write the findings
-   into `voices/README.md`; if a voice cannot be used, say so to Kat before
-   removing it. The desktop app offers every Piper voice from the catalogue,
-   so note anything that matters there too.
-
-Then the rest of `PARITY.md`:
-
+0. **The voice licences: checked 17 September, one decision left.** Lessac is
+   gone from both apps (its Blizzard 2013 licence is research only, and cannot
+   be passed on); the desktop withholds it from the catalogue (`piper.WITHHELD`).
+   Norman is clean; Kathleen and Southern English sit on Ryan (CC BY-NC-SA),
+   fine while Mimick is not commercial. **Still open:** Joe, Kusal, VCTK and
+   LibriTTS were fine-tuned from Lessac, so its terms may carry into them --
+   Kat to decide whether to keep them. Also still to do: credit CC BY / BY-SA /
+   BY-NC-SA voices in About. The dev checks `check_voice.mjs` and
+   `check_timing.mjs` (and the desktop's `check_timing.py`) still use the Lessac
+   model already on this machine.
 1. ~~Show reading order~~ -- done 17 September; see below.
 2. **Read aloud while a long document is still opening.** Read aloud is greyed
    out until every sentence is built -- 45s for the 598-page book. `Document`

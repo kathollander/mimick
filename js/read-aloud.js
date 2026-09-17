@@ -27,7 +27,7 @@
 (function (root) {
   "use strict";
 
-  const DEFAULT_VOICE = "en_US-lessac-low";
+  const DEFAULT_VOICE = "en_US-norman-medium"; // must match MimickVoices.DEFAULT
   const PREFETCH = 5;
   const CHUNK = 40;            // sentences asked of the document worker at once
   // A voice worker queues everything it is asked; a clip this far behind the

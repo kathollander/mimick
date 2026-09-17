@@ -5,7 +5,7 @@
  *
  * Drives the reader with real clicks and keys (tools/cdp.mjs), against the
  * sample. Converts its first page for real -- the first run downloads
- * en_US-lessac-low, 60 MB, into this check's own Chrome profile -- and checks
+ * en_US-norman-medium, 61 MB, into this check's own Chrome profile -- and checks
  * the file with ffprobe; then starts the whole document and cancels it. A
  * headless Chrome has no save window to answer, so this takes the download
  * path, which every browser without showSaveFilePicker takes too.
@@ -33,18 +33,28 @@ const labels = await r.menuLabels();
 check("File lists Open and Convert to MP3", JSON.stringify(labels) === JSON.stringify(["Open…", "Convert to MP3…"]), labels);
 await r.menu("Convert to MP3…");
 check("Convert to MP3 opens its window", await ev(`document.getElementById("convert-dialog").open`));
-await wait(`/sentences/.test(document.getElementById("convert-time").textContent)`, 20000);
+await wait(`/^Conversion from text to audio: /.test(document.getElementById("convert-time").textContent)`, 20000);
 check("…with the name, and an estimate for the whole document",
-      (await ev(`document.getElementById("convert-name").value`)).startsWith("Land Is Life") && /272 sentences/.test(await text("convert-time")),
+      (await ev(`document.getElementById("convert-name").value`)).startsWith("Land Is Life") && (await ev(`document.getElementById("convert-time").dataset.sentences`)) === "272",
       [await text("convert-time"), await text("convert-length")]);
 await set("convert-scope", "pages");
 await set("convert-to", "1", "input");
 await wait(`!/Working out/.test(document.getElementById("convert-time").textContent)`, 20000);
-const pageOne = Number((await text("convert-time")).match(/(\d+) sentence/)?.[1]);
+const pageOne = Number(await ev(`document.getElementById("convert-time").dataset.sentences`));
 check("Pages 1 to 1 narrows it", pageOne > 0 && pageOne < 272, await text("convert-time"));
+const atOne = await text("convert-length");
 await set("convert-speed", "2");
 await sleep(500);
-check("…and the length follows the speed", / at 2×/.test(await text("convert-length")), await text("convert-length"));
+check("…and the length follows the speed", /^Finished Audio Length: .+ approximately\.$/.test(await text("convert-length"))
+      && (await text("convert-length")) !== atOne, [atOne, await text("convert-length")]);
+check("the cleanup starts as Display has it", await ev(`document.getElementById("convert-clean").checked`));
+const cleaned = Number(await ev(`document.getElementById("convert-time").dataset.sentences`));
+await ev(`(() => { const e = document.getElementById("convert-clean"); e.checked = false; e.dispatchEvent(new Event("change")); })()`);
+await wait(`!/Working out/.test(document.getElementById("convert-time").textContent)`, 60000);
+const verbatim = Number(await ev(`document.getElementById("convert-time").dataset.sentences`));
+check("…and unticked, page 1 is read verbatim for this file", verbatim > 0 && verbatim !== cleaned, [cleaned, verbatim]);
+await ev(`(() => { const e = document.getElementById("convert-clean"); e.checked = true; e.dispatchEvent(new Event("change")); })()`);
+await wait(`!/Working out/.test(document.getElementById("convert-time").textContent)`, 20000);
 await set("convert-name", "page one");
 
 // 2. Convert it.
@@ -76,7 +86,7 @@ check("Close puts the corner window away", await ev(`document.getElementById("co
 for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));
 await r.click(await r.centre("#file-menu")); await sleep(300);
 await r.menu("Convert to MP3…");
-await wait(`/sentences/.test(document.getElementById("convert-time").textContent)`, 20000);
+await wait(`/^Conversion from text to audio: /.test(document.getElementById("convert-time").textContent)`, 20000);
 await r.click(await r.centre("#convert-go"));
 await wait(`/Sentence [3-9] of/.test(document.getElementById("convert-progress-detail").textContent)`, 120000);
 check("the whole document counts its sentences as it goes", / of 272 · /.test(await text("convert-progress-detail")), await text("convert-progress-detail"));

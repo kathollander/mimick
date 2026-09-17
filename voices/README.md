@@ -9,7 +9,6 @@ Each voice's dataset licence, from its model card:
 
 | Voice | Licence |
 | --- | --- |
-| Lessac | Blizzard 2013 Lessac licence (CSTR, Edinburgh) |
 | Kathleen | CC0 |
 | Southern English | CC BY-SA 4.0 |
 | Joe | CC0 |
@@ -18,7 +17,8 @@ Each voice's dataset licence, from its model card:
 | VCTK | CC BY 4.0 |
 | LibriTTS | CC BY 4.0 |
 
-**Not yet checked properly.** Mimick is free and open source, not commercial,
-but AGPL lets anyone reuse it. Lessac's Blizzard licence has terms of its own,
-and Kusal's card points elsewhere rather than naming one. What to find out, and
-for which uses, is item 0 of **Next** in `docs/HANDOFF.md`.
+**Checked 17 September.** Lessac was taken out: its recordings are licensed
+for research only. Norman is clean. Kathleen and Southern English were built on
+Ryan (CC BY-NC-SA), so they are fine for Mimick but not for a commercial copy.
+Joe, Kusal, VCTK and LibriTTS were built on Lessac, so the same research-only
+licence may reach them; still offered, pending a decision.

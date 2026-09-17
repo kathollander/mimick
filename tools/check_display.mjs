@@ -93,16 +93,16 @@ await r.key("Escape"); await sleep(200);
 // A fresh page: the click that gave the page the keyboard above also started reading.
 await r.load();
 const voices = await ev(`[...document.getElementById("voice").options].map((o) => o.value)`);
-check("the voice box offers the eight voices, Lessac first", voices.length === 8 && voices[0] === "en_US-lessac-low", voices);
-await ev(`(() => { const s = document.getElementById("voice"); s.value = "en_US-kathleen-low"; s.dispatchEvent(new Event("change")); })()`);
+check("the voice box offers the seven voices, Kathleen first", voices.length === 7 && voices[0] === "en_US-kathleen-low", voices);
+await ev(`(() => { const s = document.getElementById("voice"); s.value = "en_US-joe-medium"; s.dispatchEvent(new Event("change")); })()`);
 await sleep(500);
-check("choosing one says what it is like, and what it costs", /Kathleen \(US\) — calm and unhurried/.test(await r.status()), await r.status());
+check("choosing one says what it is like, and what it costs", /Joe \(US\) — older man, warm/.test(await r.status()), await r.status());
 await r.click(await r.centre("#voice-sample")); await sleep(1000);
 check("▶ plays its sample, and does not start reading",
       (await ev(`document.getElementById("voice-sample").textContent`)) === "■" && (await ev(`document.getElementById("play").textContent`)) === "Read aloud");
 await r.click(await r.centre("#voice-sample")); await sleep(300);
 await r.load();
-check("the voice is remembered", (await ev(`document.getElementById("voice").value`)) === "en_US-kathleen-low");
+check("the voice is remembered", (await ev(`document.getElementById("voice").value`)) === "en_US-joe-medium");
 for (const width of [1300, 1024]) {
   await r.t.send("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: false });
   await sleep(300);

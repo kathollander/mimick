@@ -24,6 +24,9 @@ _store: AnnotationStore | None = None
 _selection: list = []
 # The reader's own reading-order corrections, by region key, as last handed over.
 _choices: dict[str, bool] = {}
+# The document read with the cleanup the other way, for a conversion that
+# overrides Display; made when first asked for, dropped when the dialog closes.
+_alternate: Document | None = None
 _folder = Path(tempfile.mkdtemp())
 
 
@@ -212,17 +215,47 @@ def sentence_lengths() -> list[int]:
     return [len(sentence.text) for sentence in _open().sentences]
 
 
-def convert_texts(scope: str, first: int = 0, last: int = 0) -> list[str]:
+def convert_texts(scope: str, first: int = 0, last: int = 0, clean_text: bool | None = None) -> list[str]:
     """What a conversion to MP3 speaks, sentence by sentence: the whole document,
     pages ``first`` to ``last`` (from 0), or the words ``first`` to ``last``.
-    The desktop's ExportDialog.sentences, as text, which is all the voice needs."""
-    document = _open()
+    The desktop's ExportDialog.sentences, as text, which is all the voice needs.
+    ``clean_text`` overrides Display's cleanup for this conversion alone."""
+    document = _source(clean_text)
     if scope == "selection":
         return [s.text for s in document.sentences_from_range(first, last)]
     if scope == "pages":
         low, high = sorted((first, last))
         return [s.text for s in document.sentences if low <= s.page <= high]
     return [s.text for s in document.sentences]
+
+
+def _source(clean_text: bool | None) -> Document:
+    """The open document, or a second copy of it read with the cleanup the other
+    way -- ExportDialog._source. Word indices are the same in both, so a
+    selection still names the same passage."""
+    global _alternate
+    document = _open()
+    if clean_text is None or bool(clean_text) == document.clean_text:
+        return document
+    if _alternate is None:
+        path = _folder / "alternate.pdf"
+        path.write_bytes(document.doc.tobytes())
+        try:
+            _alternate = Document(path, skip_citations=document.skip_citations,
+                                  clean_text=bool(clean_text), read_footnotes=document.read_footnotes)
+        finally:
+            path.unlink(missing_ok=True)
+        if _apply_choices(_alternate):
+            _alternate.rebuild()
+    return _alternate
+
+
+def forget_alternate() -> None:
+    """Let go of the second copy, if there is one."""
+    global _alternate
+    if _alternate is not None:
+        _alternate.close()
+        _alternate = None
 
 
 def first_sentence_on(page: int) -> int | None:
@@ -438,6 +471,7 @@ def set_author(name: str) -> None:
 
 def close() -> None:
     global _document, _selection, _store
+    forget_alternate()
     _selection = []
     _choices.clear()
     _store = None

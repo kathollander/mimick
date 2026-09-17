@@ -683,13 +683,12 @@
   $("forward").onclick = () => { voice.skip(1); view.focus(); };
 
   // --- the voice ------------------------------------------------------------------
-  // The eight in js/voices.js. Each model downloads the first time it reads and
+  // The seven in js/voices.js. Each model downloads the first time it reads and
   // is kept; the ▶ beside the box plays the clip shipped for it, so a voice can
   // be heard before anything is downloaded.
 
   for (const v of Voices.LIST) {
-    const option = new Option(`${v.name} (${v.accent})`, v.key);
-    option.title = v.note;
+    const option = new Option(`${v.name} (${v.accent}) — ${v.note}`, v.key);
     $("voice").append(option);
   }
   $("voice").value = voice.voice;

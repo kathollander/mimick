@@ -35,7 +35,8 @@
   #title { flex: 1 1 0; width: 0; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   header.bar { grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
   header.bar button { white-space: nowrap; }
-  @media (max-width: 1150px) { header.bar label.dim { display: none; } }
+  /* The voice box names each voice and says how it reads; on a short bar it shows the name and the list keeps the rest. */
+  @media (max-width: 1150px) { header.bar label.dim { display: none; } #voice { width: 11em; } }
   #status { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #reading-time { flex-shrink: 0; white-space: nowrap; padding-right: 10px; border-right: 1px solid var(--border); cursor: default; }
 
@@ -283,8 +284,8 @@
       <span>Speed</span><select id="convert-speed"></select>
       <span>Convert</span><select id="convert-scope"></select>
       <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number"> to <input id="convert-to" type="number"></div>
+      <span>Text</span><label title="Leaves out the reference list, masthead and declarations. For this file only; Display is left as it is."><input id="convert-clean" type="checkbox"> Clean up text for reading</label>
     </div>
-    <div id="convert-clean" class="dim"></div>
     <div id="convert-estimate"><div id="convert-time"></div><div id="convert-length" class="dim"></div></div>
     <div id="convert-where" class="dim"></div>
     <div class="buttons">

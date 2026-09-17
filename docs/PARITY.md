@@ -58,7 +58,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## Audio and the rest
 
-- 🟡 Convert to MP3: document, page range or selection, with estimates and cancel. Not yet: overriding the cleanup for one conversion (it follows Display), and opening the file's folder afterwards
+- 🟡 Convert to MP3: document, page range or selection, with estimates and cancel. Not yet: opening the file's folder afterwards
 - ✅ Keyboard shortcuts window (**Help ▾**, or `?`)
 - ✅ About window, and a link to the source
 - ⬜ Forget this document (clear what the browser keeps)

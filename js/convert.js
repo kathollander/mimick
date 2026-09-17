@@ -8,9 +8,10 @@
  * left half-written. Elsewhere it is kept in memory and downloaded at the end.
  *
  * What gets spoken comes from the document worker (reader.convert_texts), by
- * the same rules as reading aloud, so the two never drift. The cleanup follows
- * Display, as the reading does: the desktop can override it for one
- * conversion because it can open the PDF twice, which the browser cannot yet.
+ * the same rules as reading aloud, so the two never drift. The cleanup starts
+ * as Display has it; switched here, it applies to this conversion only, and
+ * the document worker reads a second copy of the PDF the other way, as the
+ * desktop's ExportDialog does.
  */
 (function (root) {
   "use strict";
@@ -75,6 +76,7 @@
     for (const v of Voices.LIST) $("convert-voice").append(new Option(`${v.name} (${v.accent}) — ${v.note}`, v.key));
     for (const s of ctx.speeds) $("convert-speed").append(new Option(`${s}×`, s));
 
+    const clean = () => $("convert-clean").checked;
     const scope = () => {
       const kind = $("convert-scope").value, pages = ctx.pageCount();
       if (kind === "pages") {
@@ -84,9 +86,9 @@
       if (kind === "selection") { const [first, last] = chosen.selection; return { kind, first, last }; }
       return { kind: "all", first: 0, last: 0 };
     };
-    const textsFor = (s) => {
-      const key = `${s.kind}:${s.first}:${s.last}`;
-      if (!texts.has(key)) texts.set(key, ctx.call("convert_texts", s.kind, s.first, s.last));
+    const textsFor = (s, clean) => {
+      const key = `${s.kind}:${s.first}:${s.last}:${clean}`;
+      if (!texts.has(key)) texts.set(key, ctx.call("convert_texts", s.kind, s.first, s.last, clean));
       return texts.get(key);
     };
 
@@ -111,11 +113,9 @@
       }
       Object.assign($("convert-from"), { min: 1, max: pages, value: 1 });
       Object.assign($("convert-to"), { min: 1, max: pages, value: pages });
-      $("convert-clean").textContent = ctx.cleanText()
-        ? "Tidied for reading, as Display → Clean up text for reading is set: no reference list, masthead or declarations."
-        : "Read verbatim, as Display → Clean up text for reading is set: the reference list and all.";
+      $("convert-clean").checked = ctx.cleanText();
       $("convert-where").textContent = root.showSaveFilePicker
-        ? "You choose where to save it next, and it is written as it is made."
+        ? "You choose where to save it next."
         : "It downloads when it is finished.";
       refresh();
       dialog.showModal();
@@ -129,28 +129,32 @@
       $("convert-time").textContent = "Working out how long it takes…";
       $("convert-length").textContent = "";
       let got;
-      try { got = await textsFor(s); } catch (err) { got = null; $("convert-time").textContent = "Could not read that: " + err.message; }
+      try { got = await textsFor(s, clean()); } catch (err) { got = null; $("convert-time").textContent = "Could not read that: " + err.message; }
       if (mine !== refreshing || !got) return;
       $("convert-go").disabled = got.length === 0;
+      $("convert-time").dataset.sentences = got.length;
       if (!got.length) { $("convert-time").textContent = "Nothing to convert in this range."; return; }
       const chars = got.reduce((n, t) => n + t.length, 0);
       const speech = chars / CHARS_PER_SECOND_SPEECH;
       const kept = await ctx.voiceKept(key);
       if (mine !== refreshing) return;
-      $("convert-time").textContent = `Converting takes ${describeDuration(speech / REAL_TIME)} — ${got.length} sentence${got.length === 1 ? "" : "s"}`
-        + (kept ? "." : `, after downloading ${Voices.byKey[key].name} (${Voices.byKey[key].mb} MB) once.`);
-      $("convert-length").textContent = `The finished audio runs ${describeDuration(speech / speed + SENTENCE_GAP * got.length)} at ${speed}×.`;
+      const bare = (seconds) => describeDuration(seconds).replace(/^about /, "");
+      $("convert-time").textContent = `Conversion from text to audio: ${bare(speech / REAL_TIME)}`
+        + (kept ? "" : `, after downloading ${Voices.byKey[key].name} (${Voices.byKey[key].mb} MB) once`);
+      $("convert-length").textContent = `Finished Audio Length: ${bare(speech / speed + SENTENCE_GAP * got.length)} approximately.`;
     }
-    for (const id of ["convert-scope", "convert-voice", "convert-speed"]) $(id).addEventListener("change", refresh);
+    for (const id of ["convert-scope", "convert-voice", "convert-speed", "convert-clean"]) $(id).addEventListener("change", refresh);
     for (const id of ["convert-from", "convert-to"]) $(id).addEventListener("input", refresh);
     $("convert-cancel").onclick = () => dialog.close();
+    // The second copy of the PDF, if unticking the cleanup made one, is not kept.
+    dialog.addEventListener("close", () => ctx.call("forget_alternate").catch(() => {}));
 
     $("convert-go").onclick = async (e) => {
       e.preventDefault();
       if (job) return;
       const name = safeName($("convert-name").value.replace(/\.mp3$/i, "")) + ".mp3";
       const settings = { scope: scope(), voice: $("convert-voice").value, rate: Number($("convert-speed").value),
-                         title: chosen.title, name };
+                         clean: clean(), title: chosen.title, name };
       // Asked straight away: the browser only offers its save window in the click itself.
       let sink = null;
       if (root.showSaveFilePicker) {
@@ -167,7 +171,7 @@
       if (chosen.generation !== ctx.generation()) { sink?.abort(); dialog.close(); ctx.status("That document is closed now"); return; }
       let got;
       try {
-        got = await textsFor(settings.scope);
+        got = await textsFor(settings.scope, settings.clean);
       } catch (err) {
         sink?.abort();
         ctx.status("Could not start converting: " + err.message);
