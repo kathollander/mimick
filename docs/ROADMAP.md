@@ -104,7 +104,28 @@ Then Kat makes the repository public and sends the link.
   lay out; `.odt` is the same shape with different XML and no ready library.
   Images, tables and footnotes will be rough at first; say so in the README.
   Not editable, ever -- this is a reader.
-- **Read aloud while a long document is still opening** (`HANDOFF.md`,
+- **Read aloud while a long document is still opening** -- *a plan, 17 September,
+  not started (it changes the desktop's shared `document.py`, which had another
+  session's uncommitted work in it that night).* Measured on a 400-page, 145,600-word
+  PDF in the desktop's Python: `layout.analyse` over every page took 0.74 s,
+  building words and sentences 3.28 s -- the analysis is the cheap fifth. So:
+  (1) `Document(..., build=False)` runs `layout.analyse` for every page as now,
+  so regions -- and with them every word's order and `readable` flag -- are
+  final from the start; (2) `build_pages(upto)` adds the words of the next
+  pages exactly as `_build_sentences` does (indices carry on from
+  `len(self.words)`, so they match a full build) and emits every *finished*
+  readable run, holding back the last one, which may carry on to the next page
+  (`carries_on`); (3) `_mark_hyphenation` checks only the new words and the pair
+  across the join; (4) the constructor with `build=True` calls `build_pages` for
+  all pages, so the desktop is unchanged unless it opts in. A run is chunked
+  only once complete, so sentence indices match too. In the browser, the
+  document worker answers `open` after the first ~20 pages with a `partial`
+  flag and keeps building between messages; Read aloud works on what exists
+  (the player already asks for sentences in chunks), while highlights, Find,
+  Convert and the reading order wait for `complete`. Check it with
+  `check_reading.mjs`: the sentences after a paged build must equal a full
+  build's, word for word and index for index.
+  *The original note:* **Read aloud while a long document is still opening** (`HANDOFF.md`,
   *Next*, item 2). 45 s of a greyed-out button on a big book is the first
   thing a new user with a big file hits. Needs a change in the desktop's
   `document.py`, then a port.

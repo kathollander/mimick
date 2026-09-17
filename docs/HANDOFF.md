@@ -45,14 +45,16 @@ Kat asked for the launch work to be done overnight, from
 needs `Document` in the desktop's shared `document.py` to build page by page
 with word indices identical to a full build (desktop trap 9), then a port. Too
 risky to change unattended in code both apps share; it is the next big item,
-best started with Kat.
+best started with Kat. **A worked-out plan, with measurements, is in
+`ROADMAP.md`**, Ship 2. (The desktop repo had uncommitted changes from another
+session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone.)
 
 **For Kat before going public:**
 
 1. The git history (review item 4 below: author email, a book title in old
    diffs, the old journal article) -- rewrite, or start the public repo from one
    fresh commit.
-2. Delete `sample readings/`.
+2. `sample readings/` is already gone from this folder (checked 17 September).
 3. Try it in Firefox and Safari by hand. **Firefox 154 was driven by script on
    17 September** (`firefox.geckodriver` is on this machine: start it on a port,
    POST `/session` with `-headless`, then WebDriver): it went cross-origin
