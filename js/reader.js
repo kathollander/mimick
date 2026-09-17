@@ -634,6 +634,7 @@
       if (state === "loading") status("Getting the voice ready…");
       if (state === "stopped") showProgress();
       showReadingTime();
+      mediaState(state);
     },
     onStatus: status,
   });
@@ -1482,6 +1483,57 @@
     },
   });
 
+  // --- media keys -------------------------------------------------------------------
+  // A keyboard's play/pause, next and previous keys, and the browser's own media
+  // controls, through the Media Session API. Chrome only gives a page those while
+  // it plays through a media element, and the voice plays through Web Audio, so a
+  // second of silence loops in an <audio> while reading. It is never heard, and if
+  // the browser will not start it, the keys on the page still work (keydown below).
+
+  let silence = null;
+  function silentWav() {
+    const rate = 8000, n = rate / 2, bytes = new Uint8Array(44 + n), v = new DataView(bytes.buffer);
+    const text = (at, str) => [...str].forEach((c, i) => { bytes[at + i] = c.charCodeAt(0); });
+    text(0, "RIFF"); v.setUint32(4, 36 + n, true); text(8, "WAVEfmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+    text(36, "data"); v.setUint32(40, n, true); bytes.fill(128, 44);
+    return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+  }
+
+  function mediaState(state) {
+    if (!("mediaSession" in navigator)) return;
+    const on = isReading(state) || state === "loading";
+    if (on || state === "paused") {
+      if (!silence) { silence = new Audio(silentWav()); silence.loop = true; }
+      if (on) silence.play().catch(() => { /* no media controls, then; the keys still work */ });
+      else silence.pause();
+      if (doc) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: doc.title, artist: `Mimick · ${voiceLabel(voice.voice)}`,
+          artwork: [{ src: "icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+        });
+      }
+    } else {
+      silence?.pause();
+    }
+    navigator.mediaSession.playbackState = on ? "playing" : state === "paused" ? "paused" : "none";
+  }
+
+  const mediaKeys = {
+    play: () => { if (voice.state !== "playing" && voice.state !== "buffering") togglePlay(); },
+    pause: () => voice.pause(),
+    playpause: () => togglePlay(),
+    previoustrack: () => voice.skip(-1),
+    nexttrack: () => voice.skip(1),
+    stop: () => voice.stop(),
+  };
+  if ("mediaSession" in navigator) {
+    for (const action of ["play", "pause", "previoustrack", "nexttrack", "stop"]) {
+      try { navigator.mediaSession.setActionHandler(action, mediaKeys[action]); } catch { /* not offered here */ }
+    }
+  }
+
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
@@ -1499,6 +1551,9 @@
     if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") { e.preventDefault(); find.open(); return; }
     if (e.key === "F3" || (ctrl && !e.altKey && e.key.toLowerCase() === "g")) { e.preventDefault(); find.step(e.shiftKey ? -1 : 1); return; }
     if (e.key === "F9" && !ctrl && !e.altKey) { e.preventDefault(); contents.toggle(); return; }
+    const media = { MediaPlayPause: "playpause", MediaPlay: "play", MediaPause: "pause", MediaTrackNext: "nexttrack",
+                    MediaTrackPrevious: "previoustrack", MediaStop: "stop" }[e.key];
+    if (media && doc) { e.preventDefault(); mediaKeys[media](); return; }
     if (typing || !doc) return;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     // A focused button acts on Space and Enter itself.

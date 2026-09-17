@@ -62,7 +62,17 @@ takes (it deletes the picker, as `check_convert` does). Export is Markdown:
 `sectionAt`), the passage as a `>` quote, the colour only if more than one of
 Mimick's four is used, the heading in bold, the note.
 
-**Next: Ship 1 items 8 and 9** -- a PDF with no text says so; File ▾
+**Item 8, media keys: done.** The Media Session API, plus `keydown` for the
+`Media…` keys when the page has focus. Chrome only routes hardware media keys
+and shows its media controls for a page playing a *media element*, and the
+voice is Web Audio, so a half-second silent WAV (made in JS, no file) loops in
+an `<audio>` while reading and pauses with it. If Chrome refuses to start it,
+nothing breaks; the page's own keydown still works. Metadata: the document's
+title, "Mimick · voice". `tools/check_media.mjs` shares `check_convert`'s
+profile to reuse its downloaded voice -- run `check_convert` first on a new machine.
+**Needs a person:** real media keys from another tab, and a Bluetooth headset.
+
+**Next: Ship 1 item 9** -- a PDF with no text says so; File ▾
 **Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
 (`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
 the repository public.
@@ -218,6 +228,7 @@ node tools/check_find.mjs            # the same
 node tools/check_text.mjs            # the same
 node tools/check_contents.mjs        # the same
 node tools/check_scan.mjs            # the same
+node tools/check_media.mjs           # the same; reuses the voice check_convert downloaded
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

@@ -79,7 +79,7 @@ original. The likely right answer is PDF only for the document, plus
 for people who want their notes elsewhere. If you go another way, write the
 reason in `PARITY.md`.
 
-**8. Media keys.** The Media Session API: play/pause/next/previous from a
+**8. ✅ Media keys.** Done 17 September: `mediaState` and `mediaKeys` in `js/reader.js`, `tools/check_media.mjs`. The Media Session API: play/pause/next/previous from a
 keyboard's media keys and the browser's own media controls. About ten lines
 in `js/reader.js` beside the existing key handling; the "next" and
 "previous" actions are the existing ↶ ↷.

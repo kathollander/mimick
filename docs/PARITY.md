@@ -16,6 +16,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 ## Reading aloud
 
 - ✅ Read aloud / pause, `Space`, ↶ ↷, `←` `→` while reading
+- ✅ **Media keys** and the browser's media controls: play/pause, next and previous sentence, stop — *check the desktop has them*
 - ✅ Word and sentence lit, page follows
 - ✅ Speed 0.75–4×, applied straight away (desktop goes to 5×)
 - ✅ Click a sentence to read from it

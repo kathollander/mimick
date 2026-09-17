@@ -51,6 +51,17 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Media keys
+
+Added 17 September. Needs a keyboard with media keys, or a headset with buttons.
+
+- [ ] Play/pause on the keyboard starts reading a document you have open, and pauses it
+- [ ] Next and previous skip a sentence
+- [ ] They still work with another tab in front, and with the browser minimised
+- [ ] Chrome's media button (top right of the toolbar) shows the document's title and "Mimick · voice", and its controls work
+- [ ] A Bluetooth headset's play/pause button works
+- [ ] Nothing audible comes from the silent audio Mimick plays to get the keys
+
 ## Save a copy, and Export notes
 
 Added 17 September.
