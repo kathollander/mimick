@@ -15,12 +15,15 @@ from pathlib import Path
 import pymupdf
 
 from mimick.annotations import AnnotationStore, _write_range
+from mimick import layout
 from mimick.document import Document, _merge_rects, align_marks
 
 _document: Document | None = None
 _store: AnnotationStore | None = None
 # The sentences made from a selection, read by the same path as the document's.
 _selection: list = []
+# The reader's own reading-order corrections, by region key, as last handed over.
+_choices: dict[str, bool] = {}
 _folder = Path(tempfile.mkdtemp())
 
 
@@ -64,11 +67,96 @@ def set_reading(switch: str, on: bool, anchor: int = -1) -> dict:
     setter = {"skip_citations": document.set_skip_citations, "clean_text": document.set_clean_text,
               "read_footnotes": document.set_read_footnotes}[switch]
     setter(bool(on))
+    if switch == "clean_text" and _apply_choices(document):
+        # The cleanup analyses the pages again, which forgets the reader's corrections.
+        document.rebuild()
+    return _rebuilt(document, anchor)
+
+
+def _rebuilt(document: Document, anchor: int) -> dict:
+    """What the page needs after a rebuild, and the sentence that reaches ``anchor``."""
     resume = 0
     if anchor >= 0:
         resume = next((s.index for s in document.sentences if s.words and s.words[-1].index >= anchor),
                       max(len(document.sentences) - 1, 0))
     return {"sentences": len(document.sentences), "words": len(document.words), "resume": resume}
+
+
+# -- the reading order --------------------------------------------------------
+#
+# The desktop's plan overlay and MainWindow._apply_region_choices. A region is
+# known to the page by its key, page and rectangle rounded -- Settings._region_key
+# -- which survives reopening and the cleanup being switched. Word indices do not
+# move when a region is read or skipped (desktop trap 9), so highlights stay put.
+
+
+def _region_key(page: int, rect) -> str:
+    return f"{page}:" + ":".join(str(int(round(value))) for value in rect)
+
+
+def regions(page: int) -> list[dict]:
+    """A page's regions in reading order: whether each is read, as the build
+    decides it (footnotes by their switch), and the number it is read in."""
+    document = _open()
+    out, number = [], 0
+    for region in document.regions.get(page) or []:
+        reads = document._region_reads(region)
+        number += reads
+        out.append({"key": _region_key(page, region.rect), "rect": _rect(region.rect), "reads": reads,
+                    "number": number if reads else None, "label": region.label, "reason": region.reason})
+    return out
+
+
+def region_counts() -> list[int]:
+    """How many regions are read, and how many skipped, in the whole document."""
+    document = _open()
+    every = [document._region_reads(r) for rs in document.regions.values() for r in rs]
+    return [sum(every), len(every) - sum(every)]
+
+
+def _apply_choices(document: Document) -> int:
+    """Put the corrections onto freshly analysed regions; how many changed."""
+    changed = 0
+    for page, found in document.regions.items():
+        for region in found:
+            want = _choices.get(_region_key(page, region.rect))
+            if want is not None and want != document._region_reads(region):
+                region.kind = layout.BODY if want else layout.SKIPPED
+                region.reason = "you chose to read this" if want else "you chose to skip this"
+                changed += 1
+    return changed
+
+
+def set_region_choices(choices: dict) -> dict:
+    """The corrections kept from last time, put back just after opening."""
+    global _choices
+    document = _open()
+    _choices = {str(key): bool(value) for key, value in choices.items()}
+    changed = _apply_choices(document)
+    if changed:
+        document.rebuild()
+    return {**_rebuilt(document, -1), "restored": changed}
+
+
+def toggle_region(page: int, key: str, anchor: int = -1) -> dict | None:
+    """Read a region that was skipped, or skip one that was read."""
+    document = _open()
+    region = next((r for r in document.regions.get(page) or [] if _region_key(page, r.rect) == key), None)
+    if region is None:
+        return None
+    reads = not document._region_reads(region)
+    document.set_region_reads(region, reads)
+    _choices[key] = reads
+    return {**_rebuilt(document, anchor), "reads": reads}
+
+
+def reset_regions(anchor: int = -1) -> dict:
+    """Forget the corrections and analyse the pages afresh, as a fresh open would."""
+    document = _open()
+    _choices.clear()
+    document.regions = layout.analyse(document, skip_references=document.clean_text)
+    document.rebuild()
+    return _rebuilt(document, anchor)
 
 
 def _open() -> Document:
@@ -333,6 +421,7 @@ def set_author(name: str) -> None:
 def close() -> None:
     global _document, _selection, _store
     _selection = []
+    _choices.clear()
     _store = None
     if _document is not None:
         _document.close()

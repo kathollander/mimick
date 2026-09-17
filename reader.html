@@ -71,6 +71,15 @@
 
   /* Highlights, in their own colour, under everything else that is lit. */
   .page .hl.annot { border-radius: 2px; }
+  /* The reading order: outlined and numbered where read, washed over where not. */
+  #pages.planning .page { cursor: pointer; }
+  .page .plan { position: absolute; pointer-events: none; border-radius: 4px; }
+  .page .plan.reads { border: 1.4px solid var(--accent); }
+  .page .plan.skipped { background: rgba(16, 18, 22, .59); border: 1px dashed var(--dim); }
+  .page .plan .tag { position: absolute; left: 3px; top: 3px; padding: 0 6px; border-radius: 4px; white-space: nowrap;
+                     font: 600 11px/16px system-ui, sans-serif; }
+  .page .plan.reads .tag { background: var(--accent); color: #0b1220; }
+  .page .plan.skipped .tag { background: var(--panel-hi); color: var(--dim); }
   .page .remove, .note-card .remove { position: absolute; display: grid; place-items: center; padding: 0; line-height: 1;
                                  border-radius: 50%; cursor: pointer; font-size: 14px; }
   .page .remove { background: #fafafc; color: #5a606e; border: 1.2px solid #78808e; z-index: 2; }
@@ -293,6 +302,7 @@
         <tr><td>Ctrl+A</td><td>Select every word on the page</td></tr>
         <tr><td>Ctrl+C</td><td>Copy the selected text, or the highlight you have clicked</td></tr>
         <tr><td>Esc</td><td>Clear the selection</td></tr>
+        <tr><td>Ctrl+R</td><td>Show what gets read, in order; click a region to read or skip it</td></tr>
       </table>
       <h2>Moving the cursor — while reading is paused</h2>
       <table>

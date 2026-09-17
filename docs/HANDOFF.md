@@ -90,6 +90,7 @@ node tools/check_reader.mjs
 node tools/check_selecting.mjs       # needs serve.py running; starts its own headless Chrome
 node tools/check_notes.mjs           # the same
 node tools/check_display.mjs         # the same
+node tools/check_order.mjs           # the same
 ```
 
 **A headless Chrome, driven from Node, is the easiest way to test the page**,
@@ -169,16 +170,27 @@ it); read it at the start of a session.
 4. Display switches (`reader.set_reading` holds the place by word) and Help.
    A pause in the first 60 ms of reading used to be undone; fixed.
 
+**17 September.** Two fixes from testing: keys pressed in the ~60 ms before
+the note editor opens no longer reach the page (an Enter there started
+reading), and `Esc` on a new note no longer leaves a stale status line. Then
+**Show reading order**: `reader.py`'s `regions`, `toggle_region`,
+`set_region_choices` and `reset_regions`; the `order` block in `reader.js`.
+Choices are kept in `localStorage` as `mimick-order:<document key>`, by the
+desktop's region key, and put back after open and after the cleanup is
+switched (which analyses the pages again). Unlike the desktop, the overlay
+shows a footnote as read when **Read footnotes** is on -- it asks
+`Document._region_reads`, where the desktop's `page_view` asks `region.reads`.
+Putting corrections back rebuilds the sentences a second time, which on the
+598-page book costs as much again as opening; passing them in at open would
+need `Document` to take them, in the desktop repo.
+
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
 
 **Next, in order** -- the rest of `PARITY.md`:
 
-1. **Show reading order** (`Ctrl`+`R`): regions drawn over the page, click one
-   to read or skip it, remembered per document, Reset. The desktop's
-   `page_view` plan overlay and `MainWindow._apply_region_choices`;
-   `Document.set_region_reads` does the work. Its item goes in **Display ▾**.
+1. ~~Show reading order~~ -- done 17 September; see below.
 2. **Read aloud while a long document is still opening.** Read aloud is greyed
    out until every sentence is built -- 45s for the 598-page book. `Document`
    builds them all in its constructor, in the desktop's shared `document.py`,

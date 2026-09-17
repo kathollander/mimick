@@ -51,6 +51,21 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Reading order
+
+Added 17 September. Reload the page first.
+
+- [ ] `Ctrl`+`R` (or **Display ▾ → Show reading order**) outlines each part of the page: numbered in blue where it's read, greyed and labelled where it's skipped
+- [ ] The numbers run in the order you'd read the page, down each column
+- [ ] Clicking a numbered part greys it out, and reading then skips it; clicking it again puts it back
+- [ ] Clicking doesn't start reading or select anything while the outlines are showing
+- [ ] Doing it while it reads carries on from about the same place
+- [ ] Highlights stay on the same words
+- [ ] Close the tab and open the same PDF again: your changes are still there
+- [ ] **Display ▾ → Reset reading order** undoes all of them
+- [ ] `Ctrl`+`R` again hides the outlines, and clicking reads as before
+- [ ] On a two-column paper and on the scanned book, the outlines look sensible
+
 ## Display switches, and Help
 
 Added 16 September, late.

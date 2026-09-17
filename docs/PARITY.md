@@ -51,7 +51,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## What gets read
 
-- ⬜ **Show reading order** (`Ctrl`+`R`): regions drawn, click to include or skip, remembered per document; Reset
+- ✅ **Show reading order** (`Ctrl`+`R`): regions drawn, click to include or skip, remembered per document; Reset
 - ✅ **Skip citations** switch
 - ✅ **Read footnotes** switch, greyed out where there are none
 - ✅ **Clean up text for reading** switch

@@ -109,6 +109,7 @@
     voice.open(0);
     closeMenu();
     notes.close();
+    order.forget();
     resetMarks();
     clearPages();
     doc = null;
@@ -153,12 +154,18 @@
     try {
       const done = await sentences;
       if (mine !== generation) return;
+      const restored = await order.restore();
+      if (mine !== generation) return;
+      if (restored) done.sentences = restored.sentences;
       Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes });
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
-      openedStatus = `${doc.pages.length} pages · ${done.sentences} sentences to read · opened in ${seconds}s`;
+      const n = restored?.restored ?? 0;
+      openedStatus = `${doc.pages.length} pages · ${done.sentences} sentences to read · opened in ${seconds}s`
+        + (n ? ` · ${n} reading-order change${n === 1 ? "" : "s"} of yours put back` : "");
       voice.open(done.sentences);
       setReadable(done.sentences > 0);
       notes.open(doc);
+      redrawMarks();
     } catch (err) {
       if (mine !== generation) return;
       openedStatus = `${doc.pages.length} pages · this one cannot be read aloud: ${err.message}`;
@@ -534,7 +541,7 @@
   function drawHighlight(page) {
     const slot = slots.get(page);
     if (!slot || !doc) return;
-    for (const old of slot.el.querySelectorAll(".hl, .caret, .remove")) old.remove();
+    for (const old of slot.el.querySelectorAll(".hl, .caret, .remove, .plan")) old.remove();
     const [w, h] = doc.pages[page];
     const add = (kind, rect, pad = 0) => {
       const box = document.createElement("div");
@@ -542,6 +549,7 @@
       placeBox(box, page, rect, pad);
       slot.el.append(box);
     };
+    order.draw(page, slot.el);
     notes.draw(page, slot.el);
     for (const [on, box] of selectionBoxes) if (on === page) add("selection", box, 1);
     if (lit.made) {
@@ -812,6 +820,8 @@
     press = null;
     if (e.button !== 0 || !doc?.words || !e.target.closest?.(".page") || e.target.closest(".remove")) return;
     const at = pointOnPage(e.clientX, e.clientY);
+    // With the reading order showing, a click reads or skips a region and does nothing else.
+    if (order.shown) { order.click(at.page, at.x, at.y); view.focus(); return; }
     // A press on a highlight picks it out instead of starting a selection.
     const hit = notes.at(at.page, at.x, at.y);
     if (hit) {
@@ -875,7 +885,7 @@
   // Double-click selects the sentence, as on the desktop -- and takes back the
   // reading its first click started.
   view.addEventListener("dblclick", (e) => {
-    if (!doc?.words) return;
+    if (!doc?.words || order.shown) return;
     doubleClicks++;
     const at = pointOnPage(e.clientX, e.clientY);
     if (!at) return;
@@ -981,20 +991,147 @@
       read_footnotes: on ? "Footnotes will be read" : "Footnotes will be passed over",
     }[name];
     if (name === "click_read" || !doc?.sentences) { if (said) status(said); return; }
+    await rebuild((anchor) => call("set_reading", name, on, anchor),
+                  ({ sentences }) => said ?? `${sentences} sentences · ${on ? "tidied for reading" : "reading the PDF verbatim"}`);
+  }
+
+  /* Change what is read, holding the reader's place by the word being read.
+   * `ask` gets that word's index and answers { sentences, resume }, or null
+   * for nothing changed; `say` words the status line from the answer. */
+  async function rebuild(ask, say) {
     const mine = generation, wasReading = isReading();
     const anchor = voice.source === "document" && lit.made ? lit.made.words[0][0] : -1;
+    if (wasReading) voice.prepare();
     voice.stop();
-    const { sentences: count, resume } = await call("set_reading", name, on, anchor);
-    if (mine !== generation) return;
-    doc.sentences = count;
-    voice.open(count, "document");
-    openedStatus = `${doc.pages.length} pages · ${count} sentences to read`;
-    status(said ?? `${count} sentences · ${on ? "tidied for reading" : "reading the PDF verbatim"}`);
-    if (wasReading) { voice.prepare(); voice.play(resume); }
+    const result = await ask(anchor);
+    if (mine !== generation || !result) return null;
+    doc.sentences = result.sentences;
+    voice.open(result.sentences, "document");
+    order.forget();
+    openedStatus = `${doc.pages.length} pages · ${result.sentences} sentences to read`;
+    status(say(result));
+    if (wasReading) voice.play(result.resume);
+    redrawMarks();
+    return result;
   }
+
+  // --- the reading order --------------------------------------------------------
+  // Ctrl+R: every region of the page outlined, numbered in the order it is read,
+  // with what is left out washed over and labelled. A click reads or skips a
+  // region. The desktop's PageView._draw_plan and MainWindow._on_region_clicked;
+  // choices are kept per document, by region key, and put back at open.
+
+  const order = (() => {
+    let shown = recall("mimick-show-order") === "1";
+    let busy = false;
+    const pages = new Map();     // page -> regions, or a promise of them
+    const storeKey = () => `mimick-order:${doc.key}`;
+    const saved = () => { try { return JSON.parse(recall(storeKey()) || "{}") || {}; } catch { return {}; } };
+
+    function draw(page, pageEl) {
+      if (!shown || !doc?.sentences) return;
+      const found = pages.get(page);
+      if (!found) {
+        // A rebuild while this is on its way forgets it; only the latest ask may land.
+        const asked = call("regions", page).then((regions) => {
+          if (pages.get(page) !== asked) return;
+          pages.set(page, regions);
+          drawHighlight(page);
+        }).catch(() => { if (pages.get(page) === asked) pages.delete(page); });
+        pages.set(page, asked);
+        return;
+      }
+      if (!Array.isArray(found)) return;
+      for (const region of found) {
+        const box = document.createElement("div");
+        box.className = `plan ${region.reads ? "reads" : "skipped"}`;
+        box.title = region.reads ? `Read ${ordinal(region.number)} on this page — click to skip it`
+          : `Skipped: ${region.label}${region.reason ? ` (${region.reason})` : ""} — click to read it`;
+        placeBox(box, page, region.rect);
+        box.append(Object.assign(document.createElement("span"), { className: "tag",
+          textContent: region.reads ? region.number : region.label }));
+        pageEl.append(box);
+      }
+    }
+
+    const ordinal = (n) => n + ((n % 100 >= 11 && n % 100 <= 13) ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[n % 10] ?? "th"));
+
+    /* The region under a point, from what is drawn; padded as Document.region_at does. */
+    function at(page, x, y) {
+      const found = pages.get(page);
+      if (!Array.isArray(found)) return null;
+      return found.find(({ rect: [x0, y0, x1, y1] }) => x0 - 2 <= x && x <= x1 + 2 && y0 - 2 <= y && y <= y1 + 2) ?? null;
+    }
+
+    async function counts() {
+      const [reads, skipped] = await call("region_counts");
+      return `Reading ${reads} regions, skipping ${skipped} — click one to change it`;
+    }
+
+    async function toggle() {
+      shown = !shown;
+      remember("mimick-show-order", shown ? "1" : "0");
+      pagesEl.classList.toggle("planning", shown);
+      if (!shown) status("Reading order hidden");
+      else if (!doc?.sentences) status(doc ? "The reading order shows once the document is ready" : "Open a PDF to see its reading order");
+      else { const mine = generation, said = await counts(); if (mine === generation && shown) status(said); }
+      redrawMarks();
+    }
+
+    async function click(page, x, y) {
+      const region = at(page, x, y);
+      if (!region) { status("Nothing is read or skipped there — click inside an outline"); return; }
+      if (busy) { status("Still working out the last change…"); return; }
+      busy = true;
+      const key = doc.key;
+      try {
+        await rebuild((anchor) => call("toggle_region", page, region.key, anchor), (result) => {
+          const choices = saved();
+          choices[region.key] = result.reads;
+          remember(`mimick-order:${key}`, JSON.stringify(choices));
+          return `${result.reads ? "Now reading" : "Now skipping"} that region — ${result.sentences} sentences in total`;
+        });
+      } catch (err) {
+        status("That region could not be changed: " + err.message);
+      } finally {
+        busy = false;
+      }
+    }
+
+    async function reset() {
+      if (!doc?.sentences || busy) return;
+      busy = true;
+      try {
+        forgetStored(doc.key);
+        await rebuild((anchor) => call("reset_regions", anchor),
+                      () => "Reading order reset to what Mimick works out by itself");
+      } finally {
+        busy = false;
+      }
+    }
+    const forgetStored = (key) => { try { localStorage.removeItem(`mimick-order:${key}`); } catch { /* not kept */ } };
+
+    /* Just opened: put back the corrections made last time. Answers what the
+     * status line should add, or "". */
+    async function restore() {
+      const choices = saved();
+      if (!Object.keys(choices).length) return null;
+      return call("set_region_choices", choices);
+    }
+
+    pagesEl.classList.toggle("planning", shown);
+    return {
+      draw, at, toggle, click, reset, restore,
+      forget: () => pages.clear(),
+      get on() { return shown; },
+      get shown() { return shown && !!doc?.sentences; },
+      get changed() { return !!doc && Object.keys(saved()).length > 0; },
+    };
+  })();
 
   function displayMenu() {
     return [
+      { label: "Show reading order", keys: "Ctrl+R", checked: order.on, run: order.toggle },
       { label: "Click to read", checked: switchOn("click_read"), run: () => setSwitch("click_read", !switchOn("click_read")) },
       { label: "Skip citations while reading", checked: switchOn("skip_citations"),
         run: () => setSwitch("skip_citations", !switchOn("skip_citations")) },
@@ -1003,6 +1140,7 @@
         run: () => setSwitch("read_footnotes", !switchOn("read_footnotes")) },
       { label: "Clean up text for reading", checked: switchOn("clean_text"),
         run: () => setSwitch("clean_text", !switchOn("clean_text")) },
+      { label: "Reset reading order", enabled: !!doc?.sentences && order.changed, run: order.reset },
       "-",
       ...notes.displayMenu(),
       "-",
@@ -1090,6 +1228,7 @@
     if (key === "Escape") { anchor = null; setSelection(null); return; }
     if (key === "?" && !ctrl) { e.preventDefault(); $("keys-dialog").showModal(); return; }
     if (ctrl && !e.shiftKey && key === "a") { e.preventDefault(); selectPage(); return; }
+    if (ctrl && !e.shiftKey && !e.altKey && key === "r") { e.preventDefault(); order.toggle(); return; }
     if (ctrl && !e.shiftKey && key === "c") { e.preventDefault(); copySelection(); return; }
     const notesKey = {
       h: e.shiftKey ? notes.toggleBar : () => notes.highlight(false),
