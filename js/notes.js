@@ -628,12 +628,9 @@
       $("markup-bottom").hidden = !(home === "bottom" && settings.bar);
       bar.hidden = !settings.bar;
       if (home === "float") {
-        let [x, y] = point ?? JSON.parse(ctx.recall("mimick-markup-point") || "[24, 24]");
-        const main = $("main");
-        x = Math.max(0, Math.min(x, main.clientWidth - bar.offsetWidth));
-        y = Math.max(0, Math.min(y, main.clientHeight - bar.offsetHeight));
-        Object.assign(bar.style, { left: x + "px", top: y + "px" });
+        const [x, y] = inside(...(point ?? JSON.parse(ctx.recall("mimick-markup-point") || "[24, 24]")));
         ctx.remember("mimick-markup-point", JSON.stringify([x, y]));
+        keepInside();
       } else {
         bar.style.left = bar.style.top = "";
       }
@@ -646,6 +643,23 @@
       }
       ctx.relayout();
       connect();
+    }
+
+    /* A point for the loose strip's corner, moved as little as will keep all
+     * of it inside the reading area. */
+    function inside(x, y) {
+      const main = $("main");
+      return [Math.max(0, Math.min(x, main.clientWidth - bar.offsetWidth)),
+              Math.max(0, Math.min(y, main.clientHeight - bar.offsetHeight))];
+    }
+
+    /* Put the loose strip where it was left, or as near as the window now
+     * allows. What is remembered is where it was left, so a window made small
+     * for a moment does not move it for good. */
+    function keepInside() {
+      if (bar.dataset.home !== "float" || dragging) return;
+      const [x, y] = inside(...JSON.parse(ctx.recall("mimick-markup-point") || "[24, 24]"));
+      Object.assign(bar.style, { left: x + "px", top: y + "px" });
     }
 
     function setBar(on) {
@@ -683,7 +697,8 @@
     grip.addEventListener("pointermove", (e) => {
       if (!dragging) return;
       const main = $("main").getBoundingClientRect();
-      Object.assign(bar.style, { left: e.clientX - dragging.dx - main.left + "px", top: e.clientY - dragging.dy - main.top + "px" });
+      const [x, y] = inside(e.clientX - dragging.dx - main.left, e.clientY - dragging.dy - main.top);
+      Object.assign(bar.style, { left: x + "px", top: y + "px" });
       bar.dataset.aim = aim(e.clientX, e.clientY);
     });
     const endDrag = (e) => {
@@ -697,6 +712,7 @@
     grip.addEventListener("pointerup", endDrag);
     grip.addEventListener("pointercancel", endDrag);
     grip.addEventListener("dblclick", () => placeBar("panel", null, true));
+    new ResizeObserver(keepInside).observe($("main"));
 
     // --- menus -------------------------------------------------------------------
 

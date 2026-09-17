@@ -135,6 +135,7 @@ only the sample.
 
 **The Highlight / Add note buttons**
 - [ ] Drag them by the ⋯ handle: onto the page they float; to the top or bottom edge they become a strip; onto the panel they go back in
+- [ ] Dragged loose, they stop at the edge of the window: you can't drag them off it, and making the window smaller keeps them in view
 - [ ] Hiding the panel moves them to the top rather than hiding them
 - [ ] `Ctrl`+`Shift`+`H` hides and shows them
 - [ ] **Display ▾** in the top bar lists the same choices

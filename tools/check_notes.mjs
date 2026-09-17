@@ -163,6 +163,25 @@ check("Ctrl+B hides the panel, and the strip moves to the top", JSON.stringify(a
 const grip = await r.centre("#markup-grip");
 await r.drag(grip, [600, 450], 8);
 check("dragged over the page, it floats there", (await home())[0] === "float");
+// It cannot be lost: dragged past the window's edge it stops at it, and a
+// smaller window keeps it in view.
+const barBox = () => ev(`(() => { const b = document.getElementById("markup").getBoundingClientRect(), m = document.getElementById("main").getBoundingClientRect();
+  return JSON.stringify([b.left >= m.left - 0.5 && b.right <= m.right + 0.5 && b.top >= m.top - 0.5 && b.bottom <= m.bottom + 0.5, Math.round(b.right), Math.round(m.right)]); })()`).then(JSON.parse);
+{
+  const from = await r.centre("#markup-grip");
+  await r.mouse("mousePressed", from); await sleep(100);
+  for (const x of [900, 1200, 1500, 2000]) { await r.mouse("mouseMoved", [x, 450]); await sleep(60); }
+  check("dragged past the right edge, it stops at the edge", (await barBox())[0], await barBox());
+  await r.mouse("mouseReleased", [2000, 450]); await sleep(400);
+  check("…and stays inside once let go", (await home())[0] === "float" && (await barBox())[0], await barBox());
+  await r.t.send("Emulation.setDeviceMetricsOverride", { width: 800, height: 600, deviceScaleFactor: 1, mobile: false });
+  await sleep(600);
+  check("a smaller window keeps it in view", (await barBox())[0], await barBox());
+  await r.t.send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 900, deviceScaleFactor: 1, mobile: false });
+  await sleep(600);
+  const [, right, edge] = await barBox();
+  check("…and a bigger one puts it back where it was left", Math.abs(right - edge) <= 2, [right, edge]);
+}
 await r.drag(await r.centre("#markup-grip"), [600, 830], 8);
 check("dragged to the foot, it goes across the bottom", JSON.stringify((await home()).slice(0, 4)) === JSON.stringify(["bottom", "markup-bottom", true, false]), await home());
 await r.key("b", CTRL); await sleep(400);
