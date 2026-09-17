@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "203dceaa6a892446";
+const VERSION = "d287df47978b65b1";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -56,6 +56,7 @@ const FILES = [
   "js/reader.js",
   "js/recent.js",
   "js/timing.js",
+  "js/tour.js",
   "js/voice-picker.js",
   "js/voices.js",
   "manifest.json",
@@ -68,6 +69,7 @@ const FILES = [
   "reader.html",
   "reader.py",
   "reading.py",
+  "sample/sample.pdf",
   "vendor/lamejs/lamejs.iife.js",
   "vendor/onnxruntime/ort-wasm-simd-threaded.mjs",
   "vendor/onnxruntime/ort-wasm-simd-threaded.wasm",

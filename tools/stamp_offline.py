@@ -30,6 +30,8 @@ PATTERNS = [
     "vendor/lamejs/lamejs.iife.js",
     "vendor/tesseract/*.js", "vendor/tesseract/*.gz",
     "voices/*.mp3",
+    # The tour's document (js/tour.js), so it works with no network too.
+    "sample/sample.pdf",
 ]
 
 

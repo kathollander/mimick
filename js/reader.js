@@ -479,6 +479,17 @@
       if (!/not allowed/.test(err.message)) MimickRecent.remove(id);
     }
   }
+  /* The sample the tour runs on: Poe's "The Raven", four pages, which comes
+   * with Mimick. A key of its own, so the practice highlights made on it are
+   * kept apart from anything of the reader's -- and Forget this document
+   * clears them like any other. */
+  async function openSample() {
+    const response = await fetch("sample/sample.pdf");
+    if (!response.ok) throw new Error(`the sample could not be fetched (${response.status})`);
+    openingName = null;
+    await openBytes(await response.arrayBuffer(), "The Raven (sample)", "sample:raven");
+  }
+
   MimickRecent.load();
   $("open-empty").onclick = chooseFile;
   $("file").onchange = () => { openFile($("file").files[0]); $("file").value = ""; };
@@ -1921,6 +1932,7 @@
   }
 
   dropDown("help-menu", () => [
+    { label: "Take the tour", enabled: !tour.running, run: () => tour.start() },
     { label: "Keyboard shortcuts", keys: "?", run: () => $("keys-dialog").showModal() },
     { label: "About Mimick", run: () => $("about-dialog").showModal() },
     ...(MimickOffline.state.updateReady ? [{ label: "Update Mimick (reloads the page)", run: () => MimickOffline.update() }] : []),
@@ -2020,6 +2032,47 @@
       }).catch((err) => status("Could not start reading there: " + err.message));
     },
   });
+
+  // --- the tour -------------------------------------------------------------------
+  // js/tour.js: the spotlight, the ghost pointer and the card. It only ever
+  // looks at the reader -- every step is done with the page's own keys and
+  // clicks -- so this is all getters, and the two ways of opening a document.
+
+  const tour = MimickTour.create({
+    status, remember, recall, openSample, chooseFile,
+    focusPage: () => view.focus(),
+    hasDocument: () => !!doc,
+    ready: () => !!doc?.sentences,
+    statusText: () => $("status").textContent,
+    readingState: () => voice.state,
+    sentence: () => lit.sentence,
+    speed: () => voice.rate,
+    voiceKey: () => voice.voice,
+    caret: () => caret.index,
+    selection: () => selection,
+    notesCount: () => notes.count,
+    notesPanelOpen: () => !$("notes").hidden,
+    findOpen: () => find.isOpen,
+    page: () => (doc ? currentPage() : 0),
+    dialogOpen: () => !!document.querySelector("dialog[open]") || notes.editing,
+    menuOpen: () => !menu.hidden,
+    /* The first sentence that starts on a page, as `[page, rect]` in page
+     * points -- what the tour puts its spotlight on. */
+    async sentenceBox(page) {
+      const found = await reading.ask({ type: "firstSentenceOn", page });
+      if (found.sentence === null) return null;
+      const { sentences } = await reading.ask({ type: "sentences", start: found.sentence, count: 1 });
+      return sentences?.[0]?.lines?.[0] ?? null;
+    },
+    /* A rectangle of a page, in the window's coordinates, as the notes panel has it. */
+    pageRectToClient(page, [x0, y0, x1, y1]) {
+      if (!doc || page >= geometry.offsets.length) return null;
+      const box = view.getBoundingClientRect();
+      const left = box.left + geometry.lefts[page] - view.scrollLeft, top = box.top + geometry.offsets[page] - view.scrollTop;
+      return { left: left + x0 * zoom, right: left + x1 * zoom, top: top + y0 * zoom, bottom: top + y1 * zoom };
+    },
+  });
+  $("tour-start").onclick = () => tour.start();
 
   // --- media keys -------------------------------------------------------------------
   // A keyboard's play/pause, next and previous keys, and the browser's own media
