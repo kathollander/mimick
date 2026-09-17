@@ -72,6 +72,11 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
    are the desktop's too). Numbers in `PARITY.md`, *For the desktop*.
 6. Several features are browser-only now and listed in `PARITY.md`, *For the
    desktop*: whether the desktop wants them.
+7. **Display ▾ has grown long** (about 32 entries: reading switches, How to say
+   words, Stop reading, Theme, the panels, zoom). A **Reading ▾** menu for the
+   switches, pronunciations and sleep timer would split it, at the cost of
+   another button in a top bar that is already tight below 1150px. Not done;
+   Kat's call.
 
 ### How tonight's pieces work
 
