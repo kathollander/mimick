@@ -35,7 +35,7 @@ const py = await loadReadingPython({
   readText: async (p) => fs.readFileSync(path.join(root, p), "utf8"),
   pyodideDir: path.join(root, "vendor/pyodide") + path.sep,
 });
-py.globals.set("pdf_bytes", new Uint8Array(fs.readFileSync(path.join(root, "sample/mdpi-sample.pdf"))));
+py.globals.set("pdf_bytes", new Uint8Array(fs.readFileSync(path.join(root, "sample/sample.pdf"))));
 const started = performance.now();
 const got = JSON.parse(await py.runPythonAsync(`
 import json, reading

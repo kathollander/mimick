@@ -237,6 +237,8 @@ def _source(clean_text: bool | None) -> Document:
     document = _open()
     if clean_text is None or bool(clean_text) == document.clean_text:
         return document
+    if _alternate is not None and _alternate.clean_text != bool(clean_text):
+        forget_alternate()           # a copy left from an earlier conversion, read the wrong way
     if _alternate is None:
         path = _folder / "alternate.pdf"
         path.write_bytes(document.doc.tobytes())

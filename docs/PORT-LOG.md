@@ -290,7 +290,7 @@ second halves of hyphenated words and lone punctuation, as on the desktop.
 ## Kat's test of the reader, and long documents
 
 **16 September 2026.** Everything on the reader's checklist works. The one
-real failure was *Constructing meaning*, a 598-page scanned book, which looked
+real failure was a 598-page scanned book, which looked
 as though it would not open: it took **258s** under Pyodide (199s natively).
 Profiling a 25-page cut of it put 90% of the time in
 `JM_make_textpage_dict` -- `layout._span_sizes` and `layout._text_blocks` each
@@ -305,7 +305,7 @@ slower under Pyodide than natively.
 
 ## Pages drawn apart from the reading, and scans drawn ahead
 
-**16 September 2026.** Kat found that on *Constructing meaning* the pages after
+**16 September 2026.** Kat found that on the 598-page scanned book the pages after
 the first did not load. It could not be made to happen here, at either screen
 density, but the code had a way to do it: pages were drawn one at a time, each
 waiting on the last, and a draw that failed without answering stopped every

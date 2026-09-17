@@ -35,10 +35,10 @@ async function openTab(url) {
     if (m.id != null && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); }
     else for (const l of listeners) l(m);
   });
-  const send = (method, params = {}) => new Promise((ok) => {
+  const send = (method, params = {}, sessionId = undefined) => new Promise((ok) => {
     const i = ++id;
     pending.set(i, ok);
-    ws.send(JSON.stringify({ id: i, method, params }));
+    ws.send(JSON.stringify({ id: i, method, params, sessionId }));
   });
   const evaluate = async (expression) => {
     const r = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
@@ -152,6 +152,21 @@ export async function startReader(name) {
       if (!p) throw new Error("no menu entry " + label);
       await r.click(JSON.parse(p));
       await sleep(300);
+    },
+    /* Evaluate in a worker whose script URL ends with `script`, e.g. "document-worker.js". */
+    async inWorker(script, expression) {
+      const { result } = await t.send("Target.getTargets");
+      let target = result.targetInfos.find((i) => i.type === "worker" && i.url.endsWith(script));
+      if (!target) {
+        await t.send("Target.setAutoAttach", { autoAttach: true, waitForDebuggerOnStart: false, flatten: true });
+        await sleep(500);
+        target = (await t.send("Target.getTargets")).result.targetInfos.find((i) => i.type === "worker" && i.url.endsWith(script));
+      }
+      if (!target) throw new Error("no worker " + script);
+      const { sessionId } = (await t.send("Target.attachToTarget", { targetId: target.targetId, flatten: true })).result;
+      const answer = await t.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId);
+      if (answer.result?.exceptionDetails) throw new Error(JSON.stringify(answer.result.exceptionDetails));
+      return answer.result?.result?.value;
     },
     status: () => ev(`document.getElementById("status").textContent`),
     menuLabels: () => ev(`document.getElementById("menu").hidden ? null

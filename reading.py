@@ -8,7 +8,7 @@ tools/check_reading.mjs can hold the browser's reading to the desktop's.
 The baseline is made by running this against the desktop package itself, from
 the desktop repo:
 
-    .venv/bin/python ../mimick-web/reading.py ../mimick-web/sample/mdpi-sample.pdf \
+    .venv/bin/python ../mimick-web/reading.py ../mimick-web/sample/sample.pdf \
         > ../mimick-web/sample/expected-reading.json
 """
 

@@ -45,6 +45,8 @@ node tools/check_reader.mjs
 node tools/check_selecting.mjs    # with serve.py running
 node tools/check_notes.mjs        # the same
 node tools/check_display.mjs      # the same
+node tools/check_order.mjs        # the same
+node tools/check_convert.mjs      # the same; downloads a voice on its first run
 ```
 
 The first compares every region of the sample against what the desktop app

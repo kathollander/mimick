@@ -6,8 +6,8 @@
  * Drives the reader with real clicks and keys (tools/cdp.mjs): right-click ->
  * Start reading from here, the cursor following the voice, the arrows and
  * Shift, drag, double-click, Ctrl+A, Ctrl+C, Esc and Enter. The word positions
- * it aims at are the sample's, page 1 -- "is also at the", words 158-161 of
- * sentence 3. The voice must be able to load (fetched once into the scratch
+ * it aims at are the sample's, page 1 -- "whom the angels name", words 106-109
+ * of sentence 3 (from 0). The voice must be able to load (fetched once into the scratch
  * profile, about 60 MB).
  */
 import path from "node:path";
@@ -17,7 +17,7 @@ const r = await startReader("check-selecting");
 const { ev, wait, sleep, check } = r;
 await r.load();
 await r.reset();
-await r.openPdf(path.join(root, "sample/mdpi-sample.pdf"));
+await r.openPdf(path.join(root, "sample/sample.pdf"));
 
 const state = () => ev(`JSON.stringify({ status: document.getElementById("status").textContent,
   play: document.getElementById("play").textContent, sel: document.querySelectorAll(".hl.selection").length,
@@ -68,17 +68,17 @@ check("End, then Shift+Home selects the line", /words selected/.test(s.status) &
 
 // 3. Drag to select.
 await r.key("Escape");
-await r.drag(await r.at(283, 268), await r.at(330, 268));
+await r.drag(await r.at(283, 268), await r.at(390, 268));
 s = await state();
-check("dragging selects is also at the", /^4 words selected/.test(s.status) && s.sel === 1, [s.status, s.sel]);
+check("dragging selects whom the angels name", /^4 words selected/.test(s.status) && s.sel === 1, [s.status, s.sel]);
 await r.key("c", CTRL); await sleep(400);
 const dragged = await ev(`navigator.clipboard.readText()`);
-check("…and copies as 'is also at the'", dragged === "is also at the", dragged);
+check("…and copies as 'whom the angels name'", dragged === "whom the angels name", dragged);
 
-// 4. Double-click selects a sentence (words 157-165 = 9 words).
+// 4. Double-click selects a sentence (words 78-114 = 37 words).
 await r.click(is, 2); await sleep(900);
 s = await state();
-check("double-click selects the sentence", /^9 words selected/.test(s.status), [s.status, s.play]);
+check("double-click selects the sentence", /^37 words selected/.test(s.status), [s.status, s.play]);
 check("…and does not leave reading going", s.play !== "Pause", s.play);
 
 // 5. Enter reads the selection.

@@ -50,7 +50,7 @@
   <h2>1. Load the voice</h2>
   <div class="row">
     <label>Threads <select id="threads"></select></label>
-    <button id="load">Load en_US-lessac-low</button>
+    <button id="load">Load en_US-norman-medium</button>
   </div>
   <div class="log" id="loadLog">Not loaded. The first load downloads 63 MB and keeps it in this browser.</div>
 
@@ -158,7 +158,7 @@ $("load").onclick = () => {
     }
   };
   worker.onerror = (e) => { $("loadLog").textContent = "FAILED: " + (e.message || "the worker did not start"); };
-  worker.postMessage({ type: "load", voice: "en_US-lessac-low", threads });
+  worker.postMessage({ type: "load", voice: "en_US-norman-medium", threads });
 };
 
 function setReady(ready) {

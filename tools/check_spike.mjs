@@ -10,7 +10,7 @@
  *
  * Regenerate the baseline from the desktop repo after a deliberate change:
  *   .venv/bin/python -c "import sys,json; sys.path[:0]=['../mimick-web','../mimick-web/py']; \
- *       import spike; r=spike.run(open('../mimick-web/sample/mdpi-sample.pdf','rb').read()); \
+ *       import spike; r=spike.run(open('../mimick-web/sample/sample.pdf','rb').read()); \
  *       r.pop('pymupdf',None); print(json.dumps(r,sort_keys=True))" > ../mimick-web/sample/expected-native.json
  */
 import { loadPyodide } from "../vendor/pyodide/pyodide.mjs";
@@ -32,7 +32,7 @@ const py = await loadPyodide({ indexURL: path.join(root, "vendor/pyodide/") });
 await py.loadPackage(path.join(root, "vendor/pyodide/" + WHEEL));
 for (const name of ["py/layout.py", "py/citations.py", "py/speech.py", "spike.py"])
   py.FS.writeFile("/home/pyodide/" + path.basename(name), read(name).toString("utf8"));
-py.globals.set("pdf_bytes", new Uint8Array(read("sample/mdpi-sample.pdf")));
+py.globals.set("pdf_bytes", new Uint8Array(read("sample/sample.pdf")));
 
 const got = JSON.parse(await py.runPythonAsync(`
 import sys, json

@@ -3,22 +3,24 @@
 One clip per voice in `js/voices.js`: the passage every Piper voice is recorded
 saying, as published in `rhasspy/piper-voices` at the revision pinned there.
 The ▶ beside the voice box plays them, so a voice can be heard before its
-model (60–74 MB) is downloaded.
+model (60–75 MB) is downloaded.
 
-Each voice's dataset licence, from its model card:
+Each voice, from its model card. A Piper voice is usually trained on top of an
+older voice, so the licence of the voice it was built on can reach it as well as
+its own recordings'.
 
-| Voice | Licence |
-| --- | --- |
-| Kathleen | CC0 |
-| Southern English | CC BY-SA 4.0 |
-| Joe | CC0 |
-| Norman | Public domain |
-| Kusal | "See URL": MycroftAI/mimic2 |
-| VCTK | CC BY 4.0 |
-| LibriTTS | CC BY 4.0 |
+| Voice | Its recordings | Built on | Standing |
+| --- | --- | --- | --- |
+| Norman | Public domain | -- | Clean. The default voice for that reason. |
+| Kathleen | CC0 | Ryan (CC BY-NC-SA 4.0) | Non-commercial, share-alike, credit Ryan. Fine for Mimick, which is free. |
+| Southern English | CC BY-SA 4.0 | Ryan (CC BY-NC-SA 4.0) | The same as Kathleen, and credit the recordings too. |
+| Joe | CC0 | Lessac (research only) | Lessac's terms may carry into it. Kept -- see below. |
+| Kusal | "See URL": MycroftAI/mimic2 | Lessac (research only) | The same as Joe. |
+| VCTK | CC BY 4.0 | Lessac (research only) | The same as Joe, and credit the recordings. |
+| LibriTTS | CC BY 4.0 | Lessac (research only) | The same as Joe, and credit the recordings. |
 
-**Checked 17 September.** Lessac was taken out: its recordings are licensed
-for research only. Norman is clean. Kathleen and Southern English were built on
-Ryan (CC BY-NC-SA), so they are fine for Mimick but not for a commercial copy.
-Joe, Kusal, VCTK and LibriTTS were built on Lessac, so the same research-only
-licence may reach them; still offered, pending a decision.
+**Checked 17 September.** Lessac itself was taken out: its recordings (Blizzard
+2013) are licensed for research only, and cannot be passed on. Kat keeps Joe,
+Kusal, VCTK and LibriTTS, accepting the risk that Lessac's terms reach them, for
+a free tool for students and accessibility. The credits the CC BY, BY-SA and
+BY-NC-SA licences ask for are in the reader's **About** window.

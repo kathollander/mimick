@@ -5,7 +5,7 @@
  *     node tools/check_notes.mjs
  *
  * Drives the reader with real clicks and keys (tools/cdp.mjs), against the
- * sample, which already carries one note of its own on page 2. Checks
+ * test paper (sample/test-paper.pdf), which carries one note of its own on page 2. Checks
  * highlighting, undo and redo, picking out, copying, the note editor, the
  * right-click menu, stepping between notes, notes coming back after a reload,
  * Download a copy (opened again with PyMuPDF from the desktop's venv), the
@@ -16,7 +16,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { CTRL, SHIFT, root, startReader } from "./cdp.mjs";
 
-const SAMPLE = path.join(root, "sample/mdpi-sample.pdf");
+const SAMPLE = path.join(root, "sample/test-paper.pdf");
 const r = await startReader("check-notes");
 const { ev, wait, sleep, check } = r;
 await r.load();
@@ -40,13 +40,13 @@ let s = await state();
 check("the sample's own note is counted", s.notes === "Notes  1" && s.quotes === "Highlights", [s.quotes, s.notes]);
 
 // 1. Select and highlight.
-const phrase = [await r.at(283, 268), await r.at(330, 268)];
+const phrase = [await r.at(243, 260), await r.at(330, 260)];
 await r.drag(...phrase);
 await r.key("h", CTRL);
 await sleep(600);
 s = await state();
 check("Ctrl+H highlights the selection", s.onPage === 1 && /Highlighted — 2 in this document/.test(s.status), [s.onPage, s.status]);
-check("…and its card is in the panel, quoting it", s.cards.length === 1 && s.cards[0].includes("is also at the"), s.cards);
+check("…and its card is in the panel, quoting it", s.cards.length === 1 && s.cards[0].includes("voice keeps the pace"), s.cards);
 check("…counted on the chip", s.quotes === "Highlights  1", s.quotes);
 
 // 2. Undo and redo.
@@ -58,15 +58,15 @@ s = await state();
 check("Ctrl+Shift+Z puts it back", s.onPage === 1 && /Highlight put back/.test(s.status), [s.onPage, s.status]);
 
 // 3. Pick it out and copy it.
-await r.click(await r.at(300, 268)); await sleep(400);
+await r.click(await r.at(290, 260)); await sleep(400);
 s = await state();
 check("clicking it picks it out: card lit, × in the margin", s.picked === 1 && s.badge === 1, [s.picked, s.badge]);
 await r.key("c", CTRL); await sleep(400);
 const copied = await ev(`navigator.clipboard.readText()`);
-check("Ctrl+C with nothing selected copies the highlight", copied === "is also at the", copied);
+check("Ctrl+C with nothing selected copies the highlight", copied === "voice keeps the pace", copied);
 
 // 4. Write a note on it.
-await r.click(await r.at(300, 268), 2); await sleep(500);
+await r.click(await r.at(290, 260), 2); await sleep(500);
 check("double-clicking it opens the note editor", await ev(`document.getElementById("note-dialog").open`));
 await r.click(await r.centre("#note-title"));
 await r.type("Where it lives");
@@ -88,15 +88,15 @@ check("Ctrl+Z undoes the note change", !s.cards[0]?.includes("Knowledge") && /No
 await r.key("z", CTRL | SHIFT); await sleep(500);
 
 // 5. The right-click menu on a highlight, and deleting.
-await r.rightClick(await r.at(300, 268));
+await r.rightClick(await r.at(290, 260));
 const labels = await r.menuLabels();
 check("right-click on it offers copy, edit, read and delete",
       ["Copy the highlighted passage", "Copy the note", "Copy both", "Edit this note…", "Read this passage", "Delete this highlight"]
         .every((l) => labels?.includes(l)), labels);
 await r.menu("Copy both"); await sleep(300);
 const both = await ev(`navigator.clipboard.readText()`);
-check("Copy both gives the passage and the note", both === "“is also at the”\n\nWhere it lives\nKnowledge sits in the land.", both);
-await r.rightClick(await r.at(300, 268));
+check("Copy both gives the passage and the note", both === "“voice keeps the pace”\n\nWhere it lives\nKnowledge sits in the land.", both);
+await r.rightClick(await r.at(290, 260));
 await r.menu("Delete this highlight"); await sleep(500);
 s = await state();
 check("Delete this highlight removes it", s.onPage === 0 && /Ctrl\+Z puts it back/.test(s.status), [s.onPage, s.status]);
@@ -105,9 +105,9 @@ s = await state();
 check("…and Ctrl+Z brings it back with its note", s.onPage === 1 && s.cards[0]?.includes("Knowledge"), s.cards);
 
 // 6. A second highlight, removed with its ×.
-await r.drag(await r.at(168, 346), await r.at(215, 346));
+await r.drag(await r.at(120, 304), await r.at(200, 304));
 await r.key("h", CTRL); await sleep(500);
-await r.click(await r.at(190, 346)); await sleep(300);
+await r.click(await r.at(160, 304)); await sleep(300);
 await r.click(await r.centre(".page .remove")); await sleep(500);
 s = await state();
 check("the × on a picked-out highlight removes it", s.onPage === 1, s.onPage);
@@ -118,7 +118,7 @@ await r.key("j", CTRL); await sleep(400);
 await r.key("j", CTRL); await sleep(600);
 const page = Number(await ev(`document.getElementById("page").value`));
 s = await state();
-check("Ctrl+J twice goes to the sample's own note, on page 2", page === 2 && /On the real article/.test(s.status + s.cards.join()), [page, s.status]);
+check("Ctrl+J twice goes to the sample's own note, on page 2", page === 2 && /Already in the file/.test(s.status + s.cards.join()), [page, s.status]);
 await r.key("k", CTRL); await sleep(600);
 check("Ctrl+K comes back to page 1", Number(await ev(`document.getElementById("page").value`)) === 1);
 
@@ -141,14 +141,14 @@ for (let i = 0; i < 40 && !file; i++) {
   await sleep(250);
   file = fs.readdirSync(r.downloads).find((f) => f.endsWith(".pdf"));
 }
-check("Ctrl+S downloads a copy named (notes)", file === "mdpi-sample (notes).pdf", file);
+check("Ctrl+S downloads a copy named (notes)", file === "test-paper (notes).pdf", file);
 if (file) {
   const found = execFileSync(path.join(root, "../Mimick/.venv/bin/python"), ["-c", `
 import pymupdf, sys
 d = pymupdf.open(sys.argv[1])
 print(sorted((a.info["subject"], a.info["content"]) for p in d for a in p.annots()))`, path.join(r.downloads, file)]).toString().trim();
   check("…with both notes in it as real PDF annotations",
-        found.includes("('Where it lives', 'Knowledge sits in the land.')") && found.includes("On the real article."), found);
+        found.includes("('Where it lives', 'Knowledge sits in the land.')") && found.includes("Already in the file."), found);
 }
 
 // 10. The panel and the strip.
@@ -193,7 +193,7 @@ await r.key("h", CTRL | SHIFT); await sleep(300);
 
 // 10b. Keys pressed while the note editor is still on its way belong to it:
 // Enter straight after Ctrl+M must not start reading.
-await r.drag(await r.at(283, 300), await r.at(330, 300));
+await r.drag(await r.at(160, 275), await r.at(250, 275));
 await r.key("m", CTRL);
 await r.key("Enter");
 await wait(`document.getElementById("note-dialog").open`);

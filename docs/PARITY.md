@@ -22,8 +22,8 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Right-click → *Start reading from here*
 - ✅ Select text and press `Enter` (or right-click → *Read the selection*)
 - ⬜ Read aloud while a long document is still opening
-- ✅ Voice picker: the eight voices, with a sample of each
-- ✖ Nicknames for voices — not wanted for now: eight voices need no renaming (17 September)
+- ✅ Voice picker: the seven voices, with a sample of each; Norman by default
+- ✖ Nicknames for voices — not wanted for now: seven voices need no renaming (17 September)
 - ✖ Microsoft online voices, Kokoro — a web page cannot reach them
 
 ## Selecting and the text cursor
@@ -58,7 +58,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## Audio and the rest
 
-- 🟡 Convert to MP3: document, page range or selection, with estimates and cancel. Not yet: opening the file's folder afterwards
+- 🟡 Convert to MP3: document, page range or selection, with estimates and cancel. Not yet: opening the file's folder afterwards. Switching its cleanup away from Display reads the whole PDF a second time (the desktop's `ExportDialog._source`), which on a long book takes as long as opening it, and cannot be stopped part way; building only the pages asked for would fix it
 - ✅ Keyboard shortcuts window (**Help ▾**, or `?`)
 - ✅ About window, and a link to the source
 - ⬜ Forget this document (clear what the browser keeps)

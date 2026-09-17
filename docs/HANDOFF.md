@@ -11,83 +11,49 @@ Kat means to release in a fresh session. **Start with the desktop repo's
 one, in short: check the voice licences (**Next**, item 0), delete `sample
 readings/`, and Kat makes the GitHub repository.
 
-## To do first: the 17 September review
+## The 17 September review: done
 
-A code review of the uncommitted work found the following. All of it is
-mechanical; do it in this order, run every check in **Running it**, and tick
-each item off here. Nothing below needs a decision from Kat except where it
-says so.
+Every item of the code review was worked through on the night of 17 September;
+every check in **Running it** passes. In brief:
 
-**Broken -- must fix before anything else**
-
-1. **The sample PDF was renamed** from `sample/mdpi-sample.pdf` to
-   `sample/sample.pdf`, but nothing was updated. Change every reference to the
-   new name: `index.html:86`; `tools/check_convert.mjs:18`,
-   `check_display.mjs:15`, `check_order.mjs:15`, `check_notes.mjs:19`,
-   `check_selecting.mjs:20`, `check_reader.mjs:106` and `:114` (the name
-   passed as the second argument too), `check_reading.mjs:38`,
-   `check_spike.mjs:13` and `:35`; `reading.py:11`. `check_notes.mjs:144`
-   expects the download to be called `mdpi-sample (notes).pdf` -- it becomes
-   `sample (notes).pdf`. Until this is done the demo page cannot open a
-   document and every check fails before it starts.
-2. **`voice.html` still loads `en_US-lessac-low`** (`voice.html:53` and
-   `:161`), which was removed from `Voices.LIST`, so the worker throws
-   `no such voice`. Point it at `en_US-norman-medium`. `sample/expected-phonemes.json:2`
-   pins Lessac too, for `check_voice.mjs` and `check_timing.mjs`; regenerate
-   it for Norman (the check's own header says how), or leave those two checks
-   on the Lessac model still on this machine and say so in **Running it**.
-3. **The default voice is now Norman** (`js/voices.js` `DEFAULT`,
-   `js/read-aloud.js` `DEFAULT_VOICE`), the one voice whose dataset is public
-   domain. Check nothing else assumes Kathleen: `tools/check_display.mjs:96`
-   tests the *list order* (Kathleen first), which is unchanged and fine; a
-   saved `localStorage` voice still wins (`js/reader.js:547`). Update
-   `docs/PARITY.md` if it names the default.
-
-**Before this goes public**
-
-4. **Sweep the whole repo for personal information and for documents that
-   are not ours.** `docs/TESTING.md` was deleted for this reason and has been
-   restored; read it, `docs/HANDOFF.md`, `docs/PORT-LOG.md`, `docs/PARITY.md`,
-   `README.md`, the comments in `tools/` and `js/`, and `git log`, for: Kat's
-   full name or email, paths under `/home/komputer`, the titles or text of the
-   `sample readings/` documents (a 598-page scanned book, a 212-page
-   curriculum) and any other copyrighted document, and screenshots. Replace
-   with neutral wording ("a long scanned book"). Then check `git log -p` for
-   the same, since the history goes public with the repo -- if anything is
-   there, tell Kat; rewriting history is her call.
-5. **`voices/README.md` contradicts itself.** The table says Kathleen is CC0,
-   the prose below says it was built on Ryan (CC BY-NC-SA); Joe and Kusal are
-   CC0 in the table but flagged as possibly research-only in the prose. Make
-   the table say what the prose says, one line per voice, with the reason. The
-   same goes for **Next**, item 0.
-
-**Bugs and rough edges from the review**
-
-6. `reader.py:242` -- `_source` hands back a cached `_alternate` without
-   checking its `clean_text` matches the request. If `forget_alternate` is
-   ever missed (the dialog's close handler fires it and swallows errors),
-   verbatim text is served as tidied. Guard it: if
-   `_alternate.clean_text != bool(clean_text)`, rebuild.
-7. `reader.py:244` -- the alternate is a whole second `Document` from
-   `doc.tobytes()`, plus a second layout pass, held until the dialog closes:
-   on the big book another ~45s with no cancel, and double the memory, in a
-   WASM worker. At least show a cancellable status; better, build only the
-   pages asked for. Note it in `PARITY.md` if it stays.
-8. `reader.html:287` -- the tooltip says "For this file only" but the
-   override lasts one conversion (the box resets to Display's setting when
-   the dialog reopens, `js/convert.js:116`). Say "For this conversion only".
-9. `js/convert.js:89` -- `textsFor`'s parameter `clean` shadows the `clean()`
-   accessor above it. Rename the parameter (`tidy`).
-10. `js/convert.js:150` -- `forget_alternate` is sent on every close with
-    errors swallowed. Send it only when the box differed from Display, and
-    log a failure to the console rather than hiding it.
-11. `tools/check_convert.mjs:53` -- the unticked-cleanup check only asserts
-    page 1's sentence count differs, which is sample-specific and never
-    confirms the text is verbatim. Assert on a known verbatim-only string
-    from the sample (a running header or a reference) instead.
-
-**Do not** touch `py/` (it is ported from the desktop repo), and do not
-change the licence conclusions in item 5 or **Next** item 0 -- record them.
+1. ✅ **The sample was not renamed -- it was replaced.** `sample/sample.pdf` is a
+   four-page poem Kat made, not the old journal article, so every reference was
+   changed *and* the desktop baselines (`expected-native.json`,
+   `expected-reading.json`) were regenerated from the desktop repo, by the
+   commands at the top of `check_spike.mjs` and `reading.py` (the ported `py/`
+   matches the desktop's HEAD exactly). A poem has nothing for the cleanup, the
+   reading order or the footnote switch to leave out, so
+   **`tools/make_test_paper.py` makes `sample/test-paper.pdf`**: a three-page
+   article of our own words with a running header, page numbers, two footnotes,
+   a reference list and a note already in the file. `check_display`,
+   `check_order`, `check_notes` and `check_convert` use it; `check_selecting`,
+   `check_reader`, `check_spike` and `check_reading` use the poem.
+2. ✅ `voice.html` loads Norman. `check_voice` and `check_timing` stay on the
+   Lessac model already on this machine (Norman is not in `~/.cache/mimick/piper`),
+   as **Running it** says; Lessac is never offered to a user.
+3. ✅ Nothing else assumes Kathleen; `PARITY.md` says seven voices, Norman by default.
+4. ✅ **Swept.** The working tree names no document of Kat's (the book's title
+   is gone from `PORT-LOG.md`, `TESTING.md` and here), no home paths, no email,
+   no screenshots. Kept on purpose: "Kat Hollander" and `github.com/kathollander`
+   as the credit in `README.md` and About. **For Kat -- the history still has:**
+   every commit's author email (`git log --format='%ae'`); the book's title in
+   the diffs of `PORT-LOG.md`, `TESTING.md` and `HANDOFF.md`; and the old
+   journal article, `sample/mdpi-sample.pdf` (CC BY 4.0, so redistributable
+   with credit, but no longer wanted). Rewriting history, or starting the public
+   repo from a fresh single commit, is her call.
+5. ✅ `voices/README.md`'s table now says what the prose says, a line a voice.
+6. ✅ `reader.py` `_source` drops a second copy read the wrong way before using it.
+7. 🟡 The second copy still costs a whole second read. The dialog now says so
+   while it works ("Reading the document again with the cleanup off -- on a long
+   book this takes a while…"), and Cancel closes the window; the worker cannot
+   be interrupted mid-read. Building only the pages asked for is left; noted in `PARITY.md`.
+8. ✅ The tooltip says "For this conversion only".
+9. ✅ `textsFor`'s parameter is `tidy`.
+10. ✅ `forget_alternate` is sent only when the box was switched away from
+    Display, and a failure is logged to the console.
+11. ✅ `check_convert` reads the texts straight from the document worker
+    (`r.inWorker` in `tools/cdp.mjs`, through the DevTools protocol) and asserts
+    the reference list is there verbatim and not when tidied.
 
 **Then [`ROADMAP.md`](ROADMAP.md), Ship 1, in its order.** That is the list
 for getting this to Kat's classmates; it takes over from **Next** below as
@@ -157,7 +123,7 @@ the reason down rather than stopping to ask.
 - **`sample readings/` is Kat's own documents**, git-ignored because they are
   not ours to redistribute, and **to be deleted before this goes anywhere near
   public**. Use them for testing until then: a 598-page scanned book
-  (*Constructing meaning*) and a 212-page curriculum.
+  and a 212-page curriculum.
 
 ## How the page fits together
 
@@ -179,7 +145,7 @@ the reason down rather than stopping to ask.
 ```bash
 python3 serve.py                     # then http://localhost:8731/reader.html
 node tools/check_spike.mjs
-node tools/check_voice.mjs           # these two need en_US-lessac-low from the desktop app
+node tools/check_voice.mjs           # these two need en_US-lessac-low from the desktop app, still on this machine
 node tools/check_timing.mjs
 node tools/check_reading.mjs
 node tools/check_reader.mjs
@@ -312,19 +278,38 @@ Against a real conversion of the sample's page 1 it ran about 15% long for
 Lessac. **The desktop app has no such estimate** -- it is on the list in
 `PARITY.md`, **For the desktop**.
 
+**Later on 17 September, from Kat's testing (committed in `b57de56`):**
+- The voice box shows `Name (accent) — note`, as Convert's does. Below 1150px
+  it is held to 11em (`reader.html`); the list still opens in full.
+- Convert to MP3: **Clean up text for reading** is a checkbox, ticked as
+  Display has it; changing it affects that file only. `reader.convert_texts`
+  takes `clean_text`, and `_source` reads a second copy of the PDF the other way
+  (`doc.tobytes()`, the reader's region choices put back) -- the desktop's
+  `ExportDialog._source`. `forget_alternate` drops it when the dialog closes.
+- The estimate reads "Conversion from text to audio: …" and "Finished Audio
+  Length: … approximately."; the save line is "You choose where to save it
+  next." The sentence count moved to `#convert-time`'s `data-sentences`, which
+  `check_convert.mjs` reads.
+- Lessac and her clip are gone. Seven voices; Norman is the default (set after, see the review above).
+- `check_display`, `check_convert`, `check_reader` passed at the time, before
+  the sample PDF was renamed (review item 1); desktop
+  `check_voices`, `check_shortcuts`, `check_caret` pass. `TESTING.md` has the
+  new items under **Convert to MP3** and **The voice**.
+
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
 
 **Next, in order.**
 
-0. **The voice licences: checked 17 September, one decision left.** Lessac is
+0. **The voice licences: checked 17 September, decided.** Lessac is
    gone from both apps (its Blizzard 2013 licence is research only, and cannot
    be passed on); the desktop withholds it from the catalogue (`piper.WITHHELD`).
    Norman is clean; Kathleen and Southern English sit on Ryan (CC BY-NC-SA),
    fine while Mimick is not commercial. **Still open:** Joe, Kusal, VCTK and
    LibriTTS were fine-tuned from Lessac, so its terms may carry into them --
-   Kat to decide whether to keep them. Also still to do: credit CC BY / BY-SA /
+   **Kat keeps them**, accepting the risk for a free tool for students and
+   accessibility. Also still to do: credit CC BY / BY-SA /
    BY-NC-SA voices in About. The dev checks `check_voice.mjs` and
    `check_timing.mjs` (and the desktop's `check_timing.py`) still use the Lessac
    model already on this machine.

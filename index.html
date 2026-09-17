@@ -83,7 +83,7 @@ go.addEventListener("click", async () => {
 
     t = performance.now();
     say("Opening the sample paper and analysing it …");
-    const pdf = new Uint8Array(await (await fetch("sample/mdpi-sample.pdf")).arrayBuffer());
+    const pdf = new Uint8Array(await (await fetch("sample/sample.pdf")).arrayBuffer());
     pyodide.globals.set("pdf_bytes", pdf);
     const result = await pyodide.runPythonAsync(`
 import sys, json

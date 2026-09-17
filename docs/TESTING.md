@@ -199,7 +199,7 @@ copies of the scripts, which may be why speed seemed to do nothing.
 Added 16 September. Reload the page first (`Ctrl`+`Shift`+`R`) so the browser
 picks up the new version.
 
-**A scanned book** (*Constructing meaning*)
+**A long scanned book**
 - [ ] The first pages show within a few seconds, before "sentences to read" appears
 - [ ] The status line counts "drawing pages ahead", and scrolling past those pages shows them at once
 - [ ] Every page you scroll to loads -- none stays blank

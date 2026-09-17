@@ -86,9 +86,9 @@
       if (kind === "selection") { const [first, last] = chosen.selection; return { kind, first, last }; }
       return { kind: "all", first: 0, last: 0 };
     };
-    const textsFor = (s, clean) => {
-      const key = `${s.kind}:${s.first}:${s.last}:${clean}`;
-      if (!texts.has(key)) texts.set(key, ctx.call("convert_texts", s.kind, s.first, s.last, clean));
+    const textsFor = (s, tidy) => {
+      const key = `${s.kind}:${s.first}:${s.last}:${tidy}`;
+      if (!texts.has(key)) texts.set(key, ctx.call("convert_texts", s.kind, s.first, s.last, tidy));
       return texts.get(key);
     };
 
@@ -126,7 +126,9 @@
     async function refresh() {
       $("convert-range").hidden = $("convert-scope").value !== "pages";
       const mine = ++refreshing, s = scope(), speed = Number($("convert-speed").value), key = $("convert-voice").value;
-      $("convert-time").textContent = "Working out how long it takes…";
+      // The other way from Display, the worker reads the whole PDF again first: on a long book, a while.
+      $("convert-time").textContent = clean() === ctx.cleanText() ? "Working out how long it takes…"
+        : `Reading the document again with the cleanup ${clean() ? "on" : "off"} — on a long book this takes a while…`;
       $("convert-length").textContent = "";
       let got;
       try { got = await textsFor(s, clean()); } catch (err) { got = null; $("convert-time").textContent = "Could not read that: " + err.message; }
@@ -146,8 +148,14 @@
     for (const id of ["convert-scope", "convert-voice", "convert-speed", "convert-clean"]) $(id).addEventListener("change", refresh);
     for (const id of ["convert-from", "convert-to"]) $(id).addEventListener("input", refresh);
     $("convert-cancel").onclick = () => dialog.close();
-    // The second copy of the PDF, if unticking the cleanup made one, is not kept.
-    dialog.addEventListener("close", () => ctx.call("forget_alternate").catch(() => {}));
+    // The second copy of the PDF, if switching the cleanup made one, is not kept.
+    let madeAlternate = false;
+    $("convert-clean").addEventListener("change", () => { if (clean() !== ctx.cleanText()) madeAlternate = true; });
+    dialog.addEventListener("close", () => {
+      if (!madeAlternate) return;
+      madeAlternate = false;
+      ctx.call("forget_alternate").catch((err) => console.warn("Mimick: could not let go of the second copy:", err));
+    });
 
     $("convert-go").onclick = async (e) => {
       e.preventDefault();
