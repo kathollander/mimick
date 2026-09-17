@@ -40,6 +40,7 @@
     let nextId = 0;
     const self = {
       busy: false, dead: false, openedFor: 0,
+      step: null,          // how far Python has got: "python", "pdf", "ready", or "failed"
       ask(message, transfer = []) {
         if (self.dead) return Promise.reject(new Error("the worker has stopped"));
         const id = nextId++;
@@ -50,9 +51,14 @@
       },
     };
     worker.onmessage = ({ data }) => {
-      if (data.type === "ready") { onReady(data); return; }
+      if (data.type === "loading") { self.step = data.step; showLoading(); return; }
+      if (data.type === "ready") { self.step = "ready"; onReady(data); showLoading(); return; }
       const waiting = pending.get(data.id);
-      if (data.type === "error" && !waiting) { status("Something went wrong: " + data.message); return; }
+      if (data.type === "error" && !waiting) {
+        if (/^Python did not start/.test(data.message)) { self.step = "failed"; showLoading(); }
+        status("Something went wrong: " + data.message);
+        return;
+      }
       if (!waiting) return;
       pending.delete(data.id);
       if (data.type === "error") waiting.reject(new Error(data.message));
@@ -62,6 +68,7 @@
     // the page waiting on them for ever.
     worker.onerror = (e) => {
       self.dead = true;
+      showLoading();
       for (const { reject } of pending.values()) reject(new Error(e.message || "the worker failed"));
       pending.clear();
       status("The reader could not start: " + (e.message || "a worker failed"));
@@ -96,7 +103,8 @@
   const slots = new Map();     // page -> { el, canvas, drawnScale }
   const bitmaps = new Map();   // page -> { bitmap, scale }
   const inFlight = new Map();  // page -> scale, while a worker or the store fetches it
-  const failed = new Map();    // page -> scale it could not be drawn at; not tried again
+  const failed = new Map();    // page -> scale it could not be drawn at; tried again twice, a little later
+  const retries = new Map();   // page -> times in a row it could not be drawn
   let kept = new Set();        // pages of this document in the store
   let slow = false, slowPages = 0, storeFull = false;
   let openedStatus = "";
@@ -154,6 +162,66 @@
     status(openedStatus + ahead);
   }
 
+  // --- the progress bar -----------------------------------------------------------
+  // In reader.html from the first paint, so a first visit is never a blank wait:
+  // up while Python starts, and again while a document opens, until its
+  // sentences are built and the pages first on screen are drawn. Python's start
+  // gives no byte counts, so the bar moves by the steps each worker reports,
+  // weighted by what they download (the runtime ~11 MB, the PDF library ~18 MB),
+  // and creeps towards the next step between them so it never looks stuck.
+
+  const STEP_SHARE = { python: 0.4, pdf: 0.9, ready: 1 };
+  let loading = null;          // { name, preparing, drawing } while a document opens
+  let barPhase = "", barShown = 0, barTarget = 0, barSince = performance.now(), barTimer = 0;
+
+  function showLoading() {
+    const share = (w) => (w.dead ? 0 : STEP_SHARE[w.step] ?? 0);
+    const stuck = reading.dead || reading.step === "failed" || pool.every((w) => w.dead || w.step === "failed");
+    const starting = !saidReady && !stuck;
+    if (loading?.drawing && doc) {
+      const shown = geometry.onScreen(view.scrollTop, view.clientHeight);
+      if (shown.every((p) => slots.get(p)?.drawnScale > 0 || (retries.get(p) ?? 0) >= 3)) loading.drawing = false;
+    }
+    if (loading && !loading.preparing && !loading.drawing) loading = null;
+
+    let phase = "", label = "", target = 0, detail = "";
+    if (starting) {
+      phase = "start";
+      label = loading ? `Getting ready, then opening ${loading.name}…` : "Getting Mimick ready…";
+      target = (share(reading) + Math.max(...pool.map(share))) / 2;
+      if (performance.now() - barSince > 8000) {
+        detail = "The first visit downloads about 30 MB, once. After that, Mimick starts faster.";
+      }
+    } else if (loading) {
+      phase = "open:" + generation;
+      label = `Opening ${loading.name}…`;
+      const shown = doc ? geometry.onScreen(view.scrollTop, view.clientHeight) : [];
+      const drawn = shown.filter((p) => slots.get(p)?.drawnScale > 0).length;
+      target = (doc ? 0.3 : 0.05) + (loading.drawing ? 0.35 * (shown.length ? drawn / shown.length : 0) : 0.35)
+             + (loading.preparing ? 0 : 0.3);
+      if (!loading.preparing) label = "Drawing the pages…";
+      else if (doc && !loading.drawing) label = "Getting it ready to read aloud…";
+      if (performance.now() - barSince > 8000) detail = "A long document takes a little while to prepare, the first time.";
+    }
+    if (phase !== barPhase) { barPhase = phase; barShown = 0; barSince = performance.now(); }
+    const bar = $("loading");
+    bar.hidden = !phase;
+    if (!phase) { clearInterval(barTimer); barTimer = 0; return; }
+    barTarget = target;
+    barShown = Math.max(barShown, target);
+    $("loading-label").textContent = label;
+    $("loading-detail").textContent = detail;
+    $("loading-fill").style.width = `${Math.round(Math.max(0.03, barShown) * 100)}%`;
+    if (!barTimer) {
+      barTimer = setInterval(() => {
+        // Creep a little beyond the last step, slower the further it gets.
+        const cap = Math.min(0.95, barTarget + 0.2);
+        if (barShown < cap) barShown += (cap - barShown) * 0.06;
+        showLoading();
+      }, 500);
+    }
+  }
+
   // --- opening ------------------------------------------------------------------
 
   /* Open a PDF's bytes. `key` names the document for what is kept about it
@@ -162,6 +230,7 @@
     const mine = ++generation;
     ocr.stop();
     status(pythonReady ? `Opening ${name}…` : `Getting ready, then opening ${name}…`);
+    loading = { name, preparing: true, drawing: true };
     $("empty").hidden = true;
     voice.open(0);
     closeMenu();
@@ -214,6 +283,8 @@
       if (mine !== generation) return;
       const why = err instanceof AggregateError ? err.errors[0].message : err.message;
       status(`Could not open ${name}: ${why}`);
+      loading = null;
+      showLoading();
       $("empty").hidden = false;
       document.title = "Mimick";
       $("title").textContent = "";
@@ -263,6 +334,8 @@
       if (mine !== generation) return;
       openedStatus = `${pagesCount()} · this one cannot be read aloud: ${err.message}`;
     }
+    if (loading) loading.preparing = false;
+    showLoading();
     showProgress();
   }
 
@@ -433,6 +506,7 @@
     slots.clear();
     inFlight.clear();
     failed.clear();
+    retries.clear();
     kept = new Set();
     slow = false; slowPages = 0; storeFull = false;
     pagesEl.replaceChildren();
@@ -471,6 +545,7 @@
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(drawn.bitmap, 0, 0, slot.canvas.width, slot.canvas.height);
     slot.drawnScale = drawn.scale;
+    if (loading?.drawing) showLoading();
   }
 
   // Once per frame at most. A hidden tab gets no frames at all (HANDOFF.md,
@@ -506,6 +581,7 @@
       const canvas = document.createElement("canvas");
       el.append(canvas);
       pagesEl.append(el);
+      if ((retries.get(page) ?? 0) >= 3) el.dataset.failed = "";
       const slot = { el, canvas, drawnScale: 0 };
       slots.set(page, slot);
       place(page, slot);
@@ -547,6 +623,8 @@
     }
     have?.bitmap.close();
     bitmaps.set(page, { bitmap, scale });
+    retries.delete(page);
+    delete slots.get(page).el.dataset.failed;
     paint(page);
   }
 
@@ -611,8 +689,19 @@
       })
       .catch((err) => {
         if (mine !== generation) return;
+        const tries = same(failed.get(page) ?? -1, scale) || !failed.has(page) ? (retries.get(page) ?? 0) + 1 : 1;
         failed.set(page, scale);
+        retries.set(page, tries);
+        if (tries < 3) {
+          // Often it passes -- memory, while the other workers start up -- so twice more, a little later.
+          setTimeout(() => {
+            if (mine === generation && same(failed.get(page) ?? -1, scale)) { failed.delete(page); update(); }
+          }, 1500 * tries);
+          return;
+        }
         status(`Page ${page + 1} could not be drawn: ${err.message}`);
+        if (slots.has(page)) slots.get(page).el.dataset.failed = "";
+        showLoading();
       })
       .finally(() => {
         worker.busy = false;
@@ -1847,7 +1936,7 @@
     call, status, view, remember, recall, showMenu, copyText, placeBox,
     generation: () => generation,
     zoom: () => zoom,
-    currentPage: () => (doc ? currentPage() : 0),
+    pagesShown: () => (doc ? geometry.onScreen(view.scrollTop, view.clientHeight) : []),
     redraw: () => doc && redrawMarks(),
     relayout: () => update(),
     focusPage: () => view.focus(),
@@ -2042,6 +2131,7 @@
       j: e.shiftKey ? null : () => notes.step(1),
       k: e.shiftKey ? null : () => notes.step(-1),
       z: e.shiftKey ? notes.redo : notes.undo,
+      y: e.shiftKey ? null : notes.redo,
       b: e.shiftKey ? null : notes.togglePanel,
       s: notes.download,
     }[key];
@@ -2073,5 +2163,6 @@
   });
 
   showZoom();
+  showLoading();
   openSwitches(recall("mimick-switches") === "1");
 })();

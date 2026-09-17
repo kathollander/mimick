@@ -122,7 +122,28 @@
   #view::-webkit-scrollbar-corner { background: var(--backdrop); }
   #pages { position: relative; }
   .page { position: absolute; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
-  .page canvas { width: 100%; height: 100%; display: block; }
+  .page canvas { position: relative; width: 100%; height: 100%; display: block; }
+  /* Under the canvas, which covers it once the page is drawn: a page still being
+     drawn says so, rather than standing there blank. */
+  .page::before { content: "Drawing this page…"; position: absolute; inset: 0; display: grid; place-items: center;
+                  padding: 24px; text-align: center; color: #7c8290; font: 15px/1.4 system-ui, sans-serif; }
+  .page[data-failed]::before { content: "This page could not be drawn. Zoom in or out to try again."; color: #b3403c; }
+
+  /* The progress bar: over the page area, from the first paint until Python is up,
+     and while a document opens (js/reader.js, showLoading). */
+  #loading { grid-area: 1 / 2; position: absolute; z-index: 7; top: 16px; left: 50%; transform: translateX(-50%);
+             width: min(440px, calc(100% - 32px)); padding: 12px 14px; background: var(--panel);
+             border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 24px var(--shadow); }
+  #loading[hidden] { display: none; }
+  #loading-label { font-weight: 600; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #loading-track { height: 8px; border-radius: 4px; background: var(--panel-hi); overflow: hidden; }
+  #loading-fill { width: 3%; height: 100%; border-radius: 4px; transition: width .5s ease-out;
+                  background: var(--accent) linear-gradient(90deg, transparent, rgba(255, 255, 255, .45), transparent) no-repeat;
+                  background-size: 120px 100%; animation: loading-shine 1.6s linear infinite; }
+  @keyframes loading-shine { from { background-position: -120px 0; } to { background-position: 440px 0; } }
+  @media (prefers-reduced-motion: reduce) { #loading-fill { animation: none; transition: none; } }
+  #loading-detail { margin-top: 6px; color: var(--dim); font-size: 12px; }
+  #loading-detail:empty { display: none; }
   /* The reading highlight, in the desktop's SENTENCE_TINT and WORD_TINT. */
   .page .hl { position: absolute; pointer-events: none; }
   .page .hl.sentence { background: rgba(91, 157, 255, .19); }
@@ -403,6 +424,11 @@
     </div>
   </div>
 </div>
+<div id="loading" role="status" aria-live="polite">
+  <div id="loading-label">Getting Mimick ready…</div>
+  <div id="loading-track"><div id="loading-fill"></div></div>
+  <div id="loading-detail"></div>
+</div>
 
 <aside id="notes" aria-label="Notes">
   <div class="notes-head">
@@ -619,7 +645,7 @@
         <tr><td>Ctrl+M</td><td>Highlight it and write a note</td></tr>
         <tr><td>Ctrl+J / Ctrl+K</td><td>Jump to the next or previous note</td></tr>
         <tr><td>Ctrl+Z</td><td>Take back the last highlight or note</td></tr>
-        <tr><td>Ctrl+Shift+Z</td><td>Put it back again</td></tr>
+        <tr><td>Ctrl+Y</td><td>Put it back again</td></tr>
         <tr><td>Click a highlight</td><td>Select it, on the page or in the panel</td></tr>
         <tr><td>Double-click it</td><td>Edit the note, its heading or its colour</td></tr>
         <tr><td>Right-click it</td><td>Copy the passage, the note, or both</td></tr>

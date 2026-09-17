@@ -13,6 +13,7 @@
  *   { type: "call", id, name, args }       one of CALLS in reader.py -- selecting
  *                                          and the text cursor
  * Messages out:
+ *   { type: "loading", step }   "python", then "pdf", while Python starts
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, textless, openMs }
  *       textless: the pages that are a picture with no words (reader.pages_without_text)
@@ -41,6 +42,7 @@ const python = MimickPython.loadReadingPython({
     return response.text();
   },
   pyodideDir: base + "vendor/pyodide/",
+  onStep: (step) => self.postMessage({ type: "loading", step }),
 }).then((py) => {
   py.runPython("import reader");
   self.postMessage({ type: "ready", loadMs: performance.now() - started });

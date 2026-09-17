@@ -12,6 +12,29 @@ python3 serve.py
 Tick what works, and write down anything that doesn't -- what you did, what you
 expected, what happened.
 
+## Firefox fixes, 17 September — https://kathollander.github.io/mimick/reader.html
+
+Try these in **Firefox on the computer where it went wrong**, if you can.
+
+**Loading**
+- [ ] A progress bar shows at the top straight away, and fills as Mimick gets ready
+- [ ] If it takes more than a few seconds, a line under the bar explains the first visit is a one-time download
+- [ ] Opening a file shows the bar again until the pages are drawn
+- [ ] A page that hasn't drawn yet says "Drawing this page…" instead of staying blank
+- [ ] **Blank pages:** do the pages still stay blank until you zoom? If they do, say
+      whether "Drawing this page…" is showing on them, and which Firefox and
+      screen scaling (100%, 125%, 150%) that computer uses
+
+**Notes column**
+- [ ] A highlight shows up in the column straight away
+- [ ] A new note stays in the column after you save it
+- [ ] Scroll so the end of one page and the start of the next are both on screen: the notes for both pages are in the column
+
+**Undo**
+- [ ] `Ctrl`+`Z` takes back highlights and notes one at a time, several steps back
+- [ ] `Ctrl`+`Y` puts them back again, one at a time
+- [ ] **Reading ▾ → Show reading order** is off when you first open Mimick
+
 ## The reader — http://localhost:8731/reader.html
 
 **Checked by Kat on 16 September**, all working. What came of it: the sample

@@ -527,21 +527,23 @@
 
     // --- the notes panel ---------------------------------------------------------
 
-    let panelPage = -1;
+    // The pages the cards are for: every page with any of it on screen, so a
+    // note does not leave the column while its highlight can still be seen.
+    let panelPages = "";
     const panel = $("notes");
 
     function renderCards() {
       const cards = $("cards");
-      const page = ctx.currentPage();
-      panelPage = page;
+      const pages = ctx.pagesShown();
+      panelPages = pages.join();
       const scroll = cards.scrollTop;
       cards.replaceChildren();
       const size = Math.max(6, Math.min(40, settings.size * ctx.zoom()));
       cards.style.fontSize = size + "pt";
       cards.style.fontFamily = settings.font ? `"${settings.font}", system-ui, sans-serif` : "";
-      const onPage = items.filter((i) => i.page === page
+      const onPage = items.filter((i) => pages.includes(i.page)
                                          && (drafting?.xref === i.xref || (i.note ? settings.written : settings.quotes)))
-        .sort((a, b) => a.top - b.top);
+        .sort((a, b) => a.page - b.page || a.top - b.top);
       for (const item of onPage) cards.append(card(item));
       cards.scrollTop = scroll;
       connect();
@@ -593,7 +595,7 @@
 
     function pageShown() {
       if (!settings.panel) return;
-      if (ctx.currentPage() !== panelPage) renderCards();
+      if (ctx.pagesShown().join() !== panelPages) renderCards();
       else connect();
     }
 
@@ -800,7 +802,7 @@
         { label: "Go to previous note", keys: "Ctrl+K", enabled: items.length > 0, run: () => step(-1) },
         "-",
         { label: "Undo the last highlight or note", keys: "Ctrl+Z", enabled: undoStack.length > 0, run: undo },
-        { label: "Redo it", keys: "Ctrl+Shift+Z", enabled: redoStack.length > 0, run: redo },
+        { label: "Redo it", keys: "Ctrl+Y", enabled: redoStack.length > 0, run: redo },
         "-",
         { label: "Save a copy with your notes (PDF)…", keys: "Ctrl+S", enabled: ready, run: download },
         { label: "Export notes as text…", enabled: ready && items.length > 0, run: exportNotes },

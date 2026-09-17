@@ -6,7 +6,7 @@
  *
  * Drives the reader with real clicks and keys (tools/cdp.mjs), against the
  * test paper (sample/test-paper.pdf), which carries one note of its own on page 2. Checks
- * highlighting, undo and redo, picking out, copying, the note editor, the
+ * highlighting, undo and redo (Ctrl+Z, Ctrl+Y), picking out, copying, the note editor, the
  * right-click menu, stepping between notes, notes coming back after a reload,
  * Download a copy (opened again with PyMuPDF from the desktop's venv), the
  * panel and its filters, and the strip's four homes. Needs no voice.
@@ -56,6 +56,10 @@ check("Ctrl+Z takes it back", s.onPage === 0 && s.cards.length === 0 && /Highlig
 await r.key("z", CTRL | SHIFT); await sleep(500);
 s = await state();
 check("Ctrl+Shift+Z puts it back", s.onPage === 1 && /Highlight put back/.test(s.status), [s.onPage, s.status]);
+await r.key("z", CTRL); await sleep(500);
+await r.key("y", CTRL); await sleep(500);
+s = await state();
+check("…and so does Ctrl+Y", s.onPage === 1 && /Highlight put back/.test(s.status), [s.onPage, s.status]);
 
 // 3. Pick it out and copy it.
 await r.click(await r.at(290, 260)); await sleep(400);
@@ -123,6 +127,13 @@ s = await state();
 check("Ctrl+J twice goes to the sample's own note, on page 2", page === 2 && /Already in the file/.test(s.status + s.cards.join()), [page, s.status]);
 await r.key("k", CTRL); await sleep(600);
 check("Ctrl+K comes back to page 1", Number(await ev(`document.getElementById("page").value`)) === 1);
+// The bottom of page 1 and the top of page 2 on screen: the notes of both stay in the column.
+await ev(`(() => { const v = document.getElementById("view"); v.scrollTop = document.querySelector('.page[data-page="1"]').offsetTop - v.clientHeight / 4; })()`);
+await sleep(600);
+s = await state();
+check("with two pages on screen, the column has the notes of both",
+      s.cards.some((c) => c.includes("Knowledge")) && s.cards.some((c) => c.includes("Already in the file")), s.cards);
+await ev(`document.getElementById("view").scrollTop = 0`); await sleep(800);
 
 // 8. Kept in the browser: reload and open the same PDF again.
 await wait(`/Kept in this browser/.test(document.getElementById("notes-kept").textContent)`, 10000);
@@ -147,7 +158,7 @@ for (let i = 0; i < 40 && !file; i++) {
 }
 check("Ctrl+S downloads a copy named (notes)", file === "test-paper (notes).pdf", file);
 if (file) {
-  const found = execFileSync(path.join(root, "../Mimick/.venv/bin/python"), ["-c", `
+  const found = execFileSync(path.join(root, "../Mimick-linux/.venv/bin/python"), ["-c", `
 import pymupdf, sys
 d = pymupdf.open(sys.argv[1])
 print(sorted((a.info["subject"], a.info["content"]) for p in d for a in p.annots()))`, path.join(r.downloads, file)]).toString().trim();

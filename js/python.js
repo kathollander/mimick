@@ -22,10 +22,14 @@
 
   /* `loadPyodide` from vendor/pyodide; `readText(path)` gives the text of a
    * file relative to the repository root; `pyodideDir` is vendor/pyodide/ as a
-   * path or URL. Returns the Pyodide instance with `mimick` importable. */
-  async function loadReadingPython({ loadPyodide, readText, pyodideDir }) {
+   * path or URL. `onStep(name)`, if given, hears "python" and then "pdf" as each
+   * large part is loaded, for the page's progress bar. Returns the Pyodide
+   * instance with `mimick` importable. */
+  async function loadReadingPython({ loadPyodide, readText, pyodideDir, onStep = () => {} }) {
     const py = await loadPyodide({ indexURL: pyodideDir });
+    onStep("python");
     await py.loadPackage(pyodideDir + PYMUPDF_WHEEL);
+    onStep("pdf");
     py.FS.mkdirTree(HOME + "/mimick");
     py.FS.writeFile(HOME + "/mimick/__init__.py", "");
     const sources = await Promise.all(PACKAGE.map((name) => readText("py/" + name)));

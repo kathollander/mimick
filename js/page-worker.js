@@ -9,6 +9,7 @@
  *       scale: device pixels per PDF point. keep: also give the page back as a
  *       compressed image, to be kept (js/page-store.js).
  * Messages out:
+ *   { type: "loading", step }   "python", then "pdf", while Python starts
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], outline: [[level, title, page, y, open]] }
  *   { type: "rendered", id, page, scale, bitmap, blob?, renderMs }   bitmap transferred
@@ -30,6 +31,7 @@ const python = MimickPython.loadReadingPython({
     return response.text();
   },
   pyodideDir: base + "vendor/pyodide/",
+  onStep: (step) => self.postMessage({ type: "loading", step }),
 }).then((py) => {
   py.runPython("import pages");
   self.postMessage({ type: "ready", loadMs: performance.now() - started });
