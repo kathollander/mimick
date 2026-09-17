@@ -55,6 +55,20 @@ wanted yet). Work flows as before: desktop first for shared code, then
 `tools/port.sh`; re-stamp after changing any served file; run one browser check
 at a time (they share Chrome's port 9333).
 
+**In progress, 17 September: choosing voices on purpose** (session
+`mimick-web-b1`; decisions under *Decided*). Written and not yet committed:
+`js/voices.js` now holds the fetching, hash check, `kept`, `keptKeys` and
+`remove` (moved out of `piper-worker.js`, which calls `fetchVoice`), and marks
+Norman `mp3: true`; `js/voice-picker.js` is the new picker and
+`keepDefault()`; `voices/README.md`. **Still to do**, once the menus session
+has committed `reader.html`, `reader.js` and `convert.js`: the dialog's markup
+and styles (`#voices-dialog`, `#voices-list`, `#voices-status`,
+`#voices-progress`, `#voices-space`, `#voices-download`, `#voices-close`) and
+the script tag; the voice box built from `keptKeys()` plus *Select a new
+voice…*, dropping `#voice-sample` and `voiceKept`; `keepDefault()` when not on
+localhost or with `?release`; Convert's list filtered to `mp3`, with its note;
+`check_display`'s ▶ test moved into a picker check; re-stamp; run the checks.
+
 **Not done from Ship 2: read aloud while a long document is still opening.** It
 needs `Document` in the desktop's shared `document.py` to build page by page
 with word indices identical to a full build (desktop trap 9), then a port. Too
@@ -85,11 +99,36 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
    are the desktop's too). Numbers in `PARITY.md`, *For the desktop*.
 6. Several features are browser-only now and listed in `PARITY.md`, *For the
    desktop*: whether the desktop wants them.
-7. **Display ▾ has grown long** (about 32 entries: reading switches, How to say
-   words, Stop reading, Theme, the panels, zoom). A **Reading ▾** menu for the
-   switches, pronunciations and sleep timer would split it, at the cost of
-   another button in a top bar that is already tight below 1150px. Not done;
-   Kat's call.
+7. ~~Display ▾ has grown long~~ -- split on 17 September, as Kat asked: see
+   *The menus, reorganised*. **Waiting on Kat:** four possible additions to
+   Reading ▾ (skip back 10 seconds; start reading from the top of this page; go
+   back to where the voice is; move Recognise text there from File ▾).
+
+### The menus, reorganised (17 September, asked for by Kat)
+
+- **Night (dark) is the default theme.** `mimick-theme` absent or `"dark"` is
+  Night; `"light"` is Day; `"system"` follows the computer. The light colours
+  now apply under `html[data-theme="light"]`, or `data-theme="system"` with a
+  light system. Display ▾ → Theme: Night, Day, Match the system.
+- **Reading ▾** (new, `readingMenu` in `js/reader.js`): Stop reading, How to say
+  words, the four reading switches, Show / Reset reading order. **Display ▾**
+  keeps only Theme, the two panels and the highlight buttons' place, and zoom.
+- **The quick switches** (`#switches`), a strip under the top bar opened by the
+  ⌄ button at the bar's right end (`#switches-toggle`, kept as
+  `mimick-switches`, closed at first). Night/Day, Clean up, Skip citations,
+  Read footnotes, Click to read, the timer (opens its choices, shows the one
+  set), Contents, Notes, Highlight buttons. Inline SVG icons; below 1150px only
+  the icons show. Each mirrors a menu entry, so `showSwitches` redraws after
+  every click or key anywhere (a capture listener, `setTimeout`), and when the
+  timer stops or the theme changes.
+- **Mimick's name** moved to the bottom bar's left end.
+- **Layout fix found on the way:** `body` was a five-row grid, and with the
+  highlight strip hidden the page area landed in an `auto` row (220px tall on
+  the empty page) while the footer took the `1fr`. `body` is now a flex column
+  with `#main { flex: 1 1 0 }`.
+- Checks: `check_display` covers Reading ▾, Display ▾'s new contents and the
+  strip; `check_access` the Night default; `check_order`, `check_say`,
+  `check_sleep` open Reading ▾ now.
 
 ### How tonight's pieces work
 
@@ -297,9 +336,29 @@ the reason down rather than stopping to ask.
 - **Piper voices only**, no Microsoft voices. **English only** for now.
 - **Speed caps at 4×**, not the desktop's 5×.
 - **Seven voices** (Lessac removed 17 September), listed in `piper.RECOMMENDED` in the desktop repo. Ship
-  their sample clips; fetch a model on first use and keep it in IndexedDB. Two
-  of them hold many speakers (109 and 904); a picker for those comes after the
-  reader works.
+  their sample clips; keep each model in Cache Storage (`mimick-voices-v1`).
+  Two of them hold many speakers (109 and 904); a picker for those comes after
+  the reader works.
+- **Voices are chosen on purpose, not tried by downloading** (Kat, 17
+  September). All seven would be about 450 MB, too much to push on everyone
+  (small school laptops, capped connections, and most people use one voice).
+  So:
+  - **Norman is the default, and the only voice downloaded without asking**, in
+    the background on the real site (not on localhost, so the checks don't each
+    fetch 61 MB), with `navigator.storage.persist()` asked for. It is the one
+    voice with no licence question (public domain). The faster "low" voices
+    (Kathleen, Southern English) sit on Ryan, CC BY-NC-SA, so they don't qualify.
+  - **The voice box lists only kept voices**, and ends with **Select a new
+    voice…**, which opens the voice picker (`js/voice-picker.js`), modelled on
+    the desktop's `OfflineVoicesDialog`. It shows all seven, each with a ▶ for its shipped rainbow
+    clip (nothing downloads to hear one), its size, **MP3 ✓** or **Reading
+    only**, and a tick box. Several ticked voices download one after another,
+    with progress and a Stop button; a kept voice can be removed, except the one
+    in use. The ▶ beside the voice box goes, since the picker plays the samples.
+  - **Convert to MP3 offers only `mp3: true` voices, which today means Norman**,
+    with a short note that the other voices read aloud here but their licences
+    (non-commercial, share-alike, possibly research-only through Lessac) make
+    MP3s to keep or share risky. See `voices/README.md`.
 - **Laptop and desktop only.**
 - **Work flows one way:** fix in `../Mimick`, then `tools/port.sh ../Mimick`.
   Never edit `py/` here.

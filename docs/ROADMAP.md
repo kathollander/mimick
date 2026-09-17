@@ -136,7 +136,7 @@ Then Kat makes the repository public and sends the link.
 - ✅ **Keep scroll and zoom per document**, and **Forget this document**. Done 17 September; `tools/check_forget.mjs`.
 - **Export notes** as Markdown, if item 7 did not already do it.
 - 🟡 **The page's own accessibility.** Done 17 September: light theme
-  (follows the system; Display ▾ → Theme overrides), reduced motion, a name in
+  (Night by default since 17 September; Display ▾ → Theme or the quick switches), reduced motion, a name in
   words on every control (`tools/check_access.mjs`). Colour-blind check of the
   highlights: measured, not changed -- see `HANDOFF.md`. Still to do: a real
   keyboard-only and screen-reader pass with a classmate who uses them, and the
@@ -147,7 +147,7 @@ Then Kat makes the repository public and sends the link.
   keyboard and screen reader; check the four highlight colours are
   distinguishable to colour-blind readers. Ask a classmate who uses these to
   try it.
-- ✅ **A pronunciation list**. Done 17 September: Display ▾ → How to say
+- ✅ **A pronunciation list**. Done 17 September: Reading ▾ → How to say
   words…, or right-click a selected word; `js/pronounce.js`, applied in the
   voice worker, so Convert to MP3 uses it too. `tools/check_say.mjs`. *The plan:*
   **A pronunciation list**, per user: a word and how to say it, applied
@@ -166,7 +166,7 @@ Then Kat makes the repository public and sends the link.
   convert-to-PDF path at a fixed page size.
 - **Other languages.** Piper has many; the cleanup in `document.py` and the
   reading-time constant are English-tuned.
-- ✅ **A sleep timer**: done 17 September -- Display ▾ → Stop reading, after 15/30/60
+- ✅ **A sleep timer**: done 17 September -- Reading ▾ → Stop reading, after 15/30/60
   minutes or at the end of this page or section; it pauses between sentences.
   `tools/check_sleep.mjs`. **Skip back 10 seconds**: not done (← already goes back a sentence).
 - 🟡 **Firefox and Safari** properly, if people ask. Firefox passes `tools/check_firefox.mjs` (17 September); Safari untried.

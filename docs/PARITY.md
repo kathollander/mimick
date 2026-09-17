@@ -26,6 +26,8 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Select text and press `Enter` (or right-click → *Read the selection*)
 - ⬜ Read aloud while a long document is still opening
 - ✅ Voice picker: the seven voices, with a sample of each; Norman by default
+- 🟡 **Choosing voices on purpose** (17 September, in progress): the voice box lists only kept voices, and *Select a new voice…* opens a picker like the desktop's *Offline voices*, with samples, tick boxes to download several, Remove, and which voices can make MP3s. Only Norman downloads without asking. *For the desktop:* it has the dialog, but not the MP3 marking or the MP3 rule below
+- 🟡 **Convert to MP3 uses only voices with no licence question** (Norman, for now), with a note saying why — *the desktop's export offers every voice*
 - ✖ Nicknames for voices — not wanted for now: seven voices need no renaming (17 September)
 - ✖ Microsoft online voices, Kokoro — a web page cannot reach them
 
@@ -51,7 +53,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Note appearance: typeface, size, your name
 - ✅ Saving: kept in the browser as you work, and **Save a copy (PDF)** (`Ctrl`+`S`, File ▾, Notes ▾) — the desktop's companion PDF; Chrome asks where, other browsers download it
 - ✅ **Export notes** (File ▾): every highlight and note as Markdown — page, section, passage, heading, note. *The desktop has none.* **PDF only for the document itself** (17 September): highlights and notes are annotations on rectangles of a page, and a `.docx`, `.odt` or `.txt` copy has no faithful place to put them -- nor is a Word copy of a PDF a good copy of the PDF. People who want their notes elsewhere take the Markdown, which pastes into Word or Docs
-- ✅ Menus: **Notes ▾** and **Display ▾** in the top bar, standing in for the desktop's menu bar
+- ✅ Menus: **Notes ▾**, **Reading ▾** and **Display ▾** in the top bar, standing in for the desktop's menu bar, and a strip of quick switches under ⌄
 
 ## What gets read
 
@@ -72,7 +74,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ⬜ **Recognise text in a scan (OCR)**: Tesseract reads each page, and the words go in as invisible text. Browser: `js/ocr.js`, `reader.add_text_layer`. The desktop could use Tesseract natively through PyMuPDF (`get_textpage_ocr`)
 - ⬜ **Sleep timer** (Display → Stop reading): minutes, end of page, end of section; pauses between sentences. Browser: `sleepDue` in `js/reader.js`
 - ⬜ **How to say words** (a pronunciation list): a word as printed and a sound-alike, applied before the phonemizer, with the timings put back under the printed word so highlighting is unchanged. Browser: `js/pronounce.js`
-- ⬜ **Light theme** following the system, and Display → Theme (Match the system / Dark / Light). Browser: the token sets at the top of `reader.html`
+- ⬜ **Light theme** following the system, and Display → Theme (Night, the default / Day / Match the system). Browser: the token sets at the top of `reader.html`
 - ⬜ **Highlight colours for colour-blind readers**: simulated over white at the drawn opacity, Blue and Pink are close for protanopia (ΔE 6.8) and Green and Blue for tritanopia (6.4); every other pair is 12 or more. The four colours are `annotations.COLOURS`, shared, so change them in both or neither -- Kat's call
 
 Features the browser has that the desktop app does not. Add them there too.

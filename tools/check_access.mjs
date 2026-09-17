@@ -4,9 +4,9 @@
  *     python3 serve.py &          # the page, on 8731
  *     node tools/check_access.mjs
  *
- * Checks the page follows the system's light or dark setting, that Display →
- * Theme overrides it and is kept over a reload (on <html> before the page
- * draws), that the text cursor stops blinking when the system asks for less
+ * Checks the page opens in Night whatever the system says, that Display →
+ * Theme → Day and Match the system change it and are kept over a reload (on
+ * <html> before the page draws), that the text cursor stops blinking when the system asks for less
  * motion, and that every button, box and slider has a name a screen reader can
  * say -- words, not a glyph like ‹ or ⚙. Needs no voice.
  */
@@ -22,25 +22,33 @@ await r.reset();
 const panel = () => ev(`getComputedStyle(document.documentElement).getPropertyValue("--panel").trim()`);
 const DARK = "#191d24", LIGHT = "#f7f8fa";
 
-// 1. The system's setting.
+// 1. Night to begin with, whatever the system says.
 await media([{ name: "prefers-color-scheme", value: "light" }]); await sleep(300);
-check("a light system gets the light theme", (await panel()) === LIGHT, await panel());
+check("a light system still opens in Night", (await panel()) === DARK, await panel());
 await media([{ name: "prefers-color-scheme", value: "dark" }]); await sleep(300);
-check("a dark system gets the dark theme", (await panel()) === DARK, await panel());
+check("…and so does a dark one", (await panel()) === DARK, await panel());
 
 // 2. Display → Theme.
 await r.openPdf(path.join(root, "sample/sample.pdf"));
 await r.click(await r.centre("#display-menu")); await sleep(300);
 const labels = await r.menuLabels();
-check("Display offers the theme", ["Match the system", "Dark", "Light"].every((l) => labels?.includes(l)), labels);
-await r.menu("Light");
-check("Light overrides a dark system", (await panel()) === LIGHT && (await ev(`document.documentElement.dataset.theme`)) === "light", await panel());
+check("Display offers the theme", ["Night", "Day", "Match the system"].every((l) => labels?.includes(l)), labels);
+await r.menu("Day");
+check("Day makes it light", (await panel()) === LIGHT && (await ev(`document.documentElement.dataset.theme`)) === "light", await panel());
 check("…and the browser's own title bar colour follows", (await ev(`document.querySelector('meta[name="theme-color"]').content`)) === LIGHT);
 await r.load();
 check("…kept over a reload, set before the page draws", (await ev(`document.documentElement.dataset.theme`)) === "light" && (await panel()) === LIGHT);
 await r.click(await r.centre("#display-menu")); await sleep(300);
 await r.menu("Match the system");
-check("Match the system goes back to it", (await panel()) === DARK && (await ev(`document.documentElement.dataset.theme`)) === undefined, await panel());
+check("Match the system follows a dark system", (await panel()) === DARK && (await ev(`document.documentElement.dataset.theme`)) === "system", await panel());
+await media([{ name: "prefers-color-scheme", value: "light" }]); await sleep(300);
+check("…and a light one, without a reload", (await panel()) === LIGHT, await panel());
+await r.load();
+check("…kept over a reload", (await ev(`document.documentElement.dataset.theme`)) === "system" && (await panel()) === LIGHT, await panel());
+await r.click(await r.centre("#display-menu")); await sleep(300);
+await r.menu("Night");
+check("Night goes back to dark", (await panel()) === DARK && (await ev(`document.documentElement.dataset.theme`)) === undefined, await panel());
+await media([{ name: "prefers-color-scheme", value: "dark" }]); await sleep(300);
 
 // 3. Less motion: the cursor holds still.
 await r.openPdf(path.join(root, "sample/sample.pdf"));

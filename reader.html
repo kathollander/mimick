@@ -11,13 +11,13 @@
 <!-- Kept for offline use, and cross-origin isolated so the voice gets threads,
      which GitHub Pages can only give through a service worker: sw.js. -->
 <script src="js/offline.js"></script>
-<!-- The theme chosen under Display, before anything is drawn, so it never flashes the other one. -->
-<script>try { const t = localStorage.getItem("mimick-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch { /* the system's */ }</script>
+<!-- The theme chosen under Display, before anything is drawn, so it never flashes the other one. Night (dark) unless one is kept. -->
+<script>try { const t = localStorage.getItem("mimick-theme"); if (t === "light" || t === "system") document.documentElement.dataset.theme = t; } catch { /* night */ }</script>
 <style>
   /* The desktop app's colours, from mimick/ui/theme.py, and a light set beside
-     them. The system's choice is followed unless Display ▾ → Theme says
-     otherwise (data-theme on <html>, set by js/reader.js). The page itself
-     stays white either way: it is the document. */
+     them. Night (dark) unless Display ▾ → Theme or the switches strip picks Day
+     (data-theme="light") or the system's choice (data-theme="system"), set on
+     <html> by js/reader.js. The page itself stays white either way: it is the document. */
   :root {
     color-scheme: dark;
     --backdrop: #101216; --panel: #191d24; --panel-hi: #222732; --border: #2b313d;
@@ -27,7 +27,7 @@
     --caret: #7fb4ff; --shadow: rgba(0, 0, 0, .4);
   }
   @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
+    :root[data-theme="system"] {
       color-scheme: light;
     --backdrop: #d9dde3; --panel: #f7f8fa; --panel-hi: #eceef2; --border: #cfd4dc;
     --text: #1b1f27; --dim: #586072; --accent: #1f66d6; --hover: #e2e6ec; --pressed: #d5dae2;
@@ -49,7 +49,8 @@
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { display: grid; grid-template-rows: auto auto 1fr auto auto; background: var(--backdrop); color: var(--text);
+  /* A column: the bars and strips as tall as they need, the page area the rest. */
+  body { display: flex; flex-direction: column; background: var(--backdrop); color: var(--text);
          font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
 
   .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
@@ -59,7 +60,30 @@
   .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
   .centre { display: flex; align-items: center; gap: 8px; }
   .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 0; }
-  .brand { font-weight: 600; letter-spacing: .2px; }
+  .brand { flex-shrink: 0; font-weight: 600; letter-spacing: .2px; padding-right: 10px; border-right: 1px solid var(--border); }
+  /* The quick switches: one row of small toggles under the top bar, opened by ⌄ at its right end. */
+  #switches { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px 14px;
+              background: var(--panel); border-bottom: 1px solid var(--border); }
+  #switches .sep { width: 1px; align-self: stretch; margin: 3px 6px; background: var(--border); }
+  #switches button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; font-size: 12px;
+                     color: var(--dim); background: transparent; border-color: transparent; border-radius: 999px; }
+  #switches button:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: var(--hover-border); }
+  #switches button[aria-pressed="true"] { color: var(--text); background: var(--panel-hi); border-color: var(--border); }
+  #switches button[aria-pressed="true"] svg { color: var(--accent); }
+  #switches button:disabled { background: transparent; color: var(--disabled); }
+  /* Night or day is not on or off: always drawn plainly, never greyed. */
+  #switches #sw-theme { color: var(--text); }
+  /* Short of room, the icons alone; the words stay for screen readers and in each tooltip. */
+  @media (max-width: 1150px) {
+    #switches button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    #switches button { padding: 4px 8px; }
+  }
+  #switches svg, #switches-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7;
+                                        stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  #switches-toggle { display: inline-grid; place-items: center; }
+  #switches-toggle svg { transition: transform .15s; }
+  #switches-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  @media (prefers-reduced-motion: reduce) { #switches-toggle svg { transition: none; } }
   .dim { color: var(--dim); }
   /* The title takes whatever room is left, and none if there is none: it is
      also the tab's name, so nothing is lost when it is squeezed out. */
@@ -86,7 +110,7 @@
   a { color: var(--accent); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  #main { position: relative; display: grid; grid-template-columns: auto 1fr auto; min-height: 0; }
+  #main { position: relative; flex: 1 1 0; display: grid; grid-template-columns: auto 1fr auto; min-height: 0; }
   /* Placed by hand: a hidden panel must not let the page slide into its column. */
   #contents { grid-area: 1 / 1; } #view { grid-area: 1 / 2; } #notes { grid-area: 1 / 3; }
   #view { position: relative; overflow: auto; outline: none; }
@@ -283,9 +307,9 @@
 
 <header class="bar">
   <div class="left">
-    <span class="brand">Mimick</span>
     <button id="file-menu" title="Open a PDF or document, find text, save, or turn it into an audio file">File ▾</button>
     <button id="notes-menu" title="Highlights and notes">Notes ▾</button>
+    <button id="reading-menu" title="What is read aloud, how words are said, and when reading stops">Reading ▾</button>
     <button id="display-menu" title="What is shown, and where">Display ▾</button>
     <input id="file" type="file" accept="application/pdf,.pdf,.docx,.odt,.epub,text/plain,.txt" hidden>
     <label class="dim" for="speed">Speed</label>
@@ -302,8 +326,36 @@
     <button id="voice-sample" class="square" aria-label="Hear this voice" title="Hear this voice">▶</button>
     <span id="title" class="dim"></span>
     <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
+    <button id="switches-toggle" class="square" aria-controls="switches" aria-expanded="false"
+            aria-label="Quick switches" title="Show the quick switches: night or day, what is read, the timer, the panels">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
   </div>
 </header>
+
+<!-- The quick switches; js/reader.js fills in which are on. Each is also in Reading ▾ or Display ▾. -->
+<div id="switches" role="toolbar" aria-label="Quick switches" hidden>
+  <button id="sw-theme" aria-label="Night" title="Night or day">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg><span>Night</span></button>
+  <span class="sep"></span>
+  <button id="sw-clean_text" aria-pressed="false" title="Tidy the text before it is read: running headers, page numbers, hyphens">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l1.3 3.2L12.5 6.5 9.3 7.8 8 11 6.7 7.8 3.5 6.5l3.2-1.3z"/><path d="M12.5 11v3M11 12.5h3"/></svg><span>Clean up text</span></button>
+  <button id="sw-skip_citations" aria-pressed="false" title="Pass over citations like (Smith, 2020) or [12] while reading">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3H3v10h2M11 3h2v10h-2M6 10.5l4-5"/></svg><span>Skip citations</span></button>
+  <button id="sw-read_footnotes" aria-pressed="false" title="Read the footnotes aloud where they are">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13h8M2.5 10h11M11.5 2.5v4M10.5 3.5l1-1"/></svg><span>Read footnotes</span></button>
+  <button id="sw-click_read" aria-pressed="false" title="Click a sentence to start reading from it">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5l8 5.2-3.6.8 2.1 4.2-1.6.8-2.1-4.2L4 11.8z"/></svg><span>Click to read</span></button>
+  <span class="sep"></span>
+  <button id="sw-sleep" aria-pressed="false" aria-haspopup="menu" title="Stop reading after a while, or at the end of the page or section">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5M6.5 1.5h3"/></svg><span>Timer off</span></button>
+  <span class="sep"></span>
+  <button id="sw-contents" aria-pressed="false" title="The table of contents  (F9)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h1M6 4h7.5M2.5 8h1M6 8h7.5M2.5 12h1M6 12h7.5"/></svg><span>Contents</span></button>
+  <button id="sw-notes" aria-pressed="false" title="The notes panel  (Ctrl+B)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg><span>Notes</span></button>
+  <button id="sw-markup" aria-pressed="false" title="The Highlight and Add note buttons  (Ctrl+Shift+H)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2.5l3.5 3.5-6 6H4v-3.5z"/><path d="M2.5 14h11"/></svg><span>Highlight buttons</span></button>
+</div>
 
 <div id="markup-top" class="strip" hidden></div>
 
@@ -387,7 +439,7 @@
       <span>Speed</span><select id="convert-speed" aria-label="Speed"></select>
       <span>Convert</span><select id="convert-scope" aria-label="What to convert"></select>
       <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number" aria-label="From page"> to <input id="convert-to" type="number" aria-label="To page"></div>
-      <span>Text</span><label title="Leaves out the reference list, masthead and declarations. For this conversion only; Display is left as it is."><input id="convert-clean" type="checkbox"> Clean up text for reading</label>
+      <span>Text</span><label title="Leaves out the reference list, masthead and declarations. For this conversion only; Reading ▾ is left as it is."><input id="convert-clean" type="checkbox"> Clean up text for reading</label>
     </div>
     <div id="convert-estimate"><div id="convert-time"></div><div id="convert-length" class="dim"></div></div>
     <div id="convert-where" class="dim"></div>
@@ -483,7 +535,7 @@
       </table>
       <h2>Choosing what gets read</h2>
       <table>
-        <tr><td>Click a sentence</td><td>Start reading from there. Turn this off under Display → Click to read.</td></tr>
+        <tr><td>Click a sentence</td><td>Start reading from there. Turn this off under Reading → Click to read.</td></tr>
         <tr><td>Drag across text</td><td>Select a passage</td></tr>
         <tr><td>Double-click</td><td>Select the whole sentence</td></tr>
         <tr><td>Right-click</td><td>Start reading from that point, whichever way Click to read is set</td></tr>
@@ -491,7 +543,7 @@
         <tr><td>Ctrl+C</td><td>Copy the selected text, or the highlight you have clicked</td></tr>
         <tr><td>Esc</td><td>Clear the selection</td></tr>
         <tr><td>Ctrl+R</td><td>Show what gets read, in order; click a region to read or skip it</td></tr>
-        <tr><td>Right-click a selected word</td><td>Teach the voice how to say it (Display → How to say words)</td></tr>
+        <tr><td>Right-click a selected word</td><td>Teach the voice how to say it (Reading → How to say words)</td></tr>
       </table>
       <h2>Moving the cursor — while reading is paused</h2>
       <table>
@@ -642,7 +694,7 @@
 <div id="menu" role="menu" hidden></div>
 
 <footer class="bar">
-  <div class="left"><span id="reading-time" hidden></span><span id="status" class="dim">Getting ready…</span></div>
+  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="status" class="dim">Getting ready…</span></div>
   <div class="centre">
     <button id="prev" class="square" aria-label="Previous page" title="Previous page  (Page Up)" disabled>‹</button>
     <input id="page" type="number" aria-label="Page number" min="1" value="1" title="Jump to page" disabled>

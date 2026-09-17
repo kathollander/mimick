@@ -849,7 +849,7 @@
    * not yet: the reading order and the switches can still change that. */
   const built = () => doc?.sentences != null;
   const pagesCount = () => `${doc.pages.length} page${doc.pages.length === 1 ? "" : "s"}`;
-  const NOTHING_SET = "Nothing here is set to be read — Display ▾ → Show reading order to choose what is";
+  const NOTHING_SET = "Nothing here is set to be read — Reading ▾ → Show reading order to choose what is";
 
   function setReadable(on, why = null) {
     $("play").disabled = !on;
@@ -1351,7 +1351,7 @@
   // The desktop's keys, where a browser lets a page have them. See "Shortcuts"
   // in the desktop repo's docs/FUTURE-FEATURES.md.
 
-  // --- what gets read: the Display menu's switches ------------------------------
+  // --- what gets read: Reading ▾'s switches ------------------------------
   // Each is remembered, and the document worker is told at open. Changing one
   // rebuilds the sentences; the reader's place is held by the word being read,
   // whose index a rebuild never changes (desktop trap 9).
@@ -1507,25 +1507,28 @@
     };
   })();
 
-  // Light or dark: the system's choice, unless one is picked here. reader.html
+  // Night (dark) unless Day or the system's choice is picked here. reader.html
   // puts a kept choice on <html> before the page draws.
-  const currentTheme = () => { const t = recall("mimick-theme"); return t === "dark" || t === "light" ? t : "system"; };
+  const currentTheme = () => { const t = recall("mimick-theme"); return t === "light" || t === "system" ? t : "dark"; };
+  /* Whether the page is dark right now, whichever way it was chosen. */
+  const isNight = () => currentTheme() === "dark" || (currentTheme() === "system" && !matchMedia("(prefers-color-scheme: light)").matches);
   function setTheme(theme) {
     remember("mimick-theme", theme);
-    if (theme === "system") delete document.documentElement.dataset.theme;
+    if (theme === "dark") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
     showTheme();
-    status({ system: "Following the system's light or dark setting", dark: "Dark theme", light: "Light theme" }[theme]);
+    showSwitches();
+    status({ system: "Following the system's light or dark setting", dark: "Night", light: "Day" }[theme]);
   }
   function showTheme() {
     const panel = getComputedStyle(document.documentElement).getPropertyValue("--panel").trim();
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", panel || "#191d24");
   }
-  matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", showTheme);
+  matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", () => { showTheme(); showSwitches(); });
   showTheme();
 
   // --- the sleep timer ------------------------------------------------------------
-  // Display ▾ → Stop reading: after some minutes, or at the end of this page or
+  // Reading ▾ → Stop reading: after some minutes, or at the end of this page or
   // section. It stops between sentences, never in the middle of one, by pausing
   // as the next begins -- so Space carries on from there.
 
@@ -1560,6 +1563,7 @@
     const said = { minutes: "the time you set", page: "the end of the page", section: "the end of the section" }[sleep.kind];
     sleep = null;
     sleepStopped = true;
+    showSwitches();
     voice.pause();
     status(`Sleep timer: stopped at ${said} — Space carries on`);
     return true;
@@ -1626,24 +1630,42 @@
   }
   sayDialog.addEventListener("close", () => view.focus());
 
-  function displayMenu() {
+  // Reading ▾: what is read and how, and when it stops. Display ▾: how the page looks.
+  // The on/off ones are also in the quick switches strip, below.
+  const footnotesHere = () => !doc || !!doc.hasFootnotes;
+  const dropDown = (id, items) => {
+    $(id).onclick = (e) => {
+      const b = e.currentTarget.getBoundingClientRect();
+      if (!menu.hidden && menu.dataset.from === id) { closeMenu(); return; }
+      showMenu(b.left, b.bottom + 4, items());
+      menu.dataset.from = id;
+    };
+  };
+  function readingMenu() {
     return [
-      { label: "Show reading order", keys: "Ctrl+R", checked: order.on, run: order.toggle },
-      { label: "Click to read", checked: switchOn("click_read"), run: () => setSwitch("click_read", !switchOn("click_read")) },
+      ...sleepMenu(),
+      "-",
+      { label: "How to say words…", run: () => openSay() },
+      "-",
+      { label: "Clean up text for reading", checked: switchOn("clean_text"),
+        run: () => setSwitch("clean_text", !switchOn("clean_text")) },
       { label: "Skip citations while reading", checked: switchOn("skip_citations"),
         run: () => setSwitch("skip_citations", !switchOn("skip_citations")) },
       // Greyed out where there are none: a live switch that changes nothing reads as broken.
-      { label: "Read footnotes", checked: switchOn("read_footnotes"), enabled: !doc || !!doc.hasFootnotes,
+      { label: "Read footnotes", checked: switchOn("read_footnotes"), enabled: footnotesHere(),
         run: () => setSwitch("read_footnotes", !switchOn("read_footnotes")) },
-      { label: "Clean up text for reading", checked: switchOn("clean_text"),
-        run: () => setSwitch("clean_text", !switchOn("clean_text")) },
+      { label: "Click to read", checked: switchOn("click_read"), run: () => setSwitch("click_read", !switchOn("click_read")) },
+      "-",
+      { label: "Show reading order", keys: "Ctrl+R", checked: order.on, run: order.toggle },
       { label: "Reset reading order", enabled: built() && order.changed, run: order.reset },
-      { label: "How to say words…", run: () => openSay() },
-      "-",
-      ...sleepMenu(),
-      "-",
+    ];
+  }
+  dropDown("reading-menu", readingMenu);
+
+  function displayMenu() {
+    return [
       { label: "Theme", enabled: false },
-      ...[["system", "Match the system"], ["dark", "Dark"], ["light", "Light"]].map(([theme, label]) =>
+      ...[["dark", "Night"], ["light", "Day"], ["system", "Match the system"]].map(([theme, label]) =>
         ({ label, indent: true, checked: currentTheme() === theme, run: () => setTheme(theme) })),
       "-",
       ...contents.displayMenu(),
@@ -1655,15 +1677,59 @@
     ];
   }
 
-  const dropDown = (id, items) => {
-    $(id).onclick = (e) => {
-      const b = e.currentTarget.getBoundingClientRect();
-      if (!menu.hidden && menu.dataset.from === id) { closeMenu(); return; }
-      showMenu(b.left, b.bottom + 4, items());
-      menu.dataset.from = id;
-    };
-  };
   dropDown("display-menu", displayMenu);
+
+  // --- the quick switches ---------------------------------------------------------
+  // A strip of small toggles under the top bar, opened and closed by ⌄ at the
+  // bar's right end (kept; closed at first). Each mirrors an entry in Reading ▾
+  // or Display ▾, so it is redrawn after anything that might change one.
+
+  const switchesEl = $("switches"), switchesToggle = $("switches-toggle");
+  const QUICK = ["clean_text", "skip_citations", "read_footnotes", "click_read"];
+  function showSwitches() {
+    if (!switchesEl || switchesEl.hidden) return;
+    const night = isNight(), theme = $("sw-theme");
+    theme.querySelector("span").textContent = night ? "Night" : "Day";
+    theme.ariaLabel = night ? "Night: switch to day" : "Day: switch to night";
+    theme.title = currentTheme() === "system" ? "Following the system; click for " + (night ? "day" : "night")
+      : (night ? "Night — click for day" : "Day — click for night");
+    theme.querySelector("svg").innerHTML = night
+      ? '<path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/>'
+      : '<circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/>';
+    for (const name of QUICK) $("sw-" + name).setAttribute("aria-pressed", switchOn(name));
+    $("sw-read_footnotes").disabled = !footnotesHere();
+    $("sw-sleep").setAttribute("aria-pressed", !!sleep);
+    $("sw-sleep").querySelector("span").textContent = sleep
+      ? { minutes: sleep.label.replace("In ", "").replace(" minutes", " min"), page: "End of page", section: "End of section" }[sleep.kind]
+      : "Timer off";
+    const cItem = contents.displayMenu()[0], nItem = notes.displayMenu();
+    $("sw-contents").setAttribute("aria-pressed", cItem.checked);
+    $("sw-contents").disabled = cItem.enabled === false;
+    $("sw-notes").setAttribute("aria-pressed", nItem.find((i) => i.label === "Notes panel").checked);
+    $("sw-markup").setAttribute("aria-pressed", nItem.find((i) => i.label === "Highlight and note buttons").checked);
+  }
+  function openSwitches(on) {
+    remember("mimick-switches", on ? "1" : "0");
+    switchesEl.hidden = !on;
+    switchesToggle.setAttribute("aria-expanded", on);
+    switchesToggle.title = on ? "Hide the quick switches"
+      : "Show the quick switches: night or day, what is read, the timer, the panels";
+    showSwitches();
+  }
+  switchesToggle.onclick = () => openSwitches(switchesEl.hidden);
+  $("sw-theme").onclick = () => setTheme(isNight() ? "light" : "dark");
+  for (const name of QUICK) $("sw-" + name).onclick = () => setSwitch(name, !switchOn(name));
+  $("sw-sleep").onclick = (e) => {
+    const b = e.currentTarget.getBoundingClientRect();
+    if (!menu.hidden && menu.dataset.from === "sw-sleep") { closeMenu(); return; }
+    showMenu(b.left, b.bottom + 4, sleepMenu());
+    menu.dataset.from = "sw-sleep";
+  };
+  $("sw-contents").onclick = () => contents.displayMenu()[0].run();
+  $("sw-notes").onclick = () => notes.togglePanel();
+  $("sw-markup").onclick = () => notes.toggleBar();
+  // Anything clicked or pressed may have changed a switch: redraw once it has run.
+  for (const type of ["click", "keydown"]) document.addEventListener(type, () => setTimeout(showSwitches), true);
 
   const convert = MimickConvert.create({
     call, status, voiceKept, speeds: SPEEDS,
@@ -1975,4 +2041,5 @@
   });
 
   showZoom();
+  openSwitches(recall("mimick-switches") === "1");
 })();

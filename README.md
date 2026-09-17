@@ -44,11 +44,11 @@ it works with no internet connection, and Chrome can install it as an app.
    and remembers them for next time.
 10. **A name said wrong?** Select the word, right-click, **How to say…**, and
    write it the way it sounds ("Foucault" as *foo koh*). The list is under
-   **Display ▾ → How to say words…**.
+   **Reading ▾ → How to say words…**.
 11. **Help ▾ → Keyboard shortcuts** (or `?`) lists everything else.
 
 Mimick skips page numbers, running headers and the reference list by itself.
-**Display ▾ → Show reading order** (`Ctrl`+`R`) shows what it will read and in
+**Reading ▾ → Show reading order** (`Ctrl`+`R`) shows what it will read and in
 what order; click a region to read or skip it.
 
 ## Browsers

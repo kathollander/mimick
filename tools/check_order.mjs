@@ -28,7 +28,7 @@ const state = () => ev(`JSON.stringify({
   card: document.querySelector("#cards .note-card")?.textContent || "",
   status: document.getElementById("status").textContent })`).then(JSON.parse);
 const sentences = async () => Number((await ev(`document.getElementById("status").textContent`)).match(/(\d+) sentences/)?.[1]);
-const display = async () => { await r.click(await r.centre("#display-menu")); await sleep(300); };
+const display = async () => { await r.click(await r.centre("#reading-menu")); await sleep(300); };
 
 // A highlight first, to see it stays on its words.
 await r.drag(await r.at(243, 260), await r.at(330, 260));
@@ -41,7 +41,7 @@ check("Ctrl+R outlines the regions, read and skipped", s.reads > 0 && s.skipped 
 check("…numbered in reading order", s.tags.join(",") === s.tags.map((_, i) => i + 1).join(","), s.tags);
 check("…and says how many", /Reading 15 regions, skipping 10/.test(s.status), s.status);
 await display();
-check("Display lists it, ticked", (await r.menuLabels())?.some((l) => l.endsWith("Show reading order")), await r.menuLabels());
+check("Reading lists it, ticked", (await r.menuLabels())?.some((l) => l.endsWith("Show reading order")), await r.menuLabels());
 await r.key("Escape");
 
 // 2. Skipping the introduction's first paragraph.

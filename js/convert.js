@@ -9,7 +9,7 @@
  *
  * What gets spoken comes from the document worker (reader.convert_texts), by
  * the same rules as reading aloud, so the two never drift. The cleanup starts
- * as Display has it; switched here, it applies to this conversion only, and
+ * as Reading ▾ has it; switched here, it applies to this conversion only, and
  * the document worker reads a second copy of the PDF the other way, as the
  * desktop's ExportDialog does.
  */
@@ -126,7 +126,7 @@
     async function refresh() {
       $("convert-range").hidden = $("convert-scope").value !== "pages";
       const mine = ++refreshing, s = scope(), speed = Number($("convert-speed").value), key = $("convert-voice").value;
-      // The other way from Display, the worker reads the whole PDF again first: on a long book, a while.
+      // The other way from Reading ▾, the worker reads the whole PDF again first: on a long book, a while.
       $("convert-time").textContent = clean() === ctx.cleanText() ? "Working out how long it takes…"
         : `Reading the document again with the cleanup ${clean() ? "on" : "off"} — on a long book this takes a while…`;
       $("convert-length").textContent = "";

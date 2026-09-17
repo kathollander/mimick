@@ -44,9 +44,9 @@ await r.key("Escape"); await sleep(300);
 
 // 2. Kept, and removable.
 await r.load();
-await r.click(await r.centre("#display-menu")); await sleep(300);
+await r.click(await r.centre("#reading-menu")); await sleep(300);
 await r.menu("How to say words…");
-check("kept over a reload, and found under Display", JSON.stringify(await listed()) === JSON.stringify(["Once → wunss", "dreary → dree-ree"]), await listed());
+check("kept over a reload, and found under Reading", JSON.stringify(await listed()) === JSON.stringify(["Once → wunss", "dreary → dree-ree"]), await listed());
 await r.click(await ev(`(() => { const b = document.querySelector("#say-list .say-row button").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`));
 await sleep(300);
 check("✕ takes one off the list", JSON.stringify(await listed()) === JSON.stringify(["dreary → dree-ree"]), await listed());

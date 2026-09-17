@@ -1,4 +1,4 @@
-/* The Display and Help menus, in a real Chrome.
+/* The Reading, Display and Help menus and the quick switches, in a real Chrome.
  *
  *     python3 serve.py &          # the page, on 8731
  *     node tools/check_display.mjs
@@ -7,8 +7,9 @@
  * read off and on again, Clean up text for reading rebuilding the sentences (29
  * tidied, 39 verbatim) and being remembered at the next open, a highlight
  * staying on its words through that rebuild, Read footnotes offered on a paper
- * that has them and greyed out on the poem that has none, and the keyboard
- * shortcuts and About windows.
+ * that has them and greyed out on the poem that has none, the keyboard
+ * shortcuts and About windows, and the strip of quick switches under ⌄
+ * agreeing with the menus.
  */
 import path from "node:path";
 import { CTRL, root, startReader } from "./cdp.mjs";
@@ -21,13 +22,21 @@ await r.reset();
 await r.openPdf(SAMPLE);
 await wait(`!document.getElementById("markup-highlight").disabled`);
 const play = () => ev(`document.getElementById("play").textContent`);
-const display = async (label) => { await r.click(await r.centre("#display-menu")); await sleep(200); if (label) await r.menu(label); };
+const display = async (label) => { await r.click(await r.centre("#reading-menu")); await sleep(200); if (label) await r.menu(label); };
 
 // 1. Click to read.
 await display();
 const labels = await r.menuLabels();
-check("Display offers the reading switches", ["Click to read", "Skip citations while reading", "Read footnotes", "Clean up text for reading",
-                                              "Notes panel", "Zoom in"].every((l) => labels?.some((m) => m.endsWith(l))), labels);
+check("Reading offers the reading switches", ["Click to read", "Skip citations while reading", "Read footnotes", "Clean up text for reading",
+                                              "How to say words…", "In 15 minutes", "Show reading order"].every((l) => labels?.some((m) => m.endsWith(l))), labels);
+await r.key("Escape"); await sleep(200);
+await r.click(await r.centre("#display-menu")); await sleep(200);
+const shown = await r.menuLabels();
+check("Display keeps the theme, panels and zoom, and none of the reading switches",
+      ["Night", "Day", "Match the system", "Notes panel", "Zoom in"].every((l) => shown?.some((m) => m.endsWith(l)))
+      && !shown?.some((m) => /Click to read|Stop reading|How to say/.test(m)), shown);
+await r.key("Escape"); await sleep(200);
+await display();
 check("Read footnotes is offered on a paper with footnotes", labels?.includes("Read footnotes"), labels);
 await r.menu("Click to read");
 check("switching Click to read off says so", /Clicking never starts reading/.test(await r.status()));
@@ -113,4 +122,43 @@ for (const width of [1300, 1024]) {
   check(`at ${width}px nothing in the top bar overlaps or wraps`,
         !overlaps.length && boxes.every((b) => b[3] < 40) && boxes.every((b) => b[2] <= width), overlaps);
 }
+await r.t.send("Emulation.setDeviceMetricsOverride", { width: 1300, height: 900, deviceScaleFactor: 1, mobile: false });
+
+// 5. The quick switches under ⌄, and Mimick's name at the bottom left.
+check("Mimick's name is in the bottom bar, not the top", (await ev(`!!document.querySelector("footer .brand") && !document.querySelector("header .brand")`)));
+await r.openPdf(SAMPLE);
+const pressed = (id) => ev(`document.getElementById(${JSON.stringify(id)}).getAttribute("aria-pressed")`);
+check("the switches start closed", await ev(`document.getElementById("switches").hidden && document.getElementById("switches-toggle").ariaExpanded === "false"`));
+await r.click(await r.centre("#switches-toggle")); await sleep(300);
+check("⌄ opens them", await ev(`!document.getElementById("switches").hidden && document.getElementById("switches-toggle").ariaExpanded === "true"`));
+const mainTop = await ev(`document.getElementById("main").getBoundingClientRect().top`);
+check("…pushing the page down rather than covering it", mainTop > 80, mainTop);
+check("…and the page area still fills the window", await ev(`document.querySelector("footer").getBoundingClientRect().bottom <= innerHeight + 1
+  && document.getElementById("main").getBoundingClientRect().height > innerHeight - 200`));
+check("the switches show what is on", (await pressed("sw-clean_text")) === "true" && (await pressed("sw-click_read")) === "true", [await pressed("sw-clean_text"), await pressed("sw-click_read")]);
+await r.click(await r.centre("#sw-click_read")); await sleep(400);
+check("clicking one switches it", (await pressed("sw-click_read")) === "false" && (await ev(`localStorage.getItem("mimick-click_read")`)) === "0");
+await display();
+check("…and Reading ▾ agrees", await ev(`[...document.querySelectorAll("#menu button")].find((b) => b.textContent.includes("Click to read")).getAttribute("aria-checked") === "false"`));
+await r.menu("Click to read"); await sleep(400);
+check("…and the other way round", (await pressed("sw-click_read")) === "true");
+await r.key("b", CTRL); await sleep(400);
+check("a key changes its switch too (Ctrl+B, the notes panel)", (await pressed("sw-notes")) === "false");
+await r.key("b", CTRL); await sleep(400);
+await r.click(await r.centre("#sw-sleep")); await sleep(300);
+await r.menu("At the end of this page"); await sleep(300);
+check("the timer switch opens the timer, and shows the choice", (await pressed("sw-sleep")) === "true"
+  && (await ev(`document.getElementById("sw-sleep").textContent.trim()`)) === "End of page", await ev(`document.getElementById("sw-sleep").textContent.trim()`));
+await r.click(await r.centre("#sw-sleep")); await sleep(300);
+await r.menu("Off"); await sleep(300);
+const night = () => ev(`getComputedStyle(document.documentElement).getPropertyValue("--panel").trim()`);
+check("Night to begin with", (await night()) === "#191d24" && (await ev(`document.getElementById("sw-theme").textContent.trim()`)) === "Night");
+await r.click(await r.centre("#sw-theme")); await sleep(300);
+check("☾ switches to day", (await night()) === "#f7f8fa" && (await ev(`document.getElementById("sw-theme").textContent.trim()`)) === "Day");
+await r.click(await r.centre("#sw-theme")); await sleep(300);
+check("…and back", (await night()) === "#191d24");
+await r.load();
+check("open is kept over a reload", await ev(`!document.getElementById("switches").hidden`));
+await r.click(await r.centre("#switches-toggle")); await sleep(300);
+check("⌄ again closes them", await ev(`document.getElementById("switches").hidden`));
 r.finish();

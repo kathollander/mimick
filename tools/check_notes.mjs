@@ -76,6 +76,8 @@ await sleep(200);
 s = await state();
 check("the card shows the note as it is typed", s.cards[0]?.includes("Knowledge sits in the land."), s.cards);
 await r.click(await r.centre('#note-colours .swatch[title="Green"]'));
+// Back in the note, where the cursor is when someone has just finished writing.
+await r.click(await r.centre("#note-text"));
 await r.key("Enter", CTRL); await sleep(600);
 s = await state();
 check("Ctrl+Enter saves it: heading and note on the card", !(await ev(`document.getElementById("note-dialog").open`))

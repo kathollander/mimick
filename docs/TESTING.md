@@ -51,6 +51,18 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Menus: Reading ▾ and the quick switches
+
+Added 17 September, asked for by Kat.
+
+- [ ] The top bar reads File ▾, Notes ▾, Reading ▾, Display ▾, Speed … Help ▾, ⌄ -- and **Mimick** sits at the bottom left
+- [ ] **Reading ▾** has the timer, How to say words, the four reading switches, and the reading order; **Display ▾** has only the theme, the panels and zoom
+- [ ] **⌄** opens a row of switches under the top bar and turns into ⌃; again closes it; open or closed is kept after a reload
+- [ ] Each switch lights when on, and agrees with the menus after changing it either way (and after `F9`, `Ctrl`+`B`, `Ctrl`+`Shift`+`H`)
+- [ ] The ☾ / ☀ switch flips night and day at once
+- [ ] The timer switch opens the timer's choices, then shows the one picked ("15 min", "End of page"), and goes back to *Timer off* when it stops reading
+- [ ] At a narrow window (about 1000px) the top bar still fits and the switches wrap rather than spill
+
 ## Recognising text in a scan
 
 Added 17 September. Use a scanned reading with no text layer (if you can select no text in it elsewhere, it has none).
@@ -67,7 +79,7 @@ Added 17 September. Use a scanned reading with no text layer (if you can select 
 
 Added 17 September. Needs a voice.
 
-- [ ] **Display ▾ → Stop reading → In 15 minutes** while reading: after about 15 minutes it stops between two sentences, and says so
+- [ ] **Reading ▾ → Stop reading → In 15 minutes** while reading: after about 15 minutes it stops between two sentences, and says so
 - [ ] **At the end of this page** and **At the end of this section** stop in the right place
 - [ ] Space carries on from where it stopped
 
@@ -88,15 +100,16 @@ Added 17 September. Needs a voice.
 - [ ] Reading that sentence again, the voice says it your way, and the word is still lit as it is said
 - [ ] Try a two-part sound-alike ("nee cha" for Nietzsche) -- it sounds right, not like two separate words
 - [ ] The word with an ending ("Foucault's") is said your way too
-- [ ] **Display ▾ → How to say words…** lists them; ✕ removes one; the list is still there after a reload
+- [ ] **Reading ▾ → How to say words…** lists them; ✕ removes one; the list is still there after a reload
 - [ ] Convert to MP3 uses the list
 
 ## Light theme, and accessibility
 
 Added 17 September.
 
-- [ ] With the computer set to light mode, Mimick is light; set to dark, dark -- without reloading
-- [ ] **Display ▾ → Theme → Light / Dark** overrides it, and stays after a reload with no flash of the other
+- [ ] A first visit (or after clearing site data) opens in Night, whatever the computer is set to
+- [ ] **Display ▾ → Theme → Day / Night** switches it, and stays after a reload with no flash of the other
+- [ ] **Display ▾ → Theme → Match the system**: with the computer set to light mode, Mimick is light; set to dark, dark -- without reloading
 - [ ] Everything is readable in the light theme: dim text, disabled buttons, the find box, menus, dialogs, note cards
 - [ ] With "reduce motion" on in the system, the text cursor does not blink
 - [ ] With a screen reader (Orca, NVDA or VoiceOver), the top and bottom bar buttons are read as words
@@ -194,9 +207,27 @@ Added 17 September.
 - [ ] While it reads, it says how long is left at the current speed, and counts down
 - [ ] Roughly right: time a few minutes of reading against what it said
 
+## Choosing voices
+
+Added 17 September, **not built into the page yet**. This replaces the ▶
+beside the voice box in *The voice*, below. Reload the page first.
+
+- [ ] On a first visit to the real site, Norman downloads by itself, and reading aloud then works with the internet off
+- [ ] The **Voice** box lists only voices you have downloaded, then **Select a new voice…**
+- [ ] **Select a new voice…** opens a window with all seven voices, and says which can be used for MP3s
+- [ ] ▶ on each plays the rainbow sample straight away, with nothing downloading; ■ stops it
+- [ ] Tick two voices: the button says how many MB, and they download one after the other with progress
+- [ ] **Stop downloading** stops, and keeps any voice already finished
+- [ ] New voices appear in the Voice box, and read offline
+- [ ] **Remove** frees a voice, and can't remove the one in use
+- [ ] The line about space used and room left looks right
+- [ ] It feels deliberate without being annoying
+
 ## Convert to MP3
 
 Added 17 September. Reload the page first.
+
+- [ ] **Only Norman is offered**, with a note saying why the other voices are for reading only
 
 - [ ] **File ▾** in the top left has **Open…** and **Convert to MP3…**; Open still works, and so do `Ctrl`+`O` and dropping a PDF
 - [ ] **Convert to MP3…** shows the file name, voice, speed and what to convert, with how long converting takes and how long the audio runs
@@ -230,22 +261,22 @@ Added 17 September. Reload the page first.
 
 Added 17 September. Reload the page first.
 
-- [ ] `Ctrl`+`R` (or **Display ▾ → Show reading order**) outlines each part of the page: numbered in blue where it's read, greyed and labelled where it's skipped
+- [ ] `Ctrl`+`R` (or **Reading ▾ → Show reading order**) outlines each part of the page: numbered in blue where it's read, greyed and labelled where it's skipped
 - [ ] The numbers run in the order you'd read the page, down each column
 - [ ] Clicking a numbered part greys it out, and reading then skips it; clicking it again puts it back
 - [ ] Clicking doesn't start reading or select anything while the outlines are showing
 - [ ] Doing it while it reads carries on from about the same place
 - [ ] Highlights stay on the same words
 - [ ] Close the tab and open the same PDF again: your changes are still there
-- [ ] **Display ▾ → Reset reading order** undoes all of them
+- [ ] **Reading ▾ → Reset reading order** undoes all of them
 - [ ] `Ctrl`+`R` again hides the outlines, and clicking reads as before
 - [ ] On a two-column paper and on the scanned book, the outlines look sensible
 
-## Display switches, and Help
+## Reading switches, and Help
 
 Added 16 September, late.
 
-- [ ] **Display ▾ → Click to read** off: clicking a sentence no longer reads; right-click → *Start reading from here* still does. Back on: clicking reads again
+- [ ] **Reading ▾ → Click to read** off: clicking a sentence no longer reads; right-click → *Start reading from here* still does. Back on: clicking reads again
 - [ ] **Clean up text for reading** off: the status line says "reading the PDF verbatim" and the reference list gets read. Back on: it's skipped again
 - [ ] **Skip citations while reading** off: citations like "(Smith 2020)" are read out. Back on: passed over
 - [ ] **Read footnotes** is greyed out on a paper without footnotes; on one with them, turning it off skips them
