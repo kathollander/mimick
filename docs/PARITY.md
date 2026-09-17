@@ -7,7 +7,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 - ✅ Open a PDF: button, `Ctrl`+`O`, drag and drop
 - ✅ Open `.txt`, `.docx`, `.odt`, `.epub` the same ways, laid out as PDFs — *the desktop has none*
-- ⬜ Open Recent
+- ✅ Open Recent (File ▾, the last five; Chromium only — other browsers give a page no file handles)
 - ✅ Continuous scroll, page box, ‹ ›, `Page Up`/`Down`, `Ctrl`+`↑`/`↓`/`Home`/`End`
 - ✅ Zoom: − +, slider, % box, `Ctrl`+`+`/`−`/`0`, `Ctrl`+wheel
 - ✅ Keep scroll and zoom per document across a reload (`mimick-view:<key>`)

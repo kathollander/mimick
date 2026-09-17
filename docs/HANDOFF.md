@@ -102,6 +102,17 @@ removes `mimick-position|order|view:<key>`, `MimickNotesStore.remove`,
 page, should anything else need it. Checks that click a page now set
 `mimick-click_read` to `0` first, or the click starts the voice downloading.
 
+**Ship 2: Open Recent, done.** `js/recent.js` keeps up to eight
+`FileSystemFileHandle`s in IndexedDB (`mimick-recent`); File ▾ shows five.
+Handles come from `showOpenFilePicker` (now what **Open…** and `Ctrl`+`O` use
+where it exists -- the `<input>` is the fallback and what the checks drive), a
+drop (`getAsFileSystemHandle`, asked for synchronously in the drop handler), and
+`launchQueue`. Opening one asks `queryPermission`/`requestPermission` inside the
+menu click; a file since moved says so and leaves the list. Forget removes a
+document from the list by its file name. `check_recent` makes handles in the
+origin private file system, since headless Chrome has no open window.
+**Needs a person:** the permission prompt on a real reopen after a restart.
+
 **Ship 1 is done.** What is left before the link goes out is Kat's: the git
 history decision above, a look at Firefox and Safari, the new sections at the
 top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
@@ -235,6 +246,7 @@ the reason down rather than stopping to ask.
 | `js/reader.js` | Opening, pages, zoom, the reading controls, selecting and the cursor, the right-click and Display menus, every key. |
 | `js/read-aloud.js` | The player: prefetch, Web Audio, speed, which word is lit. No DOM. |
 | `js/notes.js` | Highlights on the page, the notes panel, note editor, undo, the movable strip, the Notes menu. |
+| `js/recent.js` | Open Recent: file handles kept in IndexedDB. |
 | `js/contents.js` | The table of contents panel (the PDF's bookmarks), its edge tab and `F9`. |
 | `js/notes-store.js`, `js/page-store.js` | IndexedDB: notes (never evicted), drawn scan pages (evicted). |
 | `js/document-worker.js` + `reader.py` | Pyodide with the desktop's `document.py` and `annotations.py`: sentences, words, the cursor's steps, highlights. The page asks through one generic `call` message for most of it. |
@@ -263,6 +275,7 @@ node tools/check_scan.mjs            # the same
 node tools/check_media.mjs           # the same; reuses the voice check_convert downloaded
 node tools/check_documents.mjs       # the same
 node tools/check_forget.mjs          # the same
+node tools/check_recent.mjs          # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

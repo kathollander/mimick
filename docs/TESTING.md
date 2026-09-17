@@ -51,6 +51,17 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Open Recent
+
+Added 17 September. Chrome, Edge or Brave only.
+
+- [ ] **File ▾ → Open…** (and `Ctrl`+`O`) opens the system's own open window, showing PDFs and documents
+- [ ] After opening two files, **File ▾** lists both under *Open recent*, newest first
+- [ ] Close the browser, open it again: choosing a recent file asks permission once, then opens it
+- [ ] A file dropped on the page appears in the list too
+- [ ] Rename or move a listed file: choosing it says it cannot be found, and it leaves the list
+- [ ] **Clear recent files** empties it; **Forget this document** takes that one out
+
 ## Keeping your place, and Forget this document
 
 Added 17 September.

@@ -187,7 +187,7 @@
     try {
       const [info, stored] = await Promise.all([Promise.any(opened), Store.open(key)]);
       if (mine !== generation) return;
-      doc = { title: info.title, pages: info.pages, key, name };
+      doc = { title: info.title, pages: info.pages, key, name, fileName: openingName ?? name };
       kept = stored;
       slow = kept.size > 0;
       document.title = `${doc.title} — Mimick`;
@@ -249,8 +249,10 @@
   const laidOutKind = (file) => Object.keys(LAID_OUT).find((kind) =>
     file.name.toLowerCase().endsWith("." + kind) || file.type === LAID_OUT[kind]) ?? null;
 
+  let openingName = null;     // the file's own name, for Forget to take it out of Open Recent
   async function openFile(file) {
     if (!file) return;
+    openingName = file.name;
     if (isText(file)) { openText(file); return; }
     const kind = laidOutKind(file);
     if (kind) { openDocument(file, kind); return; }
@@ -308,7 +310,33 @@
     catch { return new TextDecoder("windows-1252").decode(bytes); }
   }
 
-  const chooseFile = () => $("file").click();
+  // Where the browser has its own open window, it gives a handle that Open Recent
+  // can keep; elsewhere, the file input.
+  const OPEN_TYPES = [{ description: "PDFs and documents", accept: {
+    "application/pdf": [".pdf"], "text/plain": [".txt"], "application/epub+zip": [".epub"],
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+    "application/vnd.oasis.opendocument.text": [".odt"] } }];
+  async function chooseFile() {
+    if (!window.showOpenFilePicker || !MimickRecent.supported) { $("file").click(); return; }
+    let handle;
+    try {
+      [handle] = await window.showOpenFilePicker({ types: OPEN_TYPES });
+    } catch (err) {
+      if (err.name !== "AbortError") $("file").click();
+      return;
+    }
+    await MimickRecent.add(handle);
+    openFile(await handle.getFile());
+  }
+  async function openRecent(id, name) {
+    try {
+      openFile(await MimickRecent.file(id));
+    } catch (err) {
+      status(`Could not open ${name}: ${err.message}`);
+      if (!/not allowed/.test(err.message)) MimickRecent.remove(id);
+    }
+  }
+  MimickRecent.load();
   $("open-empty").onclick = chooseFile;
   $("file").onchange = () => { openFile($("file").files[0]); $("file").value = ""; };
 
@@ -321,6 +349,9 @@
     e.preventDefault();
     dragDepth = 0;
     view.classList.remove("dragging");
+    // The handle has to be asked for now, while the drop is still being handled.
+    const handle = e.dataTransfer.items?.[0]?.getAsFileSystemHandle?.();
+    handle?.then((h) => h && h.kind === "file" && MimickRecent.add(h)).catch(() => {});
     openFile(e.dataTransfer.files[0]);
   });
 
@@ -604,8 +635,9 @@
   }
   $("forget-dialog").addEventListener("close", async () => {
     if ($("forget-dialog").returnValue !== "forget" || !doc) { view.focus(); return; }
-    const { key, title } = doc;
+    const { key, title, fileName } = doc;
     closeDocument();
+    for (const recent of MimickRecent.list()) if (recent.name === fileName) MimickRecent.remove(recent.id);
     for (const kind of ["position", "order", "view"]) {
       try { localStorage.removeItem(`mimick-${kind}:${key}`); } catch { /* not kept */ }
     }
@@ -1442,8 +1474,19 @@
     rate: () => voice.rate,
     cleanText: () => switchOn("clean_text"),
   });
+  const recentItems = () => {
+    const files = MimickRecent.list().slice(0, 5);
+    if (!files.length) return [];
+    return [
+      { label: "Open recent", enabled: false },
+      ...files.map(({ id, name }) => ({ label: name, indent: true, run: () => openRecent(id, name) })),
+      { label: "Clear recent files", indent: true, run: () => { MimickRecent.clear(); status("Recent files cleared"); } },
+      "-",
+    ];
+  };
   dropDown("file-menu", () => [
     { label: "Open…", keys: "Ctrl+O", run: chooseFile },
+    ...recentItems(),
     { label: "Find in document…", keys: "Ctrl+F", enabled: !!doc, run: () => find.open() },
     "-",
     // PDF only: highlights and notes are annotations on rectangles of a page, which no
@@ -1480,7 +1523,9 @@
   // Opened from the computer's own file manager, once installed as an app.
   if ("launchQueue" in window) {
     window.launchQueue.setConsumer(async ({ files }) => {
-      if (files?.length) openFile(await files[0].getFile());
+      if (!files?.length) return;
+      MimickRecent.add(files[0]);
+      openFile(await files[0].getFile());
     });
   }
 

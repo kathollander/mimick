@@ -111,7 +111,7 @@ Then Kat makes the repository public and sends the link.
 - ✅ **The PDF's outline** (table of contents) in a side panel. Done 17 September,
   ahead of its turn because Kat asked for it: `js/contents.js`, `F9`, a tab on
   the page's left edge.
-- **Open Recent** in File ▾ (Chrome keeps file handles in IndexedDB).
+- ✅ **Open Recent** in File ▾. Done 17 September: `js/recent.js`, `tools/check_recent.mjs`.
 - ✅ **Keep scroll and zoom per document**, and **Forget this document**. Done 17 September; `tools/check_forget.mjs`.
 - **Export notes** as Markdown, if item 7 did not already do it.
 - **The page's own accessibility.** A light theme following
