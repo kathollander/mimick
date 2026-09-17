@@ -18,6 +18,10 @@ it works with no internet connection, and Chrome can install it as an app.
 
 ## How to use it
 
+**New here?** Click **Show me around** on the front page: a short tour on a
+sample poem that teaches the keys as you press them. Skip any step, leave any
+time, and it is under **Help ▾** afterwards.
+
 1. **Open a PDF** -- or a Word (`.docx`), OpenDocument (`.odt`), EPUB or `.txt`
    file. Use **File ▾ → Open…**, or `Ctrl`+`O`, or drop the file anywhere on the
    page. It opens in your browser and is not uploaded anywhere. Documents that

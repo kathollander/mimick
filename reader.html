@@ -368,8 +368,13 @@
   }
   #tour-card { position: fixed; left: 0; top: 0; width: min(390px, calc(100vw - 24px)); padding: 12px 14px 12px;
                background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-               box-shadow: 0 10px 34px var(--shadow); pointer-events: auto;
-               transition: transform .3s cubic-bezier(.33, 0, .2, 1); }
+               box-shadow: 0 10px 34px var(--shadow);
+               transition: transform .3s cubic-bezier(.33, 0, .2, 1), opacity .2s ease-out; }
+  /* Only the buttons take the mouse: a step that asks for a drag across the page
+     must work even where the card sits over the words, and it fades while it does. */
+  #tour-card { pointer-events: none; }
+  #tour-card button { pointer-events: auto; }
+  #tour-card.faded { opacity: .2; }
   #tour-card.done { border-color: var(--accent); }
   .tour-top { display: flex; align-items: center; gap: 8px; font-size: 12px; }
   .tour-top button { padding: 2px 8px; font-size: 12px; }

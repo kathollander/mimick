@@ -153,6 +153,12 @@ Then Kat makes the repository public and sends the link.
   **A pronunciation list**, per user: a word and how to say it, applied
   before the phonemizer. Names and jargon are where voices stumble.
 
+- ✅ **A guided tour**, done 17 September, asked for by Kat: **Show me around**
+  on the front page and **Help ▾ → Take the tour**. Fourteen steps on the
+  sample poem, each done with the reader's own keys and clicks, with Skip and a
+  way out at every step. `js/tour.js`, `tools/check_tour.mjs`; `HANDOFF.md`,
+  *The tour*.
+
 ## Ship 3 -- later
 
 - ✅ **OCR for scanned PDFs** -- done 17 September: File ▾ → Recognise text in

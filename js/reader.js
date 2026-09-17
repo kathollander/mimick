@@ -821,11 +821,15 @@
 
   // --- pages --------------------------------------------------------------------
 
+  // Counted, like readFrom: turning the page on purpose is not the same as the
+  // reading scrolling on to the next one, and the tour has to tell them apart.
+  let pageTurns = 0;
   function goToPage(page) {
     if (!doc) return;
     page = Math.min(doc.pages.length - 1, Math.max(0, page));
     view.scrollTop = geometry.topFor({ page, fraction: 0 }) - L.PAGE_MARGIN;
     $("page").value = page + 1;
+    pageTurns++;
     update();
   }
   const currentPage = () => geometry.pageAt(view.scrollTop + view.clientHeight / 3);
@@ -1014,11 +1018,15 @@
     if (voice.source !== "document") voice.open(doc.sentences, "document");
   }
 
+  // Counted, not just done: the tour's "click a sentence" step can only tell a
+  // click from the reading simply moving on if it is told (js/tour.js).
+  let readFromCount = 0;
   function readFrom(sentence) {
     if (sentence === null || !doc?.sentences) return;
     voice.prepare();
     useDocument();
     voice.play(sentence);
+    readFromCount++;
   }
 
   /* Carry on where this document was left, if that is where the reader is
@@ -2046,6 +2054,8 @@
     statusText: () => $("status").textContent,
     readingState: () => voice.state,
     sentence: () => lit.sentence,
+    readFrom: () => readFromCount,
+    pageTurns: () => pageTurns,
     speed: () => voice.rate,
     voiceKey: () => voice.voice,
     caret: () => caret.index,

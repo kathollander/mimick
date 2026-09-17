@@ -338,6 +338,57 @@ for getting this to Kat's classmates; it takes over from **Next** below as
 the thing to work on. Where the roadmap says *your call*, decide and write
 the reason down rather than stopping to ask.
 
+## The tour, 17 September
+
+`js/tour.js`, `#tour` in `reader.html`, `tools/check_tour.mjs`. **Show me
+around** on the front page, and **Help ▾ → Take the tour**. Kat asked for "a
+more formal version" of the ghost cursor, on the sample, with a way out and a
+Skip in the bottom right.
+
+How it works:
+
+- **Fourteen steps**, each naming what to light up (`spotlight`), what to say,
+  and how to tell the reader has done it (`done(now, was)`). A step with `done`
+  moves on by itself, so pressing the key *is* the button; one without waits
+  for **Next**. `probe()` takes the whole state of the reader eight times a
+  second, through getters in `reader.js` -- the tour changes nothing and drives
+  nothing, which is why it cannot get out of step with the page.
+- **The spotlight is four shades round a hole**, not a hole cut in one box:
+  every browser draws it the same, and `pointer-events: none` on them means
+  the page is never trapped. What is lit is either a selector (`#play`) or the
+  first sentence on the page in PDF points, so it follows scrolling and zoom
+  (`ctx.sentenceBox`, `ctx.pageRectToClient`). The reading highlight is torn
+  down and drawn again for every sentence, so the spotlight keeps the last
+  place it saw rather than blinking (`lastSpot`).
+- **The document**: the tour uses whatever is open, and otherwise opens
+  `sample/sample.pdf` -- Poe's "The Raven" -- under the key `sample:raven`, so
+  practice highlights are kept apart from the reader's own and **Forget this
+  document** clears them. The sample is now in the offline cache
+  (`tools/stamp_offline.py`).
+- **Doing it, not watching it happen.** Three steps cannot be judged by state
+  alone, because the reading does the same thing by itself: clicking a sentence,
+  moving the cursor, and turning the page. So `reader.js` counts the two
+  actions that are always a person's -- `readFromCount` in `readFrom` and
+  `pageTurns` in `goToPage` -- and the cursor step asks that the voice is not
+  reading. Without that, the steps tick themselves off while the voice reads on.
+- **The card is a heads-up display, not a wall**: `pointer-events: none` on it,
+  `auto` on its buttons, so a drag across words it happens to cover still
+  selects them, and it fades to a fifth while the pointer is down.
+- `Esc` leaves, but only when nothing on the page wants it first: a dialog, a
+  menu, the find box, or a selection to clear.
+- Traps met: the worker's `call` has an allow-list (`CALLS` in
+  `js/document-worker.js`), so the sentence spotlight goes through the
+  `firstSentenceOn` and `sentences` messages instead; and
+  `classList.toggle(name, false || undefined)` *flips* rather than removes --
+  `undefined` is not `false` to `toggle`.
+
+Left undone, for whoever picks it up: no step for the reading order
+(`Ctrl`+`R`), the pronunciation list or OCR -- fourteen steps is already at the
+edge of what anyone will sit through, and they are all in About and the
+shortcuts list. Nothing offers the tour by itself on a first visit; the button
+is there to be found, and `localStorage mimick-tour` says whether it has been
+taken, if that is ever wanted.
+
 ## Read first
 
 1. [`../README.md`](../README.md) — what this is, how to run it, which way work flows.
@@ -436,6 +487,7 @@ the reason down rather than stopping to ask.
 | `js/pronounce.js` | How to say words: the pronunciation list, swapped in by the voice worker. |
 | `js/recent.js` | Open Recent: file handles kept in IndexedDB. |
 | `js/contents.js` | The table of contents panel (the PDF's bookmarks), its edge tab and `F9`. |
+| `js/tour.js` | The guided tour: the steps, the spotlight, the ghost pointer, the card. It only reads the reader, through getters in `reader.js`. |
 | `js/notes-store.js`, `js/page-store.js` | IndexedDB: notes (never evicted), drawn scan pages (evicted). |
 | `js/document-worker.js` + `reader.py` | Pyodide with the desktop's `document.py` and `annotations.py`: sentences, words, the cursor's steps, highlights. The page asks through one generic `call` message for most of it. |
 | `js/page-worker.js` + `pages.py` | Drawing pages, without annotations. |
@@ -465,6 +517,7 @@ node tools/check_documents.mjs       # the same
 node tools/check_forget.mjs          # the same
 node tools/check_recent.mjs          # the same
 node tools/check_access.mjs          # the same
+node tools/check_tour.mjs            # the same; reuses the voice check_convert downloaded
 node tools/check_say.mjs             # the same; reuses the voice check_convert downloaded
 node tools/check_ocr.mjs             # the same
 node tools/check_sleep.mjs           # the same; reuses the voice check_convert downloaded

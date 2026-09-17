@@ -12,6 +12,31 @@ python3 serve.py
 Tick what works, and write down anything that doesn't -- what you did, what you
 expected, what happened.
 
+## The tour, 17 September — http://localhost:8731/reader.html
+
+Open Mimick with nothing loaded and click **Show me around**. It opens the
+sample poem by itself, so you should not have to pick a file.
+
+- [ ] The card says **Step 1 of 14**, and waits ("Opening the sample…") until the poem is there
+- [ ] A red pointer, a ring and a dimmed page point at whatever the step is about
+- [ ] **Skip** sits in the bottom right corner all the way through, and moves on one step
+- [ ] **Back** goes back; **Exit tutorial** in the top right leaves at once
+- [ ] Doing what a step asks moves it on by itself, with a green-blue line saying so —
+      try it on **Space**, on clicking a sentence, on the speed box, on `Ctrl`+`H`
+- [ ] Nothing is trapped: you can scroll, use a menu or open a panel in the middle of a step
+- [ ] The whole thing makes sense if you have never used Mimick — say where it
+      does not, and what you expected to be told and were not
+- [ ] Anything you would cut, and anything missing you would have wanted taught
+
+Then, with the poem still open:
+
+- [ ] **Help ▾ → Take the tour** starts it again, and leaves the poem where it is
+- [ ] Open a document of your own and take it again: it runs on *your* document, not the sample
+- [ ] `Esc` leaves the tour — but not while a note, a menu, the find box or a selection is open,
+      where it does that job instead
+- [ ] The practice highlights are on the sample, not on anything of yours;
+      **File ▾ → Forget this document** clears them
+
 ## Firefox fixes, 17 September — https://kathollander.github.io/mimick/reader.html
 
 Try these in **Firefox on the computer where it went wrong**, if you can.

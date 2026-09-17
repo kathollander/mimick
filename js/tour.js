@@ -52,6 +52,8 @@
       ready: ctx.ready(),
       state: ctx.readingState(),
       sentence: ctx.sentence(),
+      from: ctx.readFrom(),
+      turns: ctx.pageTurns(),
       speed: ctx.speed(),
       voice: ctx.voiceKey(),
       caret: ctx.caret(),
@@ -92,12 +94,14 @@
         text: "Click any sentence and it reads from there. If you would rather a click never started the voice, turn it off under Reading ▾ → Click to read.",
         spotlight: "sentence",
         gesture: "tap",
-        done: (now, then) => readingNow(now.state) && now.sentence !== null && now.sentence !== then.sentence,
+        // Not "the sentence changed": while it reads, that happens on its own.
+        done: (now, then) => now.from > then.from,
         praise: "That's it — it reads from where you clicked.",
       },
       {
-        title: "Faster or slower",
-        text: "Any speed from 0.75× to 4×, changed while it reads. Most people end up somewhere around 1.5×.",
+        title: "Faster, slower, another voice",
+        text: "Any speed from 0.75× to 4×, changed while it reads — most people end up somewhere around 1.5×. "
+            + "The voice box on the right has seven readers in it, and Select a new voice… lets you hear each one before it downloads.",
         spotlight: "#speed",
         gesture: "tap",
         done: (now, then) => now.speed !== then.speed,
@@ -117,7 +121,7 @@
             + "Hold Shift as you go to select what you pass.",
         keys: [["←"], ["→"], ["Ctrl", "→"]],
         spotlight: ".page .caret",
-        done: (now, then) => now.caret >= 0 && now.caret !== then.caret,
+        done: (now, then) => !readingNow(now.state) && now.caret >= 0 && now.caret !== then.caret,
         praise: "There it goes.",
       },
       {
@@ -125,7 +129,7 @@
         text: "Drag across a few lines — or double-click one sentence — then press Enter. It reads only what you picked, and stops.",
         spotlight: "sentence",
         gesture: "drag",
-        done: (now) => now.selection !== null,
+        done: (now, then) => now.selection !== null && now.selection !== then.selection,
         praise: "Selected. Enter reads it.",
       },
       {
@@ -156,7 +160,7 @@
         title: "Getting around",
         text: "Ctrl+↑ and Ctrl+↓ turn the page, and so do Page Up and Page Down. Ctrl+F finds any word in the whole document; F9 opens its contents down the side.",
         keys: [["Ctrl", "↓"], ["Ctrl", "↑"]],
-        done: (now, then) => now.page !== then.page,
+        done: (now, then) => now.turns > then.turns,
         praise: "Page turned.",
       },
       {
@@ -414,6 +418,12 @@
     $("tour-exit").onclick = () => stop();
     $("tour-open").onclick = () => { stop({ finished: true }); ctx.chooseFile(); };
     addEventListener("resize", () => { if (at >= 0) place(); });
+    // Out of the way while the reader drags across the page -- the card may be
+    // sitting right over the words the step is asking them to select.
+    addEventListener("pointerdown", (e) => {
+      if (at >= 0 && !e.target.closest?.("#tour-card")) card.classList.add("faded");
+    }, true);
+    addEventListener("pointerup", () => card.classList.remove("faded"), true);
     // Esc leaves the tour, but only when nothing on the page wants it first --
     // a dialog, the find box, a menu, or a selection to clear.
     addEventListener("keydown", (e) => {

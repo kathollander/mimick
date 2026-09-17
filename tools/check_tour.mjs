@@ -88,9 +88,11 @@ const page = await boxOf(`.page[data-page="0"]`);
 check("Start anywhere lights a sentence on the page itself", c.title === "Start anywhere" && c.ring !== null
       && c.ring.left > page.left - 20 && c.ring.width < page.width, [c.ring, page]);
 check("…and the ghost pointer is shown, since it is a click", c.ghost);
-await r.click(await r.at(300, 300));
-await wait(`document.getElementById("tour-title").textContent === "Faster or slower"`, 60000);
-check("clicking a sentence moves it on to the speed", true);
+// On the word "Eagerly", the fourth sentence -- a point between stanzas is on no
+// word at all, and would start nothing.
+await r.click(await r.at(80, 231));
+await wait(`document.getElementById("tour-title").textContent === "Faster, slower, another voice"`, 60000);
+check("clicking a sentence -- not the reading moving on by itself -- is what ends the step", true);
 
 // 5. Skip and Back.
 c = await card();
@@ -100,20 +102,41 @@ await sleep(500);
 check("Skip in the corner moves on without doing it", (await step()) === "Pause", await step());
 await r.click(await r.centre("#tour-back"));
 await sleep(500);
-check("Back goes to the step before", (await step()) === "Faster or slower", await step());
+check("Back goes to the step before", (await step()) === "Faster, slower, another voice", await step());
 
-// 6. Straight to the highlight step, by skipping.
-for (let i = 0; i < 4; i++) { await r.click(await r.centre("#tour-go")); await sleep(450); }
-check("four Skips reach the highlight step", (await step()) === "Highlight it", await step());
-await r.drag(await r.at(60, 60), await r.at(300, 75));
-await sleep(600);
+// 6. The rest of the steps, each done for real rather than skipped. The page
+// keeps the keyboard between steps, so none of this needs a click first.
+await r.click(await r.centre("#tour-go"));                      // Skip the speed step
+await onStep("Pause");
+await r.key(" ");
+await onStep("The cursor", 30000);
+check("Space a second time is what ends the Pause step", true);
+await r.key("ArrowRight");
+await onStep("Read just this bit", 30000);
+check("an arrow key moves the cursor, and ends that step", true);
+await r.drag(await r.at(60, 225), await r.at(300, 235));
+await onStep("Highlight it", 30000);
+check("dragging across the text ends the selecting step", true);
 await r.key("h", CTRL);
-await wait(`document.getElementById("tour-title").textContent === "Write a note on it"`, 30000);
-check("selecting text and pressing Ctrl+H moves it on", true);
-check("the highlight was really made", (await ev(`document.querySelectorAll(".hl.annot").length`)) > 0);
+await onStep("Write a note on it", 30000);
+check("Ctrl+H ends the highlight step", true);
+check("…and the highlight was really made", (await ev(`document.querySelectorAll(".hl.annot").length`)) > 0);
+await r.click(await r.centre("#tour-go"));                      // Skip writing a note
+await onStep("Everything you marked");
+await r.key("b", CTRL);
+await onStep("Getting around", 30000);
+check("Ctrl+B ends the notes-column step", true);
+await r.key("ArrowDown", CTRL);
+await onStep("Take it with you", 30000);
+check("Ctrl+↓ turns the page, and ends that step", (await ev(`document.getElementById("page").value`)) === "2",
+      await ev(`document.getElementById("page").value`));
+await r.key("b", CTRL);                                         // the column back as it was
+await sleep(300);
 
 // 7. Esc leaves, but only when nothing on the page wants it.
-await r.drag(await r.at(60, 95), await r.at(300, 110));
+await r.key("ArrowUp", CTRL);           // back to the first page, so the drag lands on words
+await sleep(700);
+await r.drag(await r.at(60, 60), await r.at(300, 75));
 await sleep(500);
 await r.key("Escape"); await sleep(400);
 check("Esc with text selected clears the selection, and the tour stays", (await card()).on);
@@ -138,7 +161,7 @@ check("Exit tutorial closes it, and takes the shades away", !c.on && c.shades ==
 await ev(`document.getElementById("help-menu").click()`); await sleep(200);
 await r.menu("Take the tour");
 await sleep(500);
-for (let i = 0; i < 13; i++) { await r.click(await r.centre("#tour-go")); await sleep(300); }
+for (let i = 0; i < 13; i++) { await r.click(await r.centre("#tour-go")); await sleep(550); }   // the card slides; let it land
 c = await card();
 check("skipping to the end reaches the last step", c.count === "Step 14 of 14" && c.go === "Finish", [c.count, c.go]);
 check("…which offers to open a file of their own", await ev(`!document.getElementById("tour-open").hidden`));
