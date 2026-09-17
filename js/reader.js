@@ -1431,6 +1431,23 @@
     };
   })();
 
+  // Light or dark: the system's choice, unless one is picked here. reader.html
+  // puts a kept choice on <html> before the page draws.
+  const currentTheme = () => { const t = recall("mimick-theme"); return t === "dark" || t === "light" ? t : "system"; };
+  function setTheme(theme) {
+    remember("mimick-theme", theme);
+    if (theme === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    showTheme();
+    status({ system: "Following the system's light or dark setting", dark: "Dark theme", light: "Light theme" }[theme]);
+  }
+  function showTheme() {
+    const panel = getComputedStyle(document.documentElement).getPropertyValue("--panel").trim();
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", panel || "#191d24");
+  }
+  matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", showTheme);
+  showTheme();
+
   function displayMenu() {
     return [
       { label: "Show reading order", keys: "Ctrl+R", checked: order.on, run: order.toggle },
@@ -1443,6 +1460,10 @@
       { label: "Clean up text for reading", checked: switchOn("clean_text"),
         run: () => setSwitch("clean_text", !switchOn("clean_text")) },
       { label: "Reset reading order", enabled: built() && order.changed, run: order.reset },
+      "-",
+      { label: "Theme", enabled: false },
+      ...[["system", "Match the system"], ["dark", "Dark"], ["light", "Light"]].map(([theme, label]) =>
+        ({ label, indent: true, checked: currentTheme() === theme, run: () => setTheme(theme) })),
       "-",
       ...contents.displayMenu(),
       ...notes.displayMenu(),

@@ -11,14 +11,41 @@
 <!-- Kept for offline use, and cross-origin isolated so the voice gets threads,
      which GitHub Pages can only give through a service worker: sw.js. -->
 <script src="js/offline.js"></script>
+<!-- The theme chosen under Display, before anything is drawn, so it never flashes the other one. -->
+<script>try { const t = localStorage.getItem("mimick-theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch { /* the system's */ }</script>
 <style>
-  /* The desktop app's colours, from mimick/ui/theme.py. It is dark only, and so
-     is this, for now. */
+  /* The desktop app's colours, from mimick/ui/theme.py, and a light set beside
+     them. The system's choice is followed unless Display ▾ → Theme says
+     otherwise (data-theme on <html>, set by js/reader.js). The page itself
+     stays white either way: it is the document. */
   :root {
     color-scheme: dark;
     --backdrop: #101216; --panel: #191d24; --panel-hi: #222732; --border: #2b313d;
     --text: #e7eaf0; --dim: #98a1b3; --accent: #5b9dff; --hover: #2b3140; --pressed: #333b4d;
-    --disabled: #5c6577;
+    --disabled: #5c6577; --hover-border: #3a4152; --disabled-bg: #1c2029; --on-accent: #0b1220;
+    --accent-hover: #6fa9ff; --scroll: #39404f; --scroll-hover: #495265; --side: #1a1d23; --strong: #ffffff;
+    --caret: #7fb4ff; --shadow: rgba(0, 0, 0, .4);
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      color-scheme: light;
+    --backdrop: #d9dde3; --panel: #f7f8fa; --panel-hi: #eceef2; --border: #cfd4dc;
+    --text: #1b1f27; --dim: #586072; --accent: #1f66d6; --hover: #e2e6ec; --pressed: #d5dae2;
+    --disabled: #9aa2af; --hover-border: #b6bcc7; --disabled-bg: #eff1f4; --on-accent: #ffffff;
+    --accent-hover: #2f78e8; --scroll: #aeb5c0; --scroll-hover: #939baa; --side: #f1f3f6; --strong: #000000;
+    --caret: #1f66d6; --shadow: rgba(40, 48, 60, .22);
+    }
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --backdrop: #d9dde3; --panel: #f7f8fa; --panel-hi: #eceef2; --border: #cfd4dc;
+    --text: #1b1f27; --dim: #586072; --accent: #1f66d6; --hover: #e2e6ec; --pressed: #d5dae2;
+    --disabled: #9aa2af; --hover-border: #b6bcc7; --disabled-bg: #eff1f4; --on-accent: #ffffff;
+    --accent-hover: #2f78e8; --scroll: #aeb5c0; --scroll-hover: #939baa; --side: #f1f3f6; --strong: #000000;
+    --caret: #1f66d6; --shadow: rgba(40, 48, 60, .22);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .page .caret { animation: none !important; }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -47,13 +74,13 @@
   button, input, select { font: inherit; color: var(--text); background: var(--panel-hi);
                   border: 1px solid var(--border); border-radius: 6px; }
   button { padding: 5px 12px; cursor: pointer; }
-  button:hover { background: var(--hover); border-color: #3a4152; }
+  button:hover { background: var(--hover); border-color: var(--hover-border); }
   button:active { background: var(--pressed); }
-  button:disabled { color: var(--disabled); background: #1c2029; cursor: default; }
+  button:disabled { color: var(--disabled); background: var(--disabled-bg); cursor: default; }
   button.square { width: 32px; padding: 5px 0; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #0b1220; font-weight: 600; }
-  button.primary:hover { background: #6fa9ff; }
-  button.primary:disabled { background: #1c2029; border-color: var(--border); color: var(--disabled); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  button.primary:hover { background: var(--accent-hover); }
+  button.primary:disabled { background: var(--disabled-bg); border-color: var(--border); color: var(--disabled); }
   input[type=number] { width: 64px; padding: 5px 6px; text-align: right; }
   input[type=range] { width: 120px; accent-color: var(--accent); }
   a { color: var(--accent); }
@@ -64,8 +91,8 @@
   #contents { grid-area: 1 / 1; } #view { grid-area: 1 / 2; } #notes { grid-area: 1 / 3; }
   #view { position: relative; overflow: auto; outline: none; }
   #view::-webkit-scrollbar { width: 12px; height: 12px; }
-  #view::-webkit-scrollbar-thumb { background: #39404f; border-radius: 6px; border: 2px solid var(--backdrop); }
-  #view::-webkit-scrollbar-thumb:hover { background: #495265; }
+  #view::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 6px; border: 2px solid var(--backdrop); }
+  #view::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
   #view::-webkit-scrollbar-corner { background: var(--backdrop); }
   #pages { position: relative; }
   .page { position: absolute; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
@@ -81,14 +108,14 @@
 
   #find-bar { position: absolute; z-index: 6; top: 10px; right: 26px; display: flex; align-items: center; gap: 6px;
               padding: 6px 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
-              box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+              box-shadow: 0 4px 16px var(--shadow); }
   #main:has(#notes:not([hidden])) #find-bar { right: 298px; }
   #find-input { width: 220px; padding: 5px 8px; }
   #find-input.none { border-color: #c4524f; }
   #find-count { min-width: 76px; color: var(--dim); white-space: nowrap; text-align: right; }
   #find-bar label { display: flex; align-items: center; gap: 4px; color: var(--dim); white-space: nowrap; }
   /* The text cursor, in the desktop's CARET; it blinks unless the voice is reading. */
-  .page .caret { position: absolute; width: 2px; margin-left: -1px; background: #7fb4ff; pointer-events: none;
+  .page .caret { position: absolute; width: 2px; margin-left: -1px; background: var(--caret); pointer-events: none;
                  animation: blink 1s steps(1) infinite; }
   #pages.reading .caret { animation: none; }
   @keyframes blink { 50% { opacity: 0; } }
@@ -103,7 +130,7 @@
   .page .plan.skipped { background: rgba(16, 18, 22, .59); border: 1px dashed var(--dim); }
   .page .plan .tag { position: absolute; left: 3px; top: 3px; padding: 0 6px; border-radius: 4px; white-space: nowrap;
                      font: 600 11px/16px system-ui, sans-serif; }
-  .page .plan.reads .tag { background: var(--accent); color: #0b1220; }
+  .page .plan.reads .tag { background: var(--accent); color: var(--on-accent); }
   .page .plan.skipped .tag { background: var(--panel-hi); color: var(--dim); }
   .page .remove, .note-card .remove { position: absolute; display: grid; place-items: center; padding: 0; line-height: 1;
                                  border-radius: 50%; cursor: pointer; font-size: 14px; }
@@ -112,7 +139,7 @@
 
   /* The table of contents, on the left; js/contents.js. */
   #contents { width: 260px; display: grid; grid-template-rows: auto 1fr; min-height: 0;
-              background: #1a1d23; border-right: 1px solid var(--border); }
+              background: var(--side); border-right: 1px solid var(--border); }
   .panel-title { display: flex; align-items: center; gap: 6px; }
   .panel-title h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
   .contents-head { padding: 8px 10px; border-bottom: 1px solid var(--border); }
@@ -126,12 +153,12 @@
   .toc-link { flex: 1; min-width: 0; padding: 3px 4px; text-align: left; overflow-wrap: anywhere; line-height: 1.3; }
   .toc-link:hover { background: none; }
   .toc-link:disabled { background: none; color: var(--dim); }
-  .toc-row.current .toc-link { color: #fff; font-weight: 600; }
+  .toc-row.current .toc-link { color: var(--strong); font-weight: 600; }
   .toc-page { flex: none; padding: 0 6px 0 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
   /* The tabs on the page's edges that bring a hidden panel back. */
   .edge-tab { position: absolute; z-index: 4; top: 64px; padding: 10px 4px; writing-mode: vertical-rl;
               background: var(--panel); color: var(--dim); border: 1px solid var(--border); font-size: 12px;
-              box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+              box-shadow: 0 2px 8px var(--shadow); }
   .edge-tab:hover:not(:disabled) { color: var(--text); background: var(--hover); }
   .edge-tab:disabled { background: var(--panel); opacity: .6; }
   #contents-tab { left: 0; border-left: 0; border-radius: 0 7px 7px 0; }
@@ -140,7 +167,7 @@
 
   /* The notes panel: the current page's notes, stacked, beside the page. */
   #notes { width: 272px; display: grid; grid-template-rows: auto 1fr auto; min-height: 0;
-           background: #1a1d23; border-left: 1px solid var(--border); }
+           background: var(--side); border-left: 1px solid var(--border); }
   .notes-head, .notes-foot { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
   .notes-foot { flex-direction: row; align-items: center; flex-wrap: wrap; padding-bottom: 10px; }
   .notes-foot #note-count { flex: 1; }
@@ -148,7 +175,7 @@
   .row { display: flex; gap: 6px; align-items: center; }
   .row .grow { flex: 1; }
   .chip { flex: 1; background: transparent; color: var(--dim); font-size: 12px; white-space: pre; }
-  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #0b1220; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   #cards { overflow-y: auto; padding: 8px 18px; display: flex; flex-direction: column; gap: 8px; line-height: 1.3; }
   .note-card { position: relative; background: var(--panel); border-radius: 7px; padding: 10px 10px 10px 13px;
           cursor: default; overflow-wrap: anywhere; white-space: pre-wrap; border: 1.4px solid transparent; }
@@ -168,7 +195,7 @@
   #markup { display: flex; align-items: center; gap: 6px; }
   #markup[data-home="panel"] { flex-direction: column; align-items: stretch; }
   #markup[data-home="float"] { position: absolute; z-index: 5; padding: 6px 8px; background: var(--panel);
-                               border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+                               border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
   #markup.dragging { opacity: .9; }
   #markup.dragging[data-aim="panel"], #markup.dragging[data-aim="top"], #markup.dragging[data-aim="bottom"] {
     outline: 2px dashed var(--accent); }
@@ -205,7 +232,7 @@
   .long td:last-child, .long p { color: var(--dim); }
   .long p { margin: 0 0 12px; }
   .long p b { color: var(--text); }
-  #style-sample { background: #1a1d23; padding: 10px; border-radius: 7px; }
+  #style-sample { background: var(--side); padding: 10px; border-radius: 7px; }
   #style-sample .note-card { cursor: default; }
 
   #convert-dialog { width: min(540px, calc(100vw - 32px)); }
@@ -219,13 +246,13 @@
   #convert-estimate { background: var(--panel-hi); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: grid; gap: 4px; }
   #convert-progress { position: fixed; left: 16px; bottom: 64px; z-index: 8; width: min(360px, calc(100vw - 32px));
                       background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
-                      box-shadow: 0 6px 20px rgba(0,0,0,.45); display: grid; gap: 8px; }
+                      box-shadow: 0 6px 20px var(--shadow); display: grid; gap: 8px; }
   #convert-progress progress { width: 100%; accent-color: var(--accent); }
   #convert-progress-heading { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #convert-progress .buttons { display: flex; justify-content: flex-end; }
 
   #menu { position: fixed; z-index: 10; min-width: 220px; padding: 4px; background: var(--panel);
-          border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+          border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px var(--shadow); }
   #menu button { display: flex; justify-content: space-between; gap: 24px; width: 100%; text-align: left;
                  background: none; border: 0; border-radius: 5px; padding: 6px 10px; }
   #menu button:hover:not(:disabled), #menu button:focus-visible { background: var(--hover); outline: none; }
@@ -256,17 +283,17 @@
     <button id="display-menu" title="What is shown, and where">Display ▾</button>
     <input id="file" type="file" accept="application/pdf,.pdf,.docx,.odt,.epub,text/plain,.txt" hidden>
     <label class="dim" for="speed">Speed</label>
-    <select id="speed" title="How fast the voice reads"></select>
+    <select id="speed" title="How fast the voice reads" aria-label="Speed"></select>
   </div>
   <div class="centre">
-    <button id="back" class="square" title="Previous sentence  (←)" disabled>↶</button>
+    <button id="back" class="square" aria-label="Previous sentence" title="Previous sentence  (←)" disabled>↶</button>
     <button id="play" class="primary" title="Start or pause reading  (Space)" disabled>Read aloud</button>
-    <button id="forward" class="square" title="Next sentence  (→)" disabled>↷</button>
+    <button id="forward" class="square" aria-label="Next sentence" title="Next sentence  (→)" disabled>↷</button>
   </div>
   <div class="right">
     <label class="dim" for="voice">Voice</label>
-    <select id="voice" title="Who reads to you"></select>
-    <button id="voice-sample" class="square" title="Hear this voice">▶</button>
+    <select id="voice" title="Who reads to you" aria-label="Voice"></select>
+    <button id="voice-sample" class="square" aria-label="Hear this voice" title="Hear this voice">▶</button>
     <span id="title" class="dim"></span>
     <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
   </div>
@@ -320,9 +347,9 @@
     </div>
     <div class="row">
       <span class="grow"></span>
-      <button id="prev-note" class="square" title="Previous note  (Ctrl+K)" disabled>‹</button>
-      <button id="next-note" class="square" title="Next note  (Ctrl+J)" disabled>›</button>
-      <button id="note-style" class="square" title="How notes look — typeface and size">⚙</button>
+      <button id="prev-note" class="square" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
+      <button id="next-note" class="square" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
+      <button id="note-style" class="square" aria-label="Note appearance" title="How notes look — typeface and size">⚙</button>
     </div>
   </div>
   <div id="cards"></div>
@@ -349,11 +376,11 @@
   <form method="dialog">
     <h2 id="convert-heading">Convert to an audio file</h2>
     <div class="form">
-      <span>File name</span><span class="suffix"><input id="convert-name" type="text"><span class="dim">.mp3</span></span>
+      <span>File name</span><span class="suffix"><input id="convert-name" type="text" aria-label="File name"><span class="dim">.mp3</span></span>
       <span>Voice</span><select id="convert-voice"></select>
-      <span>Speed</span><select id="convert-speed"></select>
-      <span>Convert</span><select id="convert-scope"></select>
-      <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number"> to <input id="convert-to" type="number"></div>
+      <span>Speed</span><select id="convert-speed" aria-label="Speed"></select>
+      <span>Convert</span><select id="convert-scope" aria-label="What to convert"></select>
+      <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number" aria-label="From page"> to <input id="convert-to" type="number" aria-label="To page"></div>
       <span>Text</span><label title="Leaves out the reference list, masthead and declarations. For this conversion only; Display is left as it is."><input id="convert-clean" type="checkbox"> Clean up text for reading</label>
     </div>
     <div id="convert-estimate"><div id="convert-time"></div><div id="convert-length" class="dim"></div></div>
@@ -586,16 +613,16 @@
 <footer class="bar">
   <div class="left"><span id="reading-time" hidden></span><span id="status" class="dim">Getting ready…</span></div>
   <div class="centre">
-    <button id="prev" class="square" title="Previous page  (Page Up)" disabled>‹</button>
-    <input id="page" type="number" min="1" value="1" title="Jump to page" disabled>
+    <button id="prev" class="square" aria-label="Previous page" title="Previous page  (Page Up)" disabled>‹</button>
+    <input id="page" type="number" aria-label="Page number" min="1" value="1" title="Jump to page" disabled>
     <span id="total" class="dim">of —</span>
-    <button id="next" class="square" title="Next page  (Page Down)" disabled>›</button>
+    <button id="next" class="square" aria-label="Next page" title="Next page  (Page Down)" disabled>›</button>
   </div>
   <div class="right">
-    <button id="zoom-out" class="square" title="Zoom out  (Ctrl+−)">−</button>
-    <input id="zoom-slider" type="range" min="40" max="400" step="1" title="Zoom">
-    <button id="zoom-in" class="square" title="Zoom in  (Ctrl++)">+</button>
-    <input id="zoom" type="number" min="40" max="400" step="1" title="Zoom, in per cent">
+    <button id="zoom-out" class="square" aria-label="Zoom out" title="Zoom out  (Ctrl+−)">−</button>
+    <input id="zoom-slider" type="range" aria-label="Zoom" min="40" max="400" step="1" title="Zoom">
+    <button id="zoom-in" class="square" aria-label="Zoom in" title="Zoom in  (Ctrl++)">+</button>
+    <input id="zoom" type="number" aria-label="Zoom, in per cent" min="40" max="400" step="1" title="Zoom, in per cent">
     <span class="dim">%</span>
   </div>
 </footer>

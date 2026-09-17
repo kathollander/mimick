@@ -113,6 +113,17 @@ document from the list by its file name. `check_recent` makes handles in the
 origin private file system, since headless Chrome has no open window.
 **Needs a person:** the permission prompt on a real reopen after a restart.
 
+**Ship 2: accessibility, the first pass, done.** Colours are tokens on `:root`
+(dark, the desktop's) with a light set applied by `prefers-color-scheme: light`
+unless `html[data-theme="dark"]`, or always by `html[data-theme="light"]`. An
+inline script in `<head>` puts the kept `mimick-theme` on `<html>` before the
+page draws; **Display ▾ → Theme** sets it (`setTheme` in `js/reader.js`), and
+the `theme-color` meta follows. The PDF page stays white. `prefers-reduced-motion`
+stops the cursor blinking. Every glyph button (‹ › ↶ ↷ ⚙ ▶ − +) and every box
+now has an `aria-label`. **The highlight colours were measured for colour
+blindness, not changed** (they are shared with the desktop): the numbers are in
+`PARITY.md`, *For the desktop*. `tools/check_access.mjs`.
+
 **Ship 1 is done.** What is left before the link goes out is Kat's: the git
 history decision above, a look at Firefox and Safari, the new sections at the
 top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
@@ -276,6 +287,7 @@ node tools/check_media.mjs           # the same; reuses the voice check_convert 
 node tools/check_documents.mjs       # the same
 node tools/check_forget.mjs          # the same
 node tools/check_recent.mjs          # the same
+node tools/check_access.mjs          # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

@@ -114,7 +114,13 @@ Then Kat makes the repository public and sends the link.
 - ✅ **Open Recent** in File ▾. Done 17 September: `js/recent.js`, `tools/check_recent.mjs`.
 - ✅ **Keep scroll and zoom per document**, and **Forget this document**. Done 17 September; `tools/check_forget.mjs`.
 - **Export notes** as Markdown, if item 7 did not already do it.
-- **The page's own accessibility.** A light theme following
+- 🟡 **The page's own accessibility.** Done 17 September: light theme
+  (follows the system; Display ▾ → Theme overrides), reduced motion, a name in
+  words on every control (`tools/check_access.mjs`). Colour-blind check of the
+  highlights: measured, not changed -- see `HANDOFF.md`. Still to do: a real
+  keyboard-only and screen-reader pass with a classmate who uses them, and the
+  panels' own keyboard navigation (arrow keys in the contents tree).
+  *The plan:* A light theme following
   `prefers-color-scheme`; honour `prefers-reduced-motion`; visible focus
   rings and `aria-label`s on every control so the page can be driven by
   keyboard and screen reader; check the four highlight colours are

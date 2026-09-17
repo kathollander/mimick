@@ -51,6 +51,17 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Light theme, and accessibility
+
+Added 17 September.
+
+- [ ] With the computer set to light mode, Mimick is light; set to dark, dark -- without reloading
+- [ ] **Display ▾ → Theme → Light / Dark** overrides it, and stays after a reload with no flash of the other
+- [ ] Everything is readable in the light theme: dim text, disabled buttons, the find box, menus, dialogs, note cards
+- [ ] With "reduce motion" on in the system, the text cursor does not blink
+- [ ] With a screen reader (Orca, NVDA or VoiceOver), the top and bottom bar buttons are read as words
+- [ ] The four highlight colours can be told apart -- ask a colour-blind classmate if you can
+
 ## Open Recent
 
 Added 17 September. Chrome, Edge or Brave only.
