@@ -136,10 +136,11 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
   `tools/check_back.mjs`.
 - **Ctrl+Enter in the note editor** already saved and closed; `check_notes` now
   presses it from inside the note box (Kat asked).
-- **`check_sleep` fails on this machine as of 17 September, even on an
-  unchanged HEAD**: the voice was slow (another session busy), and the check's
-  → presses every 0.7 s restart each sentence before it is made. Reading itself
-  advances. Give its skip loop longer waits if it keeps failing.
+- **`check_sleep` was fixed, not the app** (17 September): it pressed → every
+  0.7 s, faster than the voice (Norman, medium) makes a sentence, so the skips
+  piled up and stalled at sentence 2 -- on an unchanged HEAD too. It now waits
+  for each sentence to start before the next press (`skipUntilPaused`). The
+  full suite, all 25 checks including Firefox, passed afterwards.
 - **Layout fix found on the way:** `body` was a five-row grid, and with the
   highlight strip hidden the page area landed in an `auto` row (220px tall on
   the empty page) while the footer took the `1fr`. `body` is now a flex column

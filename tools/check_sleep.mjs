@@ -31,12 +31,24 @@ check("Reading offers the sleep timer", ["Off", "In 15 minutes", "In 30 minutes"
   .every((l) => labels?.includes(l)), labels);
 await r.key("Escape");
 
+// Skip forward a sentence at a time, each press only once the sentence before has
+// started: pressed faster than the voice makes them, the skips pile up and stall.
+const skipUntilPaused = async (most) => {
+  for (let i = 0; i < most && (await state()).play !== "Resume"; i++) {
+    const was = (await state()).status;
+    await r.key("ArrowRight");
+    await wait(`(() => { const t = document.getElementById("status").textContent, p = document.getElementById("play").textContent;
+      return p === "Resume" || (t !== ${JSON.stringify(was)} && /^Sentence \\d+ of/.test(t)); })()`, 30000).catch(() => {});
+    await sleep(300);
+  }
+};
+
 // At the end of this page.
 await r.click(await r.centre("#play"));
 await wait(`/^Sentence 1 of/.test(document.getElementById("status").textContent)`, 120000);
 await choose("At the end of this page");
 check("…which says when it will stop", /stops at the end of page 1/.test((await state()).status), (await state()).status);
-for (let i = 0; i < 30 && (await state()).play !== "Resume"; i++) { await r.key("ArrowRight"); await sleep(700); }
+await skipUntilPaused(30);
 let s = await state();
 check("reading pauses as page 2 begins, and says why", s.play === "Resume" && /^Sleep timer: stopped at the end of the page/.test(s.status), s);
 await r.key(" "); await sleep(1500);
@@ -46,7 +58,7 @@ check("Space carries on from there", s.play === "Pause" && / · page 2$/.test(s.
 // At the end of this section.
 await choose("At the end of this section");
 check("…the section is named", /stops at the end of “2\. What Students Chose to Hear”/.test((await state()).status), (await state()).status);
-for (let i = 0; i < 40 && (await state()).play !== "Resume"; i++) { await r.key("ArrowRight"); await sleep(700); }
+await skipUntilPaused(40);
 s = await state();
 check("reading pauses as the next section begins", s.play === "Resume" && /end of the section/.test(s.status), s);
 await r.click(await r.centre("#reading-menu")); await sleep(300);
