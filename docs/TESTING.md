@@ -145,6 +145,7 @@ exported from Word have them -- and one without (the poem, `sample/sample.pdf`).
 
 - [ ] Opening a PDF with bookmarks shows them on the left, straight away, before "sentences to read" appears
 - [ ] Nested entries are indented; ▾ / ▸ open and close a level
+- [ ] With the keyboard: Tab into the list, ↑ ↓ move, → ← open and close, Enter goes there
 - [ ] Clicking an entry goes to its heading, near the top of the view, and lights it
 - [ ] Scrolling lights the section you are in, and a long list follows along
 - [ ] Right-click an entry → **Start reading from here** reads from that heading

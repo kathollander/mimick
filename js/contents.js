@@ -194,6 +194,28 @@
       else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight + 8;
     }
 
+    // The keys of a tree: ↑ ↓ between entries, → opens or goes in, ← closes or
+    // goes out, Home and End; Enter or Space goes there. Kept from the page's own
+    // keys, which would otherwise move the text cursor.
+    list.addEventListener("keydown", (e) => {
+      const at = entries.findIndex((entry) => entry.row.contains(e.target));
+      if (at < 0 || e.ctrlKey || e.metaKey || e.altKey) return;
+      const shown = entries.filter((entry) => !entry.row.hidden);
+      const here = shown.indexOf(entries[at]), entry = entries[at];
+      const focus = (target) => target?.row.querySelector(".toc-link").focus();
+      const moves = {
+        ArrowDown: () => focus(shown[Math.min(shown.length - 1, here + 1)]),
+        ArrowUp: () => focus(shown[Math.max(0, here - 1)]),
+        Home: () => focus(shown[0]),
+        End: () => focus(shown[shown.length - 1]),
+        ArrowRight: () => (entry.children.length && !entry.open ? setOpen(entry, true) : focus(entry.children[0])),
+        ArrowLeft: () => (entry.children.length && entry.open ? setOpen(entry, false) : focus(entry.parent)),
+        Escape: () => ctx.focusPage(),
+      };
+      if (moves[e.key]) { e.preventDefault(); e.stopPropagation(); moves[e.key](); }
+      else if (e.key === " " || e.key === "Enter") e.stopPropagation();   // the button's own click
+    });
+
     $("contents-hide").onclick = () => { setPanel(false); ctx.focusPage(); };
     tab.onclick = () => { setPanel(true); };
     show();

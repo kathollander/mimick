@@ -110,7 +110,28 @@ const from = await r.inWorker("document-worker.js", `python.then((py) => py.runP
   "import reader; i = reader.first_sentence_from(2, 190.0); reader._open().sentences[i].text"))`);
 check("…and reading would start at the section's heading", /^(4\.? ?)?Conclusions/.test(from), from);
 
-// 7. No bookmarks, no panel.
+// 7. The keys of a tree.
+await r.click(await rowCentre("1. Introduction")); await sleep(600);
+await ev(`[...document.querySelectorAll("#contents-list .toc-link")].find((l) => l.textContent === "1. Introduction").focus()`);
+const focused = () => ev(`document.activeElement.textContent`);
+await r.key("ArrowDown"); await sleep(100);
+check("↓ moves to the next entry", (await focused()) === "2. What Students Chose to Hear", await focused());
+await r.key("End"); await sleep(100);
+check("End goes to the last", (await focused()) === "References", await focused());
+await r.key("ArrowLeft"); await sleep(100);
+check("← goes out to the parent", (await focused()).startsWith("Listening to the Page"), await focused());
+await r.key("ArrowLeft"); await sleep(200);
+check("← again closes it", (await ev(`JSON.stringify([...document.querySelectorAll("#contents-list .toc-row")].map((row) => !row.hidden))`)) === "[true,false,false,false,false,false]");
+await r.key("ArrowRight"); await sleep(100);
+await r.key("ArrowRight"); await sleep(100);
+check("→ opens it, and → again goes in", (await focused()) === "1. Introduction", await focused());
+await r.key("ArrowDown"); await r.key("ArrowDown"); await sleep(100);
+// Space, as a keyboard's own: the synthetic Enter carries no character, so no click.
+await r.key(" "); await sleep(900);
+check("Space goes there, and gives the keys back to the page", (await state()).page === "3" && (await ev(`document.activeElement.id`)) === "view",
+      [(await state()).page, await ev(`document.activeElement.id`)]);
+
+// 8. No bookmarks, no panel.
 await r.openPdf(POEM);
 s = await state();
 check("a PDF without bookmarks shows no panel", !s.panel && s.rows.length === 0, s);
