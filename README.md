@@ -4,6 +4,8 @@ A PDF reader that reads aloud in natural voices, highlighting each word as it
 speaks it — in a browser tab, with nothing installed and nothing uploaded. Your
 document is opened by your own browser and never leaves your machine.
 
+**Open it: [kathollander.github.io/mimick/reader.html](https://kathollander.github.io/mimick/reader.html)**
+
 [`reader.html`](reader.html) is the reader. It opens a PDF -- or a Word,
 OpenDocument, EPUB or plain text file -- shows it, and reads it aloud in one of
 seven natural voices at 0.75× to 4×, with the sentence and the word being said
@@ -86,7 +88,7 @@ and no tracking. After the first visit Mimick needs no network at all.
 analysis, and [`voice.html`](voice.html) reads a passage aloud with a Piper
 voice, up to 4×. They are for development, not for readers.
 
-This is the browser version of **[Mimick](https://github.com/kathollander/mimick)**,
+This is the browser version of **[Mimick](https://github.com/kathollander/mimick-linux)**,
 the installed Linux and Windows app. That one is the original and still where
 the reading is worked on; see *Which way the work flows* below.
 
@@ -170,5 +172,5 @@ Face, pinned to a revision and checked against a hash before use.
 For picking the work up, start with [`docs/HANDOFF.md`](docs/HANDOFF.md).
 
 In the desktop repository, at
-[`docs/FUTURE-FEATURES.md`](https://github.com/kathollander/mimick/blob/main/docs/FUTURE-FEATURES.md)
+[`docs/FUTURE-FEATURES.md`](https://github.com/kathollander/mimick-linux/blob/main/docs/FUTURE-FEATURES.md)
 — the decision, the eight voices, the roadblocks and the build order.

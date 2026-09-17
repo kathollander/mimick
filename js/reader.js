@@ -1836,7 +1836,7 @@
     { label: "About Mimick", run: () => $("about-dialog").showModal() },
     ...(MimickOffline.state.updateReady ? [{ label: "Update Mimick (reloads the page)", run: () => MimickOffline.update() }] : []),
     // The AGPL asks that a program served over a network offer its source.
-    { label: "Source code", run: () => window.open("https://github.com/kathollander/mimick-web", "_blank", "noopener") },
+    { label: "Source code", run: () => window.open("https://github.com/kathollander/mimick", "_blank", "noopener") },
   ]);
   for (const id of ["keys-dialog", "about-dialog"]) $(id).addEventListener("close", () => view.focus());
 

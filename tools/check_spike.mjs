@@ -9,9 +9,9 @@
  * the port must not do quietly. Exits non-zero when they disagree.
  *
  * Regenerate the baseline from the desktop repo after a deliberate change:
- *   .venv/bin/python -c "import sys,json; sys.path[:0]=['../mimick-web','../mimick-web/py']; \
- *       import spike; r=spike.run(open('../mimick-web/sample/sample.pdf','rb').read()); \
- *       r.pop('pymupdf',None); print(json.dumps(r,sort_keys=True))" > ../mimick-web/sample/expected-native.json
+ *   .venv/bin/python -c "import sys,json; sys.path[:0]=['../Mimick','../Mimick/py']; \
+ *       import spike; r=spike.run(open('../Mimick/sample/sample.pdf','rb').read()); \
+ *       r.pop('pymupdf',None); print(json.dumps(r,sort_keys=True))" > ../Mimick/sample/expected-native.json
  */
 import { loadPyodide } from "../vendor/pyodide/pyodide.mjs";
 import fs from "node:fs";

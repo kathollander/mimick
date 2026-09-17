@@ -2,8 +2,8 @@
 
 Run from the desktop repo, whose venv has piper-tts:
 
-    .venv/bin/python ../mimick-web/tools/phoneme_baseline.py \
-        > ../mimick-web/sample/expected-phonemes.json
+    .venv/bin/python ../Mimick/tools/phoneme_baseline.py \
+        > ../Mimick/sample/expected-phonemes.json
 
 tools/check_voice.mjs compares the browser's phonemizer against this. The two
 are separate builds of espeak-ng, and a difference would be heard, not seen.

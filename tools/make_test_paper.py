@@ -9,7 +9,7 @@ another reader would have, and a table of contents (bookmarks) two levels deep. 
 
 Run from the desktop repo, whose venv has PyMuPDF:
 
-    .venv/bin/python ../mimick-web/tools/make_test_paper.py ../mimick-web/sample/test-paper.pdf
+    .venv/bin/python ../Mimick/tools/make_test_paper.py ../Mimick/sample/test-paper.pdf
 """
 
 from __future__ import annotations
