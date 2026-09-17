@@ -51,6 +51,22 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Convert to MP3
+
+Added 17 September. Reload the page first.
+
+- [ ] **File ▾** in the top left has **Open…** and **Convert to MP3…**; Open still works, and so do `Ctrl`+`O` and dropping a PDF
+- [ ] **Convert to MP3…** shows the file name, voice, speed and what to convert, with how long converting takes and how long the audio runs
+- [ ] Changing the speed, voice or pages changes the estimate
+- [ ] With text selected first, it offers **Selected text** and starts on it
+- [ ] **Convert** asks where to save the file, then shows progress in the bottom-left corner
+- [ ] You can keep reading while it converts
+- [ ] The time left shown is about right
+- [ ] When it finishes, the MP3 plays in another player, sounds right, and is the speed you chose
+- [ ] **Cancel** stops it, and leaves no file behind
+- [ ] Closing the tab while it converts asks you first
+- [ ] Try the scanned book, or a long curriculum, over a few pages
+
 ## The voice
 
 Added 17 September. Reload the page first.

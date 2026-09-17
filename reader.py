@@ -207,6 +207,19 @@ def align(sentence: int, marks: list, source: str = "document") -> list[list]:
             align_marks(target, [(float(when), str(word)) for when, word in marks])]
 
 
+def convert_texts(scope: str, first: int = 0, last: int = 0) -> list[str]:
+    """What a conversion to MP3 speaks, sentence by sentence: the whole document,
+    pages ``first`` to ``last`` (from 0), or the words ``first`` to ``last``.
+    The desktop's ExportDialog.sentences, as text, which is all the voice needs."""
+    document = _open()
+    if scope == "selection":
+        return [s.text for s in document.sentences_from_range(first, last)]
+    if scope == "pages":
+        low, high = sorted((first, last))
+        return [s.text for s in document.sentences if low <= s.page <= high]
+    return [s.text for s in document.sentences]
+
+
 def first_sentence_on(page: int) -> int | None:
     """The first sentence that starts on ``page`` or after it, or None."""
     for index, sentence in enumerate(_open().sentences):

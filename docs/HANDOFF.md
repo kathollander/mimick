@@ -91,6 +91,7 @@ node tools/check_selecting.mjs       # needs serve.py running; starts its own he
 node tools/check_notes.mjs           # the same
 node tools/check_display.mjs         # the same
 node tools/check_order.mjs           # the same
+node tools/check_convert.mjs         # the same; downloads a voice on its first run
 ```
 
 **A headless Chrome, driven from Node, is the easiest way to test the page**,
@@ -195,6 +196,18 @@ sits in the right of the top bar; the title now gives way when the bar is
 short of room, and the labels hide below 1150px -- the first try put the box
 on the left and pushed the bar under **Read aloud**, so ▶ started reading.
 
+**Later still, 17 September: Convert to MP3** (`js/convert.js`, `js/mp3-worker.js`,
+`reader.convert_texts`). A voice worker of its own makes each sentence and
+`vendor/lamejs` (LGPL, credited in About as LAME asks) encodes it as it comes.
+In Chrome `showSaveFilePicker` is asked for inside the Convert click -- it must
+be, or the browser refuses -- and the file is written a sentence at a time;
+cancelled or failed, the writable is aborted, so nothing half-made is left.
+Elsewhere, and in the headless check, it downloads at the end. **Open…**
+became **File ▾** to make room without widening the top bar. Estimates use the
+desktop's 15.1 characters a second; converting is guessed at 4× real time,
+which ran about 12× here, so the first estimate is long until the job times
+itself.
+
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
@@ -211,7 +224,7 @@ desktop repo if at all.
 3. ~~The voice picker~~ -- done 17 September. Nicknames still to do.
 4. **Keep scroll and zoom per document across a reload**, and **Forget this
    document** (notes, drawn pages, position).
-5. **Convert to MP3**, then **Open Recent** (Chrome can keep file handles).
+5. ~~Convert to MP3~~ -- done 17 September, bar two small things in `PARITY.md`. Then **Open Recent** (Chrome can keep file handles), which goes in **File ▾**.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are shared
 (`FUTURE-FEATURES.md`, **Shortcuts**).

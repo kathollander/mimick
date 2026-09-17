@@ -187,7 +187,6 @@
   }
 
   const chooseFile = () => $("file").click();
-  $("open").onclick = chooseFile;
   $("open-empty").onclick = chooseFile;
   $("file").onchange = () => { openFile($("file").files[0]); $("file").value = ""; };
 
@@ -1222,6 +1221,24 @@
     };
   };
   dropDown("display-menu", displayMenu);
+
+  const convert = MimickConvert.create({
+    call, status, voiceKept, speeds: SPEEDS,
+    ready: () => !!doc?.sentences,
+    title: () => doc.title,
+    pageCount: () => doc.pages.length,
+    selection: () => selection,
+    generation: () => generation,
+    voice: () => voice.voice,
+    rate: () => voice.rate,
+    cleanText: () => switchOn("clean_text"),
+  });
+  dropDown("file-menu", () => [
+    { label: "Open…", keys: "Ctrl+O", run: chooseFile },
+    "-",
+    { label: convert.running ? "Converting to MP3…" : "Convert to MP3…", enabled: !!doc?.sentences && !convert.running,
+      run: convert.open },
+  ]);
   dropDown("help-menu", () => [
     { label: "Keyboard shortcuts", keys: "?", run: () => $("keys-dialog").showModal() },
     { label: "About Mimick", run: () => $("about-dialog").showModal() },

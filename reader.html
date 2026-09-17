@@ -157,6 +157,22 @@
   #style-sample { background: #1a1d23; padding: 10px; border-radius: 7px; }
   #style-sample .note-card { cursor: default; }
 
+  #convert-dialog { width: min(540px, calc(100vw - 32px)); }
+  #convert-dialog h2 { font-size: 15px; margin: 0; }
+  #convert-dialog .form { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; }
+  #convert-dialog .form > span:nth-child(odd) { color: var(--dim); text-align: right; }
+  #convert-dialog .suffix { display: flex; align-items: center; gap: 6px; }
+  #convert-range { display: flex; align-items: center; gap: 8px; }
+  #convert-range[hidden] { display: none; }
+  #convert-range input { width: 84px; }
+  #convert-estimate { background: var(--panel-hi); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: grid; gap: 4px; }
+  #convert-progress { position: fixed; left: 16px; bottom: 64px; z-index: 8; width: min(360px, calc(100vw - 32px));
+                      background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+                      box-shadow: 0 6px 20px rgba(0,0,0,.45); display: grid; gap: 8px; }
+  #convert-progress progress { width: 100%; accent-color: var(--accent); }
+  #convert-progress-heading { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #convert-progress .buttons { display: flex; justify-content: flex-end; }
+
   #menu { position: fixed; z-index: 10; min-width: 220px; padding: 4px; background: var(--panel);
           border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
   #menu button { display: flex; justify-content: space-between; gap: 24px; width: 100%; text-align: left;
@@ -184,7 +200,7 @@
 <header class="bar">
   <div class="left">
     <span class="brand">Mimick</span>
-    <button id="open" title="Open a PDF  (Ctrl+O)">Open…</button>
+    <button id="file-menu" title="Open a PDF, or turn it into an audio file">File ▾</button>
     <button id="notes-menu" title="Highlights and notes">Notes ▾</button>
     <button id="display-menu" title="What is shown, and where">Display ▾</button>
     <input id="file" type="file" accept="application/pdf,.pdf" hidden>
@@ -256,6 +272,33 @@
 </div>
 
 <div id="markup-bottom" class="strip" hidden></div>
+
+<dialog id="convert-dialog" aria-label="Convert to MP3">
+  <form method="dialog">
+    <h2 id="convert-heading">Convert to an audio file</h2>
+    <div class="form">
+      <span>File name</span><span class="suffix"><input id="convert-name" type="text"><span class="dim">.mp3</span></span>
+      <span>Voice</span><select id="convert-voice"></select>
+      <span>Speed</span><select id="convert-speed"></select>
+      <span>Convert</span><select id="convert-scope"></select>
+      <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number"> to <input id="convert-to" type="number"></div>
+    </div>
+    <div id="convert-clean" class="dim"></div>
+    <div id="convert-estimate"><div id="convert-time"></div><div id="convert-length" class="dim"></div></div>
+    <div id="convert-where" class="dim"></div>
+    <div class="buttons">
+      <button id="convert-cancel" type="button">Cancel</button>
+      <button id="convert-go" class="primary" type="submit">Convert</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="convert-progress" role="status" hidden>
+  <div id="convert-progress-heading"></div>
+  <progress id="convert-bar" max="1"></progress>
+  <div id="convert-progress-detail" class="dim"></div>
+  <div class="buttons"><button id="convert-stop" type="button">Cancel</button></div>
+</div>
 
 <dialog id="note-dialog" aria-label="Note">
   <form id="note-form" method="dialog">
@@ -370,13 +413,15 @@
       <p><b>Read at your speed</b><br>From 0.75× to 4×, changed at any moment.</p>
       <p><b>Highlight and annotate</b><br>Four colours, and notes beside the page. They are kept in this browser, and
         Download a copy gives you the PDF with them in it, as regular PDF annotations other readers can see.</p>
+      <p><b>Take it with you</b><br>Convert a document, some pages of it or a passage to an MP3.</p>
       <p><b>Keeps your place</b><br>Come back to a document and pick up where you left off.</p>
       <h2>Built on</h2>
       <p><a href="https://mupdf.com/" target="_blank" rel="noopener">MuPDF</a> (pages, text and annotations) ·
         <a href="https://pyodide.org/" target="_blank" rel="noopener">Pyodide</a> (Python in the browser) ·
         <a href="https://github.com/OHF-Voice/piper1-gpl" target="_blank" rel="noopener">Piper</a> and
         <a href="https://github.com/espeak-ng/espeak-ng" target="_blank" rel="noopener">espeak-ng</a> (the voice) ·
-        <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime</a> (running it)</p>
+        <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime</a> (running it) ·
+        <a href="https://lame.sourceforge.io/" target="_blank" rel="noopener">LAME</a>, as lamejs (MP3 files)</p>
       <h2>Written by</h2>
       <p>Claude Code</p>
       <h2>Arranged by</h2>
@@ -416,5 +461,6 @@
 <script src="js/read-aloud.js"></script>
 <script src="js/notes-store.js"></script>
 <script src="js/notes.js"></script>
+<script src="js/convert.js"></script>
 <script src="js/reader.js"></script>
 </html>
