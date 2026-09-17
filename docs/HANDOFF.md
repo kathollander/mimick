@@ -78,6 +78,19 @@ voice's `MODEL_CARD` in `rhasspy/piper-voices` at the pinned revision. Joe,
 Kusal, VCTK and LibriTTS say "Lessac" without its licence, as Kat decided to
 keep them (see *Next*, item 0).
 
+**Ship 2, first item: Word, OpenDocument and EPUB, done.** `document_to_pdf`
+in `reader.py`. MuPDF 1.28 (Pyodide's wheel too) opens `.docx` and `.epub`
+natively as reflowable documents: `apply_css("@page { margin: 72pt } body {
+margin: 0 }")`, `layout(a4, 11pt)`, `convert_to_pdf()`, and the source's
+`get_toc()` put back with each entry pointed at its heading by searching for
+its words. MuPDF cannot open `.odt`, so `_odt_html` reads `content.xml` into
+simple HTML and `_story_pdf` sets it (the `.txt` path shares `_story_pdf` now),
+collecting headings for the outline from `Story.element_positions`. No new
+library, nothing in `vendor/`. Test files: `sample/test-document.*`, made from
+`tools/test-document.html` by `tools/make_test_documents.sh` (LibreOffice;
+checked for personal metadata -- none). Known rough: bullets, table borders,
+images untested, Word footnotes untested.
+
 **Ship 1 is done.** What is left before the link goes out is Kat's: the git
 history decision above, a look at Firefox and Safari, the new sections at the
 top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
@@ -237,6 +250,7 @@ node tools/check_text.mjs            # the same
 node tools/check_contents.mjs        # the same
 node tools/check_scan.mjs            # the same
 node tools/check_media.mjs           # the same; reuses the voice check_convert downloaded
+node tools/check_documents.mjs       # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

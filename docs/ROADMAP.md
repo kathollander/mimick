@@ -92,7 +92,13 @@ Then Kat makes the repository public and sends the link.
 
 ## Ship 2 -- the next month
 
-- **Word and OpenDocument, `.docx` and `.odt`, read-only.** Same path as
+- ✅ **Word, OpenDocument and EPUB, read-only.** Done 17 September, without
+  `mammoth.js`: MuPDF 1.28 opens `.docx` and `.epub` itself (laid out on A4,
+  then `convert_to_pdf`), and `.odt` is turned into HTML in `reader.py` and set
+  with a `Story`. Headings become the contents panel. Lists lose their bullets
+  in Word files and tables lose their borders. `tools/check_documents.mjs`.
+  *The original plan, kept for the record:*
+  **Word and OpenDocument, `.docx` and `.odt`, read-only.** Same path as
   `.txt`: convert to a PDF in the worker, then it is a PDF. `.docx` is a zip
   of XML; `mammoth.js` turns it into clean HTML, which `insert_htmlbox` can
   lay out; `.odt` is the same shape with different XML and no ready library.
@@ -121,7 +127,7 @@ Then Kat makes the repository public and sends the link.
 
 - **OCR for scanned PDFs** in the browser (`tesseract.js`), producing a text
   layer the reader can use. Slow; run it page by page ahead of the reading.
-- **EPUB.** Reflowable; would need its own page maker, or the same
+- ✅ **EPUB** -- done with Word, above. *Was:* Reflowable; would need its own page maker, or the same
   convert-to-PDF path at a fixed page size.
 - **Other languages.** Piper has many; the cleanup in `document.py` and the
   reading-time constant are English-tuned.

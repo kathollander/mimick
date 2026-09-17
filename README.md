@@ -13,8 +13,11 @@ internet connection, and Chrome can install it as an app.
 
 ## How to use it
 
-1. **Open a PDF.** Press **Open a PDF…**, or `Ctrl`+`O`, or drop the file
-   anywhere on the page. It opens in your browser and is not uploaded anywhere.
+1. **Open a PDF** -- or a Word (`.docx`), OpenDocument (`.odt`), EPUB or `.txt`
+   file. Use **File ▾ → Open…**, or `Ctrl`+`O`, or drop the file anywhere on the
+   page. It opens in your browser and is not uploaded anywhere. Documents that
+   are not PDFs are laid out as pages first; headings, paragraphs and text come
+   through well, while lists lose their bullets and tables their borders.
 2. **Press `Space`** (or **Read aloud**) to start and pause. The first time,
    the voice downloads once -- about 60 MB -- and is kept, so after that it
    starts straight away, even offline.

@@ -114,7 +114,7 @@ const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "wor
                        "annotations", "annotation_add", "annotation_set", "annotation_remove",
                        "snapshot", "restore", "notes_pdf", "set_author", "set_reading",
                        "regions", "region_counts", "set_region_choices", "toggle_region", "reset_regions",
-                       "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf",
+                       "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf", "document_to_pdf",
                        "first_sentence_from"]);
 
 function call(py, { id, name, args = [] }) {

@@ -75,7 +75,7 @@
   const readyNow = () => {
     if (saidReady || !pythonReady || !pageWorkersReady) return;
     saidReady = true;
-    if (!doc) status("Ready. Open a PDF or a text file to begin.");
+    if (!doc) status("Ready. Open a PDF or a document to begin.");
     // Python is loaded, and kept as it came: now keep the rest for offline use.
     MimickOffline.complete();
   };
@@ -240,15 +240,40 @@
   }
 
   const isText = (file) => /\.txt$/i.test(file.name) || file.type === "text/plain";
+  // Laid out as PDFs by reader.document_to_pdf: Word, OpenDocument, EPUB.
+  const LAID_OUT = { docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                     odt: "application/vnd.oasis.opendocument.text", epub: "application/epub+zip" };
+  const laidOutKind = (file) => Object.keys(LAID_OUT).find((kind) =>
+    file.name.toLowerCase().endsWith("." + kind) || file.type === LAID_OUT[kind]) ?? null;
 
   async function openFile(file) {
     if (!file) return;
     if (isText(file)) { openText(file); return; }
+    const kind = laidOutKind(file);
+    if (kind) { openDocument(file, kind); return; }
     if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
-      status(`${file.name} is not a PDF or a text file.`);
+      status(`${file.name} is not a file Mimick can open — a PDF, Word (.docx), OpenDocument (.odt), EPUB or .txt file.`);
       return;
     }
     openBytes(await file.arrayBuffer(), file.name);
+  }
+
+  /* A Word, OpenDocument or EPUB file, laid out as a PDF by the document worker,
+   * then opened as one, known by a hash of the file so its notes come back. */
+  async function openDocument(file, kind) {
+    const bytes = await file.arrayBuffer();
+    const mine = ++generation;
+    status(pythonReady ? `Laying out ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+    const stem = file.name.replace(/\.[^.]+$/, "");
+    let pdf;
+    try {
+      pdf = await call("document_to_pdf", new Uint8Array(bytes), kind, stem);
+    } catch (err) {
+      if (mine === generation) status(`Could not open ${file.name}: ${err.message.trim().split("\n").pop()}`);
+      return;
+    }
+    if (mine !== generation) return;
+    openBytes(pdf.slice().buffer, stem + ".pdf", `${kind}:` + await Store.hash(bytes));
   }
 
   /* A text file, laid out as a PDF by the document worker (reader.text_to_pdf),

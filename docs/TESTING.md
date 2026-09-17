@@ -51,6 +51,17 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Word, OpenDocument and EPUB
+
+Added 17 September. Try real ones: a reading in Word, something saved from
+LibreOffice or Google Docs as `.odt`, and an EPUB without DRM.
+
+- [ ] A `.docx`, `.odt` and `.epub` each open (File ▾, `Ctrl`+`O`, and dropped), laid out as pages
+- [ ] Headings show in the contents panel and go to the right place
+- [ ] Reading aloud, highlights and notes work, and come back when the file is opened again
+- [ ] Anything badly wrong: missing text, pictures, footnotes, tables -- note the file type and what happened
+- [ ] A long EPUB (a whole book) opens in reasonable time
+
 ## Voice credits
 
 - [ ] **Help ▾ → About Mimick** has a *Voices* table; every link opens the right dataset or licence

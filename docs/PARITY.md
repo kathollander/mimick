@@ -6,6 +6,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 ## Opening and moving around
 
 - ✅ Open a PDF: button, `Ctrl`+`O`, drag and drop
+- ✅ Open `.txt`, `.docx`, `.odt`, `.epub` the same ways, laid out as PDFs — *the desktop has none*
 - ⬜ Open Recent
 - ✅ Continuous scroll, page box, ‹ ›, `Page Up`/`Down`, `Ctrl`+`↑`/`↓`/`Home`/`End`
 - ✅ Zoom: − +, slider, % box, `Ctrl`+`+`/`−`/`0`, `Ctrl`+wheel
@@ -70,6 +71,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 Features the browser has that the desktop app does not. Add them there too.
 
+- ⬜ **Open Word, OpenDocument and EPUB files** (`.docx`, `.odt`, `.epub`): laid out as PDFs, then read as them. Browser: `document_to_pdf` in `reader.py`
 - ⬜ **Open a plain text file** (`.txt`): laid out as a PDF, then read as one, notes and all. Browser: `text_to_pdf` in `reader.py`
 - ⬜ **Contents panel** (`F9`): the PDF's own bookmarks on the left, nested, the section on screen lit, click to go and right-click to read from there; hidden by its ‹ and brought back by a tab on the page's edge (the notes panel got the same › and tab). Browser: `js/contents.js`, `pages.outline`, `reader.first_sentence_from`
 - ⬜ **Export notes** as Markdown. Browser: `notesText` in `js/notes.js`
