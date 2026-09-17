@@ -161,5 +161,7 @@ Then Kat makes the repository public and sends the link.
   convert-to-PDF path at a fixed page size.
 - **Other languages.** Piper has many; the cleanup in `document.py` and the
   reading-time constant are English-tuned.
-- **A sleep timer** and **skip back 10 seconds**.
+- ✅ **A sleep timer**: done 17 September -- Display ▾ → Stop reading, after 15/30/60
+  minutes or at the end of this page or section; it pauses between sentences.
+  `tools/check_sleep.mjs`. **Skip back 10 seconds**: not done (← already goes back a sentence).
 - 🟡 **Firefox and Safari** properly, if people ask. Firefox passes `tools/check_firefox.mjs` (17 September); Safari untried.

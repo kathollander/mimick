@@ -166,6 +166,9 @@
     find.forget();
     contents.forget();
     order.forget();
+    clearTimeout(sleep?.timer);
+    sleep = null;
+    sentenceStatus = null;
     before = null;
     showReadingTime();
     resetMarks();
@@ -608,6 +611,9 @@
     find.forget();
     contents.forget();
     order.forget();
+    clearTimeout(sleep?.timer);
+    sleep = null;
+    sentenceStatus = null;
     before = null;
     resetMarks();
     clearPages();
@@ -725,6 +731,7 @@
   const savedVoice = recall("mimick-voice");
   const voiceLabel = (key) => { const v = Voices.byKey[key]; return v ? `${v.name} (${v.accent})` : key; };
 
+  let sentenceStatus = null;      // what the status line says of the sentence being read
   const voice = MimickReadAloud.create({
     askDocument: (message) => reading.ask(message),
     voice: Voices.byKey[savedVoice] ? savedVoice : Voices.DEFAULT,
@@ -735,12 +742,10 @@
       lit = { sentence: index, made, position: null };
       if (made) {
         const [page, box] = made.lines[0];
-        if (voice.source === "document") {
-          remember(`mimick-position:${doc.key}`, index);
-          status(`Sentence ${index + 1} of ${doc.sentences} · page ${page + 1}`);
-        } else {
-          status(`Reading your selection · sentence ${index + 1} of ${voice.count}`);
-        }
+        sentenceStatus = voice.source === "document" ? `Sentence ${index + 1} of ${doc.sentences} · page ${page + 1}`
+          : `Reading your selection · sentence ${index + 1} of ${voice.count}`;
+        if (voice.source === "document") remember(`mimick-position:${doc.key}`, index);
+        if (!(voice.source === "document" && sleepDue(page, box[1]))) status(sentenceStatus);
         const [word, on, rect] = made.words[0];
         placeCaret(word, false, [on, rect[0], rect[1], rect[3]]);
         keepInView(page, box);
@@ -763,7 +768,9 @@
       $("back").disabled = $("forward").disabled = state === "stopped";
       // A blinking cursor says the arrow keys move it, which is true unless the voice is reading.
       pagesEl.classList.toggle("reading", isReading(state));
-      if (state === "paused") status("Paused — the arrow keys move the cursor, Shift selects");
+      if (state === "paused" && !sleepStopped) status("Paused — the arrow keys move the cursor, Shift selects");
+      if (state === "playing" && sentenceStatus) status(sentenceStatus);
+      sleepStopped = false;
       if (state === "loading") status("Getting the voice ready…");
       if (state === "stopped") showProgress();
       showReadingTime();
@@ -1451,6 +1458,58 @@
   matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", showTheme);
   showTheme();
 
+  // --- the sleep timer ------------------------------------------------------------
+  // Display ▾ → Stop reading: after some minutes, or at the end of this page or
+  // section. It stops between sentences, never in the middle of one, by pausing
+  // as the next begins -- so Space carries on from there.
+
+  let sleep = null;              // { kind, label, due?, page?, section?, timer? }
+  let sleepStopped = false;      // the pause just made is the timer's, and says so itself
+  function setSleep(kind, minutes = 0) {
+    clearTimeout(sleep?.timer);
+    sleep = null;
+    if (kind === "off") { status("Sleep timer off"); return; }
+    const here = lit.made ? { page: lit.made.lines[0][0], y: lit.made.lines[0][1][1] }
+      : { page: currentPage(), y: 0 };
+    if (kind === "minutes") {
+      sleep = { kind, label: `In ${minutes} minutes`, due: false };
+      sleep.timer = setTimeout(() => { if (sleep?.kind === "minutes") sleep.due = true; }, minutes * 60000);
+      status(`Reading stops in ${minutes} minutes, at the end of a sentence`);
+    } else if (kind === "page") {
+      sleep = { kind, label: "At the end of this page", page: here.page };
+      status(`Reading stops at the end of page ${here.page + 1}`);
+    } else if (kind === "section") {
+      const section = contents.sectionAt(here.page, here.y);
+      sleep = { kind, label: "At the end of this section", section };
+      status(`Reading stops at the end of ${section ? `“${section}”` : "this section"}`);
+    }
+  }
+  /* A sentence is starting at this place: whether the timer stops reading here. */
+  function sleepDue(page, y) {
+    if (!sleep) return false;
+    const due = sleep.kind === "minutes" ? sleep.due
+      : sleep.kind === "page" ? page > sleep.page
+      : contents.sectionAt(page, y) !== sleep.section;
+    if (!due) return false;
+    const said = { minutes: "the time you set", page: "the end of the page", section: "the end of the section" }[sleep.kind];
+    sleep = null;
+    sleepStopped = true;
+    voice.pause();
+    status(`Sleep timer: stopped at ${said} — Space carries on`);
+    return true;
+  }
+  const sleepMenu = () => {
+    const on = sleep?.label ?? "Off";
+    return [
+      { label: "Stop reading", enabled: false },
+      ...[["Off", () => setSleep("off")], ["In 15 minutes", () => setSleep("minutes", 15)], ["In 30 minutes", () => setSleep("minutes", 30)],
+          ["In 60 minutes", () => setSleep("minutes", 60)], ["At the end of this page", () => setSleep("page")]]
+        .map(([label, run]) => ({ label, run, indent: true, checked: on === label, enabled: label === "Off" || !!doc })),
+      { label: "At the end of this section", indent: true, checked: on === "At the end of this section",
+        enabled: !!doc && contents.entries.length > 0, run: () => setSleep("section") },
+    ];
+  };
+
   // --- pronunciations -------------------------------------------------------------
   // js/pronounce.js. A word as printed and how to say it, for every document and
   // voice; right-click a selected word to start with it.
@@ -1514,6 +1573,8 @@
         run: () => setSwitch("clean_text", !switchOn("clean_text")) },
       { label: "Reset reading order", enabled: built() && order.changed, run: order.reset },
       { label: "How to say words…", run: () => openSay() },
+      "-",
+      ...sleepMenu(),
       "-",
       { label: "Theme", enabled: false },
       ...[["system", "Match the system"], ["dark", "Dark"], ["light", "Light"]].map(([theme, label]) =>

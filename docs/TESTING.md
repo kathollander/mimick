@@ -51,6 +51,14 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Sleep timer
+
+Added 17 September. Needs a voice.
+
+- [ ] **Display ▾ → Stop reading → In 15 minutes** while reading: after about 15 minutes it stops between two sentences, and says so
+- [ ] **At the end of this page** and **At the end of this section** stop in the right place
+- [ ] Space carries on from where it stopped
+
 ## Firefox
 
 Added 17 September. A script has already opened a PDF and read it aloud in Firefox 154; this is the by-hand pass.

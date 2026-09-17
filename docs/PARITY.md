@@ -69,6 +69,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## For the desktop
 
+- ⬜ **Sleep timer** (Display → Stop reading): minutes, end of page, end of section; pauses between sentences. Browser: `sleepDue` in `js/reader.js`
 - ⬜ **How to say words** (a pronunciation list): a word as printed and a sound-alike, applied before the phonemizer, with the timings put back under the printed word so highlighting is unchanged. Browser: `js/pronounce.js`
 - ⬜ **Light theme** following the system, and Display → Theme (Match the system / Dark / Light). Browser: the token sets at the top of `reader.html`
 - ⬜ **Highlight colours for colour-blind readers**: simulated over white at the drawn opacity, Blue and Pink are close for protanopia (ΔE 6.8) and Green and Blue for tritanopia (6.4); every other pair is 12 or more. The four colours are `annotations.COLOURS`, shared, so change them in both or neither -- Kat's call

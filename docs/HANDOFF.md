@@ -40,6 +40,7 @@ Kat asked for the launch work to be done overnight, from
 - **Accessibility, first pass**: a light theme following the system (Display ▾ →
   Theme), less motion, names on every control, the contents tree's keys.
 - **How to say words**: a pronunciation list.
+- From Ship 3: **a sleep timer**, and **Firefox** checked by script (`check_firefox.mjs`).
 
 **Not done from Ship 2: read aloud while a long document is still opening.** It
 needs `Document` in the desktop's shared `document.py` to build page by page
@@ -173,6 +174,13 @@ stops the cursor blinking. Every glyph button (‹ › ↶ ↷ ⚙ ▶ − +) an
 now has an `aria-label`. **The highlight colours were measured for colour
 blindness, not changed** (they are shared with the desktop): the numbers are in
 `PARITY.md`, *For the desktop*. `tools/check_access.mjs`.
+
+**Ship 3: the sleep timer.** Display ▾ → Stop reading. `setSleep` keeps
+`{kind, label}`; minutes set a `due` flag after the time, page and section
+remember where reading was. `sleepDue` runs in `onSentence` as each sentence
+starts and pauses there (`sleepStopped` keeps the usual "Paused" line from
+overwriting its own). Resuming now puts the sentence's line back
+(`sentenceStatus`). Cleared on open and close.
 
 **Ship 2: How to say words, done.** `js/pronounce.js`: a list of `[word,
 sayAs]` in `localStorage` (`mimick-pronunciations`). The page sends it with
@@ -340,6 +348,7 @@ node tools/check_forget.mjs          # the same
 node tools/check_recent.mjs          # the same
 node tools/check_access.mjs          # the same
 node tools/check_say.mjs             # the same; reuses the voice check_convert downloaded
+node tools/check_sleep.mjs           # the same; reuses the voice check_convert downloaded
 node tools/check_firefox.mjs         # Firefox through geckodriver; --voice also reads aloud
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
