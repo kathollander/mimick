@@ -53,7 +53,12 @@ best started with Kat.
    diffs, the old journal article) -- rewrite, or start the public repo from one
    fresh commit.
 2. Delete `sample readings/`.
-3. Open it in Firefox and Safari once, by hand; neither has ever been tried.
+3. Try it in Firefox and Safari by hand. **Firefox 154 was driven by script on
+   17 September** (`firefox.geckodriver` is on this machine: start it on a port,
+   POST `/session` with `-headless`, then WebDriver): it went cross-origin
+   isolated, cached itself for offline, opened the test paper and the `.docx`,
+   showed the contents panel, found text, downloaded Norman and read aloud with
+   the word lit. Not tried there: highlights, saving, Convert. Safari: nothing.
 4. Work through the new sections at the top of `TESTING.md` -- every one of
    tonight's features is checked by a script, which says it works, not that it
    feels right.

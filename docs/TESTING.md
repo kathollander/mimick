@@ -51,6 +51,15 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Firefox
+
+Added 17 September. A script has already opened a PDF and read it aloud in Firefox 154; this is the by-hand pass.
+
+- [ ] Open, read aloud, speed, voice change, click a sentence
+- [ ] Highlight, note, Save a copy (downloads), Export notes (downloads)
+- [ ] Convert to MP3 (downloads at the end)
+- [ ] Anything that looks or behaves differently from Chrome
+
 ## How to say words
 
 Added 17 September. Needs a voice.
