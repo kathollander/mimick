@@ -75,7 +75,7 @@
   const readyNow = () => {
     if (saidReady || !pythonReady || !pageWorkersReady) return;
     saidReady = true;
-    if (!doc) status("Ready. Open a PDF to begin.");
+    if (!doc) status("Ready. Open a PDF or a text file to begin.");
     // Python is loaded, and kept as it came: now keep the rest for offline use.
     MimickOffline.complete();
   };
@@ -154,7 +154,9 @@
 
   // --- opening ------------------------------------------------------------------
 
-  async function openBytes(buffer, name) {
+  /* Open a PDF's bytes. `key` names the document for what is kept about it
+   * (notes, place, drawn pages); by default, a hash of the bytes. */
+  async function openBytes(buffer, name, key = null) {
     const mine = ++generation;
     status(pythonReady ? `Opening ${name}…` : `Getting ready, then opening ${name}…`);
     $("empty").hidden = true;
@@ -170,7 +172,7 @@
     doc = null;
     setReadable(false);
     const t0 = performance.now();
-    const key = await Store.hash(buffer);
+    key ??= await Store.hash(buffer);
     if (mine !== generation) return;
     // Every worker needs its own copy; the document worker takes the original.
     const copies = pool.map(() => buffer.slice(0));
@@ -230,13 +232,45 @@
     showProgress();
   }
 
+  const isText = (file) => /\.txt$/i.test(file.name) || file.type === "text/plain";
+
   async function openFile(file) {
     if (!file) return;
+    if (isText(file)) { openText(file); return; }
     if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
-      status(`${file.name} is not a PDF.`);
+      status(`${file.name} is not a PDF or a text file.`);
       return;
     }
     openBytes(await file.arrayBuffer(), file.name);
+  }
+
+  /* A text file, laid out as a PDF by the document worker (reader.text_to_pdf),
+   * then opened as one. Known by a hash of the text, so its notes come back. */
+  async function openText(file) {
+    const bytes = await file.arrayBuffer();
+    const mine = ++generation;
+    status(pythonReady ? `Laying out ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+    const text = decodeText(bytes);
+    const stem = file.name.replace(/\.txt$/i, "");
+    let pdf;
+    try {
+      pdf = await call("text_to_pdf", text, stem);
+    } catch (err) {
+      if (mine === generation) status(`Could not open ${file.name}: ${err.message.trim().split("\n").pop()}`);
+      return;
+    }
+    if (mine !== generation) return;
+    const copy = pdf.slice().buffer;
+    openBytes(copy, stem + ".pdf", "text:" + await Store.hash(bytes));
+  }
+
+  /* UTF-8 (with or without its mark), UTF-16 with its mark, or else Windows-1252. */
+  function decodeText(bytes) {
+    const head = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
+    if (head[0] === 0xff && head[1] === 0xfe) return new TextDecoder("utf-16le").decode(bytes);
+    if (head[0] === 0xfe && head[1] === 0xff) return new TextDecoder("utf-16be").decode(bytes);
+    try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+    catch { return new TextDecoder("windows-1252").decode(bytes); }
   }
 
   const chooseFile = () => $("file").click();

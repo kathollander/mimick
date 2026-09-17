@@ -350,6 +350,40 @@ def caret_place(caret: int, trailing: bool) -> list | None:
     return [word.page, round(x1 if at_end else x0, 2), round(y0, 2), round(y1, 2)]
 
 
+# -- plain text ------------------------------------------------------------------
+#
+# A .txt file is laid out as a PDF here, and from then on it *is* a PDF: the
+# same reading, highlights, notes and Download a copy. Line breaks are kept as
+# written, so a poem or a list reads as it looks; a blank line starts a paragraph.
+
+
+def text_to_pdf(text: str, title: str) -> bytes:
+    """``text`` set on A4 pages, one-inch margins, 11pt, titled ``title``."""
+    import html
+    import io
+    paragraphs = [p for p in text.replace("\r\n", "\n").replace("\r", "\n").split("\n\n") if p.strip()]
+    if not paragraphs:
+        raise ValueError("the file has no text in it")
+    body = "".join(f"<p>{html.escape(p.strip(chr(10)))}</p>" for p in paragraphs)
+    css = ("body { font-family: sans-serif; font-size: 11pt; line-height: 1.45; } "
+           "p { white-space: pre-wrap; margin: 0 0 9pt 0; }")
+    story = pymupdf.Story(html=body, user_css=css)
+    out = io.BytesIO()
+    writer = pymupdf.DocumentWriter(out)
+    page = pymupdf.paper_rect("a4")
+    where = page + (72, 72, -72, -72)
+    more = True
+    while more:
+        device = writer.begin_page(page)
+        more, _ = story.place(where)
+        story.draw(device)
+        writer.end_page()
+    writer.close()
+    with pymupdf.open(stream=out.getvalue(), filetype="pdf") as made:
+        made.set_metadata({"title": title, "creator": "Mimick, from a text file"})
+        return made.tobytes(garbage=3, deflate=True)
+
+
 # -- finding text --------------------------------------------------------------
 #
 # Ctrl+F. The search runs over every word on the pages, read or not, as the

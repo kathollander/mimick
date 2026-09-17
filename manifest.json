@@ -13,6 +13,6 @@
     { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "file_handlers": [
-    { "action": "reader.html", "accept": { "application/pdf": [".pdf"] } }
+    { "action": "reader.html", "accept": { "application/pdf": [".pdf"], "text/plain": [".txt"] } }
   ]
 }

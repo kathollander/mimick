@@ -11,6 +11,29 @@ Kat means to release in a fresh session. **Start with the desktop repo's
 one, in short: check the voice licences (**Next**, item 0), delete `sample
 readings/`, and Kat makes the GitHub repository.
 
+## Start here: the night of 17 September
+
+Kat asked for the launch work to be done overnight, from
+[`ROADMAP.md`](ROADMAP.md), Ship 1. **Done and committed, every check passing
+(all 13 in *Running it*):**
+
+- Item 0, the review fixes -- below.
+- Item 1, **Find** (`Ctrl`+`F`): `js/find.js`; `find` and `found_on` in `reader.py`.
+- Item 2, **offline and install**: `sw.js`, `js/offline.js`, `manifest.json`,
+  `icons/` -- see *Offline*. **Re-stamp after every change:**
+  `python3 tools/stamp_offline.py`.
+- Items 3 and 4, **How to use, Browsers, Privacy**, in `README.md` and About.
+- Item 5, **`.txt` files**: laid out as a PDF by `reader.text_to_pdf`.
+
+**Next: Ship 1 items 6 to 9, in order** -- a PDF with no text says so; File ▾
+**Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
+(`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
+the repository public.
+
+**For Kat to decide before going public:** the git history (review item 4
+below: author email, a book title in old diffs, the old journal article); and
+Firefox and Safari have never been opened by hand.
+
 ## The 17 September review: done
 
 Every item of the code review was worked through on the night of 17 September;
@@ -154,6 +177,7 @@ node tools/check_notes.mjs           # the same
 node tools/check_display.mjs         # the same
 node tools/check_order.mjs           # the same
 node tools/check_find.mjs            # the same
+node tools/check_text.mjs            # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

@@ -104,6 +104,8 @@ node tools/check_notes.mjs        # the same
 node tools/check_display.mjs      # the same
 node tools/check_order.mjs        # the same
 node tools/check_find.mjs         # the same
+node tools/check_text.mjs         # the same
+node tools/check_offline.mjs      # serves a copy of its own on 8732
 node tools/check_convert.mjs      # the same; downloads a voice on its first run
 ```
 

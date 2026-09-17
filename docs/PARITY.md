@@ -67,6 +67,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 Features the browser has that the desktop app does not. Add them there too.
 
+- ⬜ **Open a plain text file** (`.txt`): laid out as a PDF, then read as one, notes and all. Browser: `text_to_pdf` in `reader.py`
 - ⬜ **Find in document** (`Ctrl`+`F`): every match lit, Enter / Shift+Enter / F3 between them, Match case, Esc leaves the match selected. Browser: `js/find.js`, and `find` / `found_on` in `reader.py`, which fold curly quotes, dashes and ligatures and rejoin words hyphenated across a line
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`

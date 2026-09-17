@@ -114,7 +114,7 @@ const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "wor
                        "annotations", "annotation_add", "annotation_set", "annotation_remove",
                        "snapshot", "restore", "notes_pdf", "set_author", "set_reading",
                        "regions", "region_counts", "set_region_choices", "toggle_region", "reset_regions",
-                       "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on"]);
+                       "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf"]);
 
 function call(py, { id, name, args = [] }) {
   if (!CALLS.has(name)) throw new Error(`reader.py has no ${name} for the page`);

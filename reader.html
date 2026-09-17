@@ -218,10 +218,10 @@
 <header class="bar">
   <div class="left">
     <span class="brand">Mimick</span>
-    <button id="file-menu" title="Open a PDF, or turn it into an audio file">File ▾</button>
+    <button id="file-menu" title="Open a PDF or text file, find text, or turn it into an audio file">File ▾</button>
     <button id="notes-menu" title="Highlights and notes">Notes ▾</button>
     <button id="display-menu" title="What is shown, and where">Display ▾</button>
-    <input id="file" type="file" accept="application/pdf,.pdf" hidden>
+    <input id="file" type="file" accept="application/pdf,.pdf,text/plain,.txt" hidden>
     <label class="dim" for="speed">Speed</label>
     <select id="speed" title="How fast the voice reads"></select>
   </div>
@@ -246,12 +246,12 @@
   <div id="pages"></div>
   <div id="empty">
     <div class="card">
-      <h1>Open a PDF to begin</h1>
+      <h1>Open a PDF or a text file to begin</h1>
       <p>It opens in this tab and stays on your computer. Nothing is uploaded.</p>
       <div class="actions">
-        <button id="open-empty" class="primary">Open a PDF…</button>
+        <button id="open-empty" class="primary">Open a file…</button>
       </div>
-      <p style="margin-top:14px">Or drop a PDF anywhere on this page.</p>
+      <p style="margin-top:14px">Or drop a PDF or .txt file anywhere on this page.</p>
     </div>
   </div>
 </div>
@@ -419,7 +419,7 @@
       </table>
       <h2>Files</h2>
       <table>
-        <tr><td>Ctrl+O</td><td>Open a PDF</td></tr>
+        <tr><td>Ctrl+O</td><td>Open a PDF or a text file</td></tr>
         <tr><td>Ctrl+S</td><td>Download a copy with your notes in it — they are also kept in this browser as you work</td></tr>
       </table>
       <h2>Showing and hiding</h2>
@@ -449,7 +449,7 @@
       <p><b>Keeps your place</b><br>Come back to a document and pick up where you left off.</p>
       <p><b>Works offline</b><br><span id="about-offline">Once it has loaded fully, Mimick opens and reads with no internet connection.</span></p>
       <h2>How to use it</h2>
-      <p><b>Open a PDF</b> with File ▾, Ctrl+O, or by dropping it on the page. <b>Press Space</b> to read and pause —
+      <p><b>Open a PDF or .txt file</b> with File ▾, Ctrl+O, or by dropping it on the page. <b>Press Space</b> to read and pause —
         the first time, the voice downloads once (about 60 MB). Change the <b>voice</b> and <b>speed</b> in the top bar;
         ▶ plays a sample first. <b>Click a sentence</b> to read from there, or select text and press Enter.
         <b>Ctrl+F</b> finds text. <b>Ctrl+H</b> highlights, <b>Ctrl+M</b> adds a note, <b>Ctrl+S</b> saves a copy with

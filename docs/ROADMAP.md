@@ -57,7 +57,7 @@ voice from Hugging Face once, and the page itself. Notes and positions are
 kept in this browser's storage and nowhere else. (Item 2 makes this stronger:
 after first load, no network at all.)
 
-**5. Plain text, `.txt`.** Open it the same way as a PDF (button, `Ctrl`+`O`,
+**5. ✅ Plain text, `.txt`.** Done 17 September: `reader.text_to_pdf` (a PyMuPDF `Story`, line breaks kept), `openText` in `js/reader.js`, known by a hash of the text so notes come back; `tools/check_text.mjs`. Open it the same way as a PDF (button, `Ctrl`+`O`,
 drop). Turn it into pages so the rest of the reader needs no change: PyMuPDF
 can lay text out as a PDF in the worker (`fitz.Story` or
 `Page.insert_htmlbox`), and then it *is* a PDF as far as `document.py` is
