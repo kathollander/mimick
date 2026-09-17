@@ -19,6 +19,7 @@ const r = await startReader("check-documents");
 const { ev, sleep, check, wait } = r;
 await r.load();
 await r.reset();
+await ev(`localStorage.setItem("mimick-click_read", "0")`);   // a click selects, and never starts the voice
 
 const setFile = async (file) => {
   const { root: dom } = (await r.t.send("DOM.getDocument")).result;

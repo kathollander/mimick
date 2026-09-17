@@ -112,7 +112,7 @@ Then Kat makes the repository public and sends the link.
   ahead of its turn because Kat asked for it: `js/contents.js`, `F9`, a tab on
   the page's left edge.
 - **Open Recent** in File ▾ (Chrome keeps file handles in IndexedDB).
-- **Keep scroll and zoom per document**, and **Forget this document**.
+- ✅ **Keep scroll and zoom per document**, and **Forget this document**. Done 17 September; `tools/check_forget.mjs`.
 - **Export notes** as Markdown, if item 7 did not already do it.
 - **The page's own accessibility.** A light theme following
   `prefers-color-scheme`; honour `prefers-reduced-motion`; visible focus

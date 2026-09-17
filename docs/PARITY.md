@@ -10,7 +10,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ⬜ Open Recent
 - ✅ Continuous scroll, page box, ‹ ›, `Page Up`/`Down`, `Ctrl`+`↑`/`↓`/`Home`/`End`
 - ✅ Zoom: − +, slider, % box, `Ctrl`+`+`/`−`/`0`, `Ctrl`+wheel
-- ⬜ Keep scroll and zoom per document across a reload
+- ✅ Keep scroll and zoom per document across a reload (`mimick-view:<key>`)
 - ✅ **Contents panel** (the PDF's bookmarks) on the left: nested, click to go, right-click to read from there, the section on screen lit; `F9`, **Display ▾**, or the tab on the page's edge — *the desktop has none*, see **For the desktop**
 - 🟡 Remember the reading position per document (sentence only)
 
@@ -65,7 +65,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - 🟡 Convert to MP3: document, page range or selection, with estimates and cancel. Not yet: opening the file's folder afterwards. Switching its cleanup away from Display reads the whole PDF a second time (the desktop's `ExportDialog._source`), which on a long book takes as long as opening it, and cannot be stopped part way; building only the pages asked for would fix it
 - ✅ Keyboard shortcuts window (**Help ▾**, or `?`)
 - ✅ About window, and a link to the source; **voice credits** (dataset, licence, link, and the voice each was trained on) — *check the desktop credits them too*
-- ⬜ Forget this document (clear what the browser keeps)
+- ✅ **Forget this document** (File ▾): asks first, then closes it and removes its highlights, place, zoom, reading-order choices and drawn pages
 
 ## For the desktop
 

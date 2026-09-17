@@ -197,7 +197,10 @@
       $("page").max = doc.pages.length;
       for (const id of ["prev", "next", "page"]) $(id).disabled = false;
       contents.open(info.outline);
-      relayout({ page: 0, fraction: 0 });
+      // Where this document was left, and at what zoom; otherwise its top, at the zoom in use.
+      const left = savedView(key);
+      if (left) zoom = L.clampZoom(left.zoom);
+      relayout(left ? { page: Math.min(left.page, doc.pages.length - 1), fraction: left.fraction } : { page: 0, fraction: 0 });
       openedStatus = `${pagesCount()} · getting the reading ready…`;
       showProgress();
       view.focus();
@@ -414,6 +417,7 @@
     $("prev").disabled = current <= 0;
     $("next").disabled = current >= doc.pages.length - 1;
     notes.pageShown();
+    keepView();
     const line = top + height / 3, linePage = geometry.pageAt(line);
     contents.pageShown(linePage, (line - geometry.offsets[linePage]) / zoom, top);
     drawNext();
@@ -537,6 +541,77 @@
   new ResizeObserver(() => doc && relayout(geometry.anchor(view.scrollTop))).observe(view);
   // A move to a screen of another density changes how many pixels a page needs.
   matchMedia(`(resolution: ${dpr()}dppx)`).addEventListener?.("change", () => doc && relayout(geometry.anchor(view.scrollTop)));
+
+  // --- keeping the view, and forgetting a document -------------------------------
+  // Each document's scroll and zoom are kept in localStorage, as the page it was on
+  // and how far down it, so a reload or a different window size puts it back.
+  // Forget this document takes away everything the browser keeps about it.
+
+  let viewTimer = 0;
+  function keepView() {
+    clearTimeout(viewTimer);
+    const key = doc?.key;
+    if (!key) return;
+    viewTimer = setTimeout(() => {
+      if (doc?.key !== key) return;
+      const { page, fraction } = geometry.anchor(view.scrollTop);
+      remember(`mimick-view:${key}`, JSON.stringify({ page, fraction: Math.round(fraction * 1e4) / 1e4, zoom }));
+    }, 400);
+  }
+  function savedView(key) {
+    try {
+      const v = JSON.parse(recall(`mimick-view:${key}`));
+      return Number.isInteger(v?.page) && v.page >= 0 && Number.isFinite(v.fraction) && Number.isFinite(v.zoom) ? v : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /* Back to no document open. */
+  function closeDocument() {
+    ++generation;
+    clearTimeout(viewTimer);
+    voice.open(0);
+    closeMenu();
+    notes.close();
+    find.forget();
+    contents.forget();
+    order.forget();
+    before = null;
+    resetMarks();
+    clearPages();
+    doc = null;
+    setReadable(false);
+    showReadingTime();
+    pagesEl.style.height = pagesEl.style.width = "0px";
+    document.title = "Mimick";
+    $("title").textContent = $("title").title = "";
+    $("total").textContent = "of —";
+    for (const id of ["prev", "next", "page"]) $(id).disabled = true;
+    $("empty").hidden = false;
+  }
+
+  function askForget() {
+    if (!doc) return;
+    $("forget-title").textContent = doc.title;
+    const n = notes.count;
+    $("forget-what").textContent = `${n ? `its ${n} highlight${n === 1 ? "" : "s"} and notes, ` : ""}`
+      + "where you were reading, its zoom, your reading-order choices and its drawn pages";
+    $("forget-save").hidden = n === 0;
+    $("forget-dialog").returnValue = "";
+    $("forget-dialog").showModal();
+    $("forget-cancel").focus();
+  }
+  $("forget-dialog").addEventListener("close", async () => {
+    if ($("forget-dialog").returnValue !== "forget" || !doc) { view.focus(); return; }
+    const { key, title } = doc;
+    closeDocument();
+    for (const kind of ["position", "order", "view"]) {
+      try { localStorage.removeItem(`mimick-${kind}:${key}`); } catch { /* not kept */ }
+    }
+    await Promise.all([MimickNotesStore.remove(key), Store.forget(key)]);
+    status(`Forgot ${title} — nothing about it is kept in this browser now. The file itself is untouched.`);
+  });
 
   // --- pages --------------------------------------------------------------------
 
@@ -1375,6 +1450,8 @@
     // flowing format can hold. The notes on their own go out as text. See PARITY.md.
     { label: "Save a copy (PDF)…", keys: "Ctrl+S", enabled: notes.ready, run: notes.download },
     { label: "Export notes…", enabled: notes.ready && notes.count > 0, run: notes.exportNotes },
+    "-",
+    { label: "Forget this document…", enabled: !!doc, run: askForget },
     "-",
     { label: convert.running ? "Converting to MP3…" : "Convert to MP3…", enabled: !!doc?.sentences && !convert.running,
       run: convert.open },

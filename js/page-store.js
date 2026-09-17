@@ -99,7 +99,18 @@
     }
   }
 
-  const api = { KEEP_SCALE, KEEP_DOCUMENTS, hash, open, markSlow, put, get };
+  /* Forget a document's drawn pages. */
+  async function forget(key) {
+    const store = await db();
+    if (!store) return;
+    try {
+      const tx = store.transaction(["pages", "documents"], "readwrite");
+      tx.objectStore("documents").delete(key);
+      await done(tx.objectStore("pages").delete(IDBKeyRange.bound([key, 0], [key, Infinity])));
+    } catch { /* storage refused: nothing was kept */ }
+  }
+
+  const api = { KEEP_SCALE, KEEP_DOCUMENTS, hash, open, markSlow, put, get, forget };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.MimickPageStore = api;
 })(typeof self !== "undefined" ? self : globalThis);

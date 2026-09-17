@@ -59,7 +59,19 @@
     }
   }
 
-  const api = { get, put };
+  /* Forget a document's highlights. True once they are gone. */
+  async function remove(key) {
+    const store = await db();
+    if (!store) return false;
+    try {
+      await done(store.transaction("documents", "readwrite").objectStore("documents").delete(key));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const api = { get, put, remove };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.MimickNotesStore = api;
 })(typeof self !== "undefined" ? self : globalThis);

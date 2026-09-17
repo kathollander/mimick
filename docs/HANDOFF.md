@@ -91,6 +91,17 @@ library, nothing in `vendor/`. Test files: `sample/test-document.*`, made from
 checked for personal metadata -- none). Known rough: bullets, table borders,
 images untested, Word footnotes untested.
 
+**Ship 2: scroll and zoom per document, and Forget: done.** `keepView` (from
+`refresh`, 400 ms after the last move) writes `mimick-view:<key>` = `{page,
+fraction, zoom}`; `openBytes` puts it back in its first `relayout`. A document
+never seen opens at its top at the zoom in use. **File ▾ → Forget this
+document…** opens `#forget-dialog`; *Forget it* calls `closeDocument()` (bumps
+`generation` first, so a notes save in flight lands before the delete) and
+removes `mimick-position|order|view:<key>`, `MimickNotesStore.remove`,
+`MimickPageStore.forget`. `closeDocument` is also the way back to the empty
+page, should anything else need it. Checks that click a page now set
+`mimick-click_read` to `0` first, or the click starts the voice downloading.
+
 **Ship 1 is done.** What is left before the link goes out is Kat's: the git
 history decision above, a look at Firefox and Safari, the new sections at the
 top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
@@ -251,6 +262,7 @@ node tools/check_contents.mjs        # the same
 node tools/check_scan.mjs            # the same
 node tools/check_media.mjs           # the same; reuses the voice check_convert downloaded
 node tools/check_documents.mjs       # the same
+node tools/check_forget.mjs          # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

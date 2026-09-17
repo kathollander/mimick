@@ -51,6 +51,16 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Keeping your place, and Forget this document
+
+Added 17 September.
+
+- [ ] Scroll a long PDF to the middle and zoom in; reload the tab and open it again: same page, same zoom
+- [ ] A different PDF still opens at its own place
+- [ ] **File ▾ → Forget this document…** says what it will remove, and warns to save a copy first if there are notes
+- [ ] Cancel changes nothing; **Forget it** closes the document and says so
+- [ ] Opened again, it starts at the top with none of your highlights, and Read aloud starts from the beginning
+
 ## Word, OpenDocument and EPUB
 
 Added 17 September. Try real ones: a reading in Word, something saved from
