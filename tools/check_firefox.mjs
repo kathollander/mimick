@@ -60,7 +60,7 @@ const click = async (css) => wd("POST", `/element/${await element(css)}/click`, 
 const keys = (...sequence) => wd("POST", "/actions", { actions: [{ type: "key", id: "k", actions: sequence.flatMap((k) =>
   Array.isArray(k) ? [...k.map((v) => ({ type: "keyDown", value: v })), ...[...k].reverse().map((v) => ({ type: "keyUp", value: v }))]
     : [...k].flatMap((v) => [{ type: "keyDown", value: v }, { type: "keyUp", value: v }])) }] });
-const CTRL = "";
+const CTRL = "\uE009";
 const openFile = async (file) => wd("POST", `/element/${await element("#file")}/value`, { text: file });
 const status = () => js(`return document.getElementById("status").textContent`);
 
@@ -89,7 +89,7 @@ try {
   await keys("voice"); await sleep(1500);
   check("Ctrl+F finds text", (await js(`return document.getElementById("find-count").textContent`)) === "1 of 5",
         await js(`return document.getElementById("find-count").textContent`));
-  await keys(""); await sleep(300);   // Escape
+  await keys("\uE00C"); await sleep(300);   // Escape
 
   const before = await js(`return document.querySelectorAll(".hl.annot").length`);
   await click("#view");
