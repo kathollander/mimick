@@ -1062,6 +1062,7 @@
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
                 || e.target instanceof HTMLTextAreaElement;
+    if (notes.opening) { e.preventDefault(); return; }
     if (notes.editing || document.querySelector("dialog[open]")) return;
     if (!menu.hidden) {
       if (e.key === "Escape") { e.preventDefault(); closeMenu(); view.focus(); }

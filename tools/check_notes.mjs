@@ -172,6 +172,20 @@ await r.key("h", CTRL | SHIFT); await sleep(300);
 check("Ctrl+Shift+H hides it", await ev(`document.getElementById("markup").hidden`));
 await r.key("h", CTRL | SHIFT); await sleep(300);
 
+// 10b. Keys pressed while the note editor is still on its way belong to it:
+// Enter straight after Ctrl+M must not start reading.
+await r.drag(await r.at(283, 300), await r.at(330, 300));
+await r.key("m", CTRL);
+await r.key("Enter");
+await wait(`document.getElementById("note-dialog").open`);
+await sleep(300);
+check("Enter pressed as the note editor opens does not start reading",
+      (await ev(`document.getElementById("play").textContent`)) === "Read aloud");
+await r.key("Escape"); await sleep(500);
+s = await state();
+check("Esc on a new note keeps the highlight, and says so", /^Highlighted — /.test(s.status), s.status);
+await r.key("z", CTRL); await sleep(500);
+
 // 11. The menus in the header.
 await r.click(await r.centre("#display-menu"));
 const display = await r.menuLabels();

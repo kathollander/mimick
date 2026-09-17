@@ -298,6 +298,9 @@
         return;
       }
       ctx.clearSelection();
+      // The editor opens only once the worker has made the highlight. Until it
+      // does, keys belong to it, not the page: Enter there would start reading.
+      if (withNote) opening = true;
       change(async () => {
         const item = await add(span[0], span[1], { colour });
         if (!item) { ctx.status("That selection could not be highlighted"); return; }
@@ -310,7 +313,7 @@
           rememberHighlight(item);
           ctx.status(`Highlighted — ${items.length} in this document`);
         }
-      });
+      }).catch(() => {}).then(() => setTimeout(() => { opening = false; }));
     }
 
     function remove(item, { remember = true } = {}) {
@@ -364,7 +367,7 @@
     // --- the note editor --------------------------------------------------------
 
     const dialog = $("note-dialog");
-    let editing = null;
+    let editing = null, opening = false;
 
     function edit(item, { fresh = false } = {}) {
       if (!item || !ready) return;
@@ -425,7 +428,10 @@
       if (!item) { refreshAll(); return; }
       if (!saving) {
         refreshAll();
-        if (job.fresh) rememberHighlight(item);
+        if (job.fresh) {
+          rememberHighlight(item);
+          ctx.status(`Highlighted — ${items.length} in this document`);
+        }
         return;
       }
       change(async () => {
@@ -741,6 +747,7 @@
       get active() { return activeItem(); },
       get ready() { return ready; },
       get editing() { return dialog.open || styleDialog.open; },
+      get opening() { return opening; },
     };
   }
 

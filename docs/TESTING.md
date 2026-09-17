@@ -82,6 +82,8 @@ only the sample.
 - [ ] Typing in it changes the card in the panel as you type
 - [ ] A heading, and a different colour, both show once saved
 - [ ] `Ctrl`+`Enter` saves; **Cancel** or `Esc` leaves things as they were
+- [ ] Press `Ctrl`+`M` and start typing straight away, fast: nothing starts reading, and the box opens ready for you
+- [ ] `Esc` on a brand-new note keeps the highlight, and the line at the bottom says "Highlighted" rather than still saying words are selected
 - [ ] Double-clicking a highlight, or its card, opens its note again
 - [ ] `Ctrl`+`Z` undoes a change to a note
 
