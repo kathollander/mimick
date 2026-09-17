@@ -207,6 +207,11 @@ def align(sentence: int, marks: list, source: str = "document") -> list[list]:
             align_marks(target, [(float(when), str(word)) for when, word in marks])]
 
 
+def sentence_lengths() -> list[int]:
+    """How many characters each sentence has, for how long reading it takes."""
+    return [len(sentence.text) for sentence in _open().sentences]
+
+
 def convert_texts(scope: str, first: int = 0, last: int = 0) -> list[str]:
     """What a conversion to MP3 speaks, sentence by sentence: the whole document,
     pages ``first`` to ``last`` (from 0), or the words ``first`` to ``last``.

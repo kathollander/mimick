@@ -36,7 +36,8 @@
   header.bar { grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
   header.bar button { white-space: nowrap; }
   @media (max-width: 1150px) { header.bar label.dim { display: none; } }
-  #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #status { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #reading-time { flex-shrink: 0; white-space: nowrap; padding-right: 10px; border-right: 1px solid var(--border); cursor: default; }
 
   button, input, select { font: inherit; color: var(--text); background: var(--panel-hi);
                   border: 1px solid var(--border); border-radius: 6px; }
@@ -438,7 +439,7 @@
 <div id="menu" role="menu" hidden></div>
 
 <footer class="bar">
-  <div class="left"><span id="status" class="dim">Getting ready…</span></div>
+  <div class="left"><span id="reading-time" hidden></span><span id="status" class="dim">Getting ready…</span></div>
   <div class="centre">
     <button id="prev" class="square" title="Previous page  (Page Up)" disabled>‹</button>
     <input id="page" type="number" min="1" value="1" title="Jump to page" disabled>

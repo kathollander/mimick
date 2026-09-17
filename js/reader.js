@@ -96,6 +96,50 @@
   const status = (text) => { $("status").textContent = text; $("status").title = text; };
   const dpr = () => window.devicePixelRatio || 1;
 
+  // --- how long it takes to read -------------------------------------------------
+  // In the corner of the bottom bar: the whole document at 1× and at the speed
+  // chosen, or, while it reads, what is left at this speed; hovering lists every
+  // speed. The desktop's measured speaking rate (export.py), so it is "about".
+
+  const CHARS_PER_SECOND = 15.1;
+  let before = null;               // before[i]: characters in the sentences ahead of sentence i
+
+  async function measureReading() {
+    const mine = generation;
+    before = null;
+    showReadingTime();
+    if (!doc?.sentences) return;
+    const lengths = await call("sentence_lengths").catch(() => null);
+    if (mine !== generation || !lengths) return;
+    before = new Float64Array(lengths.length + 1);
+    lengths.forEach((n, i) => { before[i + 1] = before[i] + n; });
+    showReadingTime();
+  }
+
+  function readingTime(chars, rate) {
+    const minutes = Math.round(chars / CHARS_PER_SECOND / rate / 60);
+    if (minutes < 1) return "under a minute";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60), rest = minutes % 60;
+    return rest ? `${hours} h ${rest} min` : `${hours} h`;
+  }
+
+  function showReadingTime() {
+    const el = $("reading-time");
+    if (!doc || !before) { el.hidden = true; return; }
+    const total = before[before.length - 1], rate = voice.rate;
+    if (voice.state !== "stopped" && voice.source === "document") {
+      const left = total - before[Math.min(voice.index, before.length - 1)];
+      el.textContent = `${readingTime(left, rate)} left at ${rate}×`;
+    } else {
+      const other = rate === 1 ? 2 : rate;
+      el.textContent = `${readingTime(total, 1)} at 1× · ${readingTime(total, other)} at ${other}×`;
+    }
+    el.title = "About how long this whole document takes to read aloud:\n"
+      + SPEEDS.map((speed) => `${speed}×   ${readingTime(total, speed)}`).join("\n");
+    el.hidden = false;
+  }
+
   function showProgress() {
     // While reading, the status line is the reading's.
     if (!doc || voice.state !== "stopped") return;
@@ -114,6 +158,8 @@
     closeMenu();
     notes.close();
     order.forget();
+    before = null;
+    showReadingTime();
     resetMarks();
     clearPages();
     doc = null;
@@ -170,6 +216,7 @@
       setReadable(done.sentences > 0);
       notes.open(doc);
       redrawMarks();
+      measureReading();
     } catch (err) {
       if (mine !== generation) return;
       openedStatus = `${doc.pages.length} pages · this one cannot be read aloud: ${err.message}`;
@@ -502,6 +549,7 @@
     voice: Voices.byKey[savedVoice] ? savedVoice : Voices.DEFAULT,
     voiceName: voiceLabel,
     onSentence(index, made) {
+      showReadingTime();
       lit = { sentence: index, made, position: null };
       if (made) {
         const [page, box] = made.lines[0];
@@ -536,6 +584,7 @@
       if (state === "paused") status("Paused — the arrow keys move the cursor, Shift selects");
       if (state === "loading") status("Getting the voice ready…");
       if (state === "stopped") showProgress();
+      showReadingTime();
     },
     onStatus: status,
   });
@@ -696,6 +745,7 @@
     const rate = Number($("speed").value);
     voice.setRate(rate);
     remember("mimick-rate", rate);
+    showReadingTime();
     view.focus();
   };
 
@@ -1070,6 +1120,7 @@
     doc.sentences = result.sentences;
     voice.open(result.sentences, "document");
     order.forget();
+    measureReading();
     openedStatus = `${doc.pages.length} pages · ${result.sentences} sentences to read`;
     status(say(result));
     if (wasReading) voice.play(result.resume);

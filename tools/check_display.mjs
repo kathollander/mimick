@@ -74,6 +74,22 @@ await r.menu("About Mimick");
 check("About opens", await ev(`document.getElementById("about-dialog").open && /Arranged by/.test(document.getElementById("about-dialog").textContent)`));
 await r.key("Escape"); await sleep(200);
 
+// 3b. How long it takes to read, in the bottom bar.
+{
+  // Opened afresh: the click that gave the page the keyboard above started reading.
+  await r.openPdf(SAMPLE);
+  await wait(`!document.getElementById("reading-time").hidden`, 20000);
+  const time = () => ev(`[document.getElementById("reading-time").textContent, document.getElementById("reading-time").title]`);
+  let [shown, every] = await time();
+  check("the bottom bar says how long the document takes at 1× and 2×", /^\d+ min at 1× · \d+ min at 2×$/.test(shown), shown);
+  check("…and hovering lists every speed", every.split("\n").length === 11 && /4×\s+\d+ min/.test(every), every);
+  await ev(`(() => { const e = document.getElementById("speed"); e.value = "3"; e.dispatchEvent(new Event("change")); })()`);
+  await sleep(300);
+  [shown] = await time();
+  check("…and follows the speed chosen", / at 3×$/.test(shown), shown);
+  await ev(`(() => { const e = document.getElementById("speed"); e.value = "1"; e.dispatchEvent(new Event("change")); })()`);
+}
+
 // 4. The voice. Nothing is downloaded here: a model is 60 MB.
 // A fresh page: the click that gave the page the keyboard above also started reading.
 await r.load();

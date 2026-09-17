@@ -51,6 +51,16 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## How long it takes to read
+
+Added 17 September.
+
+- [ ] Open a PDF: the bottom-left corner says how long it takes to read at 1× and at your speed (2× if you're at 1×)
+- [ ] Hovering over it lists every speed
+- [ ] Changing **Speed** changes it
+- [ ] While it reads, it says how long is left at the current speed, and counts down
+- [ ] Roughly right: time a few minutes of reading against what it said
+
 ## Convert to MP3
 
 Added 17 September. Reload the page first.

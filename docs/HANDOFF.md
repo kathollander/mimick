@@ -208,6 +208,11 @@ desktop's 15.1 characters a second; converting is guessed at 4× real time,
 which ran about 12× here, so the first estimate is long until the job times
 itself.
 
+**Reading time**, asked for by Kat: the bottom bar's left corner shows the
+document at 1× and at the chosen speed, or what is left while reading, from
+`reader.sentence_lengths` and the desktop's 15.1 characters a second. Against
+a real conversion of the sample's page 1 it ran about 15% long for Lessac.
+
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
