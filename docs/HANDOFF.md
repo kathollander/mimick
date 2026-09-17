@@ -517,8 +517,7 @@ desktop repo if at all.
    fine while Mimick is not commercial. **Still open:** Joe, Kusal, VCTK and
    LibriTTS were fine-tuned from Lessac, so its terms may carry into them --
    **Kat keeps them**, accepting the risk for a free tool for students and
-   accessibility. Also still to do: credit CC BY / BY-SA /
-   BY-NC-SA voices in About. The dev checks `check_voice.mjs` and
+   accessibility. The CC BY / BY-SA / BY-NC-SA credits are in About (done 17 September). The dev checks `check_voice.mjs` and
    `check_timing.mjs` (and the desktop's `check_timing.py`) still use the Lessac
    model already on this machine.
 1. ~~Show reading order~~ -- done 17 September; see below.
@@ -527,11 +526,13 @@ desktop repo if at all.
    builds them all in its constructor, in the desktop's shared `document.py`,
    so reading early means building page by page (change it there, then port).
    Word indices must stay what a full build gives (desktop trap 9) -- and
-   highlights are now keyed to them too.
+   highlights are now keyed to them too. **A plan is in `ROADMAP.md`**, Ship 2.
 3. ~~The voice picker~~ -- done 17 September. Nicknames: not wanted for now.
-4. **Keep scroll and zoom per document across a reload**, and **Forget this
-   document** (notes, drawn pages, position).
-5. ~~Convert to MP3~~ -- done 17 September, bar two small things in `PARITY.md`. Then **Open Recent** (Chrome can keep file handles), which goes in **File ▾**.
+4. ~~Keep scroll and zoom per document, and Forget this document~~ -- done 17 September.
+5. ~~Convert to MP3~~ -- done 17 September, bar two small things in `PARITY.md`. ~~Open Recent~~ -- done 17 September.
+
+**From here, `ROADMAP.md` is the list.** Ship 1 is done; of Ship 2 only reading
+while a long document opens is left (planned); then Ship 3.
 
 The layout follows the desktop app, Photopea-style; the shortcuts are shared
 (`FUTURE-FEATURES.md`, **Shortcuts**).
