@@ -4,12 +4,65 @@ A PDF reader that reads aloud in natural voices, highlighting each word as it
 speaks it — in a browser tab, with nothing installed and nothing uploaded. Your
 document is opened by your own browser and never leaves your machine.
 
-**It reads aloud, with one voice so far.** [`reader.html`](reader.html) opens a
-PDF, shows it, and reads it with the word being said lit on the page. Scanned
-books are drawn ahead in the background and kept in the browser, so they scroll
-quickly. Two test pages prove the foundation: [`spike.html`](spike.html) puts the
-sample paper through the desktop app's layout analysis, and
-[`voice.html`](voice.html) reads a passage aloud with a Piper voice, up to 4×.
+[`reader.html`](reader.html) is the reader. It opens a PDF, shows it, and reads
+it aloud in one of seven natural voices at 0.75× to 4×, with the sentence and
+the word being said lit on the page. You can click any sentence to read from
+there, find text, highlight and write notes, choose what gets read and what is
+skipped, and turn a document into an MP3. Once it has loaded, it works with no
+internet connection, and Chrome can install it as an app.
+
+## How to use it
+
+1. **Open a PDF.** Press **Open a PDF…**, or `Ctrl`+`O`, or drop the file
+   anywhere on the page. It opens in your browser and is not uploaded anywhere.
+2. **Press `Space`** (or **Read aloud**) to start and pause. The first time,
+   the voice downloads once -- about 60 MB -- and is kept, so after that it
+   starts straight away, even offline.
+3. **Change the voice and speed** in the top bar. The **▶** beside the voice
+   plays a sample before you download it.
+4. **Click a sentence** to read from there, or select some text and press
+   `Enter` to read just that. `←` and `→` go back and forward a sentence.
+5. **Find text** with `Ctrl`+`F`; `Enter` goes to the next match.
+6. **Highlight** a selection with `Ctrl`+`H`, or highlight it and **write a
+   note** with `Ctrl`+`M`. Notes appear beside the page (`Ctrl`+`B` shows or
+   hides them), and are kept in this browser as you work.
+7. **Save a copy** with `Ctrl`+`S`: the PDF with your highlights and notes in
+   it, which other PDF readers can show.
+8. **Help ▾ → Keyboard shortcuts** (or `?`) lists everything else.
+
+Mimick skips page numbers, running headers and the reference list by itself.
+**Display ▾ → Show reading order** (`Ctrl`+`R`) shows what it will read and in
+what order; click a region to read or skip it.
+
+## Browsers
+
+Built and tested in **Google Chrome** on a Linux desktop; it is meant for
+laptops and desktops on any system Chrome runs on. **Brave, Microsoft Edge and other Chromium browsers** run the same
+engine and should work the same, but have not been tried.
+
+**Firefox and Safari are untested.** What is known: saving an MP3 downloads it
+when it is finished, instead of writing it as it goes, because they have no
+`showSaveFilePicker`; installing as an app is Chrome's; and the voice runs
+faster with several threads, which needs `SharedArrayBuffer` and so the
+cross-origin isolation the service worker provides -- if that fails, the voice
+still reads, more slowly, on one thread. Phones and tablets are not supported.
+
+## Privacy
+
+Every document you open stays on your computer: it is read by your own
+browser, and nothing is uploaded. The only things Mimick downloads are the page
+itself, the first time, and each voice you use, once, from
+[Hugging Face](https://huggingface.co/rhasspy/piper-voices) -- checked against a
+fixed hash, so it cannot be swapped. Your highlights, notes, reading positions
+and settings are kept in this browser's storage and nowhere else; clearing the
+site's data in the browser removes them. There are no accounts, no analytics
+and no tracking. After the first visit Mimick needs no network at all.
+
+## Two test pages
+
+[`spike.html`](spike.html) puts the sample through the desktop app's layout
+analysis, and [`voice.html`](voice.html) reads a passage aloud with a Piper
+voice, up to 4×. They are for development, not for readers.
 
 This is the browser version of **[Mimick](https://github.com/kathollander/mimick)**,
 the installed Linux and Windows app. That one is the original and still where
@@ -31,11 +84,12 @@ python3 serve.py
 ```
 
 Any static server works, but `serve.py` tells the browser to check for new
-files every time. After changing any file the page serves, run
-`python3 tools/stamp_offline.py`: the service worker keeps a copy of the whole
-app for offline use, and the stamp is how browsers that have one learn there is
-a new version. `python3 -m http.server` does not, and Chrome then keeps
+files every time. `python3 -m http.server` does not, and Chrome then keeps
 running old copies of the scripts after they change.
+
+After changing any file the page serves, run `python3 tools/stamp_offline.py`.
+The service worker (`sw.js`) keeps a copy of the whole app for offline use, and
+the stamp is how browsers that already have one learn there is a new version.
 
 To check the foundation without a browser:
 

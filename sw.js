@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "69f60080035b617b";
+const VERSION = "50795f05a5725dfd";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",

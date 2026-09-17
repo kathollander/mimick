@@ -41,7 +41,7 @@ saying "Ready to work offline" once the cache is full. Keep the isolation
 headers -- the two can be one worker or two, *your call*. Test by loading
 once, stopping `serve.py`, reloading.
 
-**3. Browser support, and a How to use.** In `README.md` and in About: built
+**3. ✅ Browser support, and a How to use.** Done 17 September, in `README.md` and About; Firefox and Safari still untried by hand. In `README.md` and in About: built
 and tested on Chrome; Brave, Edge and other Chromium browsers work the same.
 Firefox and Safari are untested -- `showSaveFilePicker` does not exist there
 (the code already falls back to a download) and the page needs
@@ -51,7 +51,7 @@ change the voice and speed, click a sentence, highlight, notes, download a
 copy, and that the first voice is a one-time 60 MB download. Screenshots are
 fine if they show the sample PDF, not a real reading.
 
-**4. Privacy, in About and the README.** One paragraph: every document stays
+**4. ✅ Privacy, in About and the README.** Done 17 September. One paragraph: every document stays
 on this computer; nothing is uploaded; the only network use is downloading a
 voice from Hugging Face once, and the page itself. Notes and positions are
 kept in this browser's storage and nowhere else. (Item 2 makes this stronger:
