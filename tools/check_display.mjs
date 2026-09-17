@@ -80,13 +80,12 @@ await r.key("Escape"); await sleep(200);
   await r.openPdf(SAMPLE);
   await wait(`!document.getElementById("reading-time").hidden`, 20000);
   const time = () => ev(`[document.getElementById("reading-time").textContent, document.getElementById("reading-time").title]`);
-  let [shown, every] = await time();
-  check("the bottom bar says how long the document takes at 1× and 2×", /^\d+ min at 1× · \d+ min at 2×$/.test(shown), shown);
-  check("…and hovering lists every speed", every.split("\n").length === 11 && /4×\s+\d+ min/.test(every), every);
+  let [shown] = await time();
+  check("the bottom bar says how long the document takes at the chosen speed", /^\d+ min to read at 1×$/.test(shown), shown);
   await ev(`(() => { const e = document.getElementById("speed"); e.value = "3"; e.dispatchEvent(new Event("change")); })()`);
   await sleep(300);
   [shown] = await time();
-  check("…and follows the speed chosen", / at 3×$/.test(shown), shown);
+  check("…and changes with the speed box", /^\d+ min to read at 3×$/.test(shown), shown);
   await ev(`(() => { const e = document.getElementById("speed"); e.value = "1"; e.dispatchEvent(new Event("change")); })()`);
 }
 

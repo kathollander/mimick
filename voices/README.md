@@ -18,5 +18,7 @@ Each voice's dataset licence, from its model card:
 | VCTK | CC BY 4.0 |
 | LibriTTS | CC BY 4.0 |
 
-**Check Lessac and Kusal before this goes public.** The Blizzard licence has
-terms of its own, and Kusal's card points elsewhere rather than naming one.
+**Not yet checked properly.** Mimick is free and open source, not commercial,
+but AGPL lets anyone reuse it. Lessac's Blizzard licence has terms of its own,
+and Kusal's card points elsewhere rather than naming one. What to find out, and
+for which uses, is item 0 of **Next** in `docs/HANDOFF.md`.

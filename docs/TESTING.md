@@ -55,9 +55,8 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 
 Added 17 September.
 
-- [ ] Open a PDF: the bottom-left corner says how long it takes to read at 1× and at your speed (2× if you're at 1×)
-- [ ] Hovering over it lists every speed
-- [ ] Changing **Speed** changes it
+- [ ] Open a PDF: the bottom-left corner says how long it takes to read at the speed in the **Speed** box, and only that
+- [ ] Changing **Speed** changes it straight away, every time
 - [ ] While it reads, it says how long is left at the current speed, and counts down
 - [ ] Roughly right: time a few minutes of reading against what it said
 

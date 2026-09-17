@@ -97,9 +97,9 @@
   const dpr = () => window.devicePixelRatio || 1;
 
   // --- how long it takes to read -------------------------------------------------
-  // In the corner of the bottom bar: the whole document at 1× and at the speed
-  // chosen, or, while it reads, what is left at this speed; hovering lists every
-  // speed. The desktop's measured speaking rate (export.py), so it is "about".
+  // In the corner of the bottom bar: the whole document at the speed chosen in
+  // the top bar, or, while it reads, what is left at it. Changes with the speed
+  // box. The desktop's measured speaking rate (export.py), so it is "about".
 
   const CHARS_PER_SECOND = 15.1;
   let before = null;               // before[i]: characters in the sentences ahead of sentence i
@@ -132,11 +132,9 @@
       const left = total - before[Math.min(voice.index, before.length - 1)];
       el.textContent = `${readingTime(left, rate)} left at ${rate}×`;
     } else {
-      const other = rate === 1 ? 2 : rate;
-      el.textContent = `${readingTime(total, 1)} at 1× · ${readingTime(total, other)} at ${other}×`;
+      el.textContent = `${readingTime(total, rate)} to read at ${rate}×`;
     }
-    el.title = "About how long this whole document takes to read aloud:\n"
-      + SPEEDS.map((speed) => `${speed}×   ${readingTime(total, speed)}`).join("\n");
+    el.title = "About how long reading this document aloud takes at the speed chosen above";
     el.hidden = false;
   }
 

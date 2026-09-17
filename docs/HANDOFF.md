@@ -26,6 +26,10 @@ went in.
 - **Work flows one way:** fix in `../Mimick`, then `tools/port.sh ../Mimick`.
   Never edit `py/` here.
 - **Nothing from a CDN.** Everything is in `vendor/`.
+- **No voice nicknames**, for now (17 September). Eight voices need no
+  renaming, and Kat finds most voices beyond them mid at best.
+- **Not a commercial venture.** Free, open source (AGPL-3.0), free to edit.
+  The voice licences still have to be checked against that -- see **Next**.
 
 ## Where it stands
 
@@ -208,16 +212,39 @@ desktop's 15.1 characters a second; converting is guessed at 4× real time,
 which ran about 12× here, so the first estimate is long until the job times
 itself.
 
-**Reading time**, asked for by Kat: the bottom bar's left corner shows the
-document at 1× and at the chosen speed, or what is left while reading, from
-`reader.sentence_lengths` and the desktop's 15.1 characters a second. Against
-a real conversion of the sample's page 1 it ran about 15% long for Lessac.
+**Reading time**, asked for by Kat: the bottom bar's left corner shows how
+long the document takes at the speed in the top bar's **Speed** box, and
+nothing else, changing whenever that box does; while reading, what is left at
+it. From `reader.sentence_lengths` and the desktop's 15.1 characters a second.
+Against a real conversion of the sample's page 1 it ran about 15% long for
+Lessac. **The desktop app has no such estimate** -- it is on the list in
+`PARITY.md`, **For the desktop**.
 
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
 
-**Next, in order** -- the rest of `PARITY.md`:
+**Next, in order.**
+
+0. **First: the voice licences.** Search out the terms of use for each of the
+   eight voices in `js/voices.js` and say plainly whether Mimick may use them
+   as it does. Mimick is free, open source and not commercial -- but AGPL lets
+   anyone reuse it, commercially included, so note where a licence turns on
+   that. Three uses to check separately: **fetching** each model from
+   `rhasspy/piper-voices` at run time; **shipping** each sample clip in
+   `voices/`; and **people's MP3s** made with a voice. For each voice, read the
+   model card and follow it to the dataset's own licence. Known so far
+   (`voices/README.md`): Kathleen and Joe CC0, Norman public domain, Southern
+   English CC BY-SA 4.0, VCTK and LibriTTS CC BY 4.0. **Lessac** points at the
+   Blizzard 2013 Lessac licence (CSTR, Edinburgh), whose terms have to be read;
+   **Kusal**'s card says only "See URL", MycroftAI/mimic2. Also check the
+   `piper-voices` repository's own licence, and whether CC BY and BY-SA need an
+   attribution in the page (About is the obvious place). Write the findings
+   into `voices/README.md`; if a voice cannot be used, say so to Kat before
+   removing it. The desktop app offers every Piper voice from the catalogue,
+   so note anything that matters there too.
+
+Then the rest of `PARITY.md`:
 
 1. ~~Show reading order~~ -- done 17 September; see below.
 2. **Read aloud while a long document is still opening.** Read aloud is greyed
@@ -226,7 +253,7 @@ desktop repo if at all.
    so reading early means building page by page (change it there, then port).
    Word indices must stay what a full build gives (desktop trap 9) -- and
    highlights are now keyed to them too.
-3. ~~The voice picker~~ -- done 17 September. Nicknames still to do.
+3. ~~The voice picker~~ -- done 17 September. Nicknames: not wanted for now.
 4. **Keep scroll and zoom per document across a reload**, and **Forget this
    document** (notes, drawn pages, position).
 5. ~~Convert to MP3~~ -- done 17 September, bar two small things in `PARITY.md`. Then **Open Recent** (Chrome can keep file handles), which goes in **File ▾**.

@@ -23,7 +23,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Select text and press `Enter` (or right-click → *Read the selection*)
 - ⬜ Read aloud while a long document is still opening
 - ✅ Voice picker: the eight voices, with a sample of each
-- ⬜ Nicknames for voices
+- ✖ Nicknames for voices — not wanted for now: eight voices need no renaming (17 September)
 - ✖ Microsoft online voices, Kokoro — a web page cannot reach them
 
 ## Selecting and the text cursor
@@ -62,3 +62,11 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Keyboard shortcuts window (**Help ▾**, or `?`)
 - ✅ About window, and a link to the source
 - ⬜ Forget this document (clear what the browser keeps)
+
+## For the desktop
+
+Features the browser has that the desktop app does not. Add them there too.
+
+- ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
+- ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`
+- ⬜ **The loose Highlight/Add note strip kept inside the window** while dragged and when the window shrinks — check whether the desktop's floating markup bar can be lost the same way
