@@ -73,7 +73,10 @@
     let job = null;
     let texts = new Map();       // scope key -> promise of the texts it covers
 
-    for (const v of Voices.LIST) $("convert-voice").append(new Option(`${v.name} (${v.accent}) — ${v.note}`, v.key));
+    // Only voices with no question over their licence make files people keep
+    // and pass on: today, Norman (voices/README.md). The others read aloud.
+    const MP3_VOICES = Voices.LIST.filter((v) => v.mp3);
+    for (const v of MP3_VOICES) $("convert-voice").append(new Option(`${v.name} (${v.accent}) — ${v.note}`, v.key));
     for (const s of ctx.speeds) $("convert-speed").append(new Option(`${s}×`, s));
 
     const clean = () => $("convert-clean").checked;
@@ -101,7 +104,11 @@
       chosen = { selection: ctx.selection(), generation: ctx.generation(), title: ctx.title() };
       $("convert-heading").textContent = `Convert “${chosen.title}” to an audio file`;
       $("convert-name").value = safeName(chosen.title);
-      $("convert-voice").value = ctx.voice();
+      $("convert-voice").value = Voices.byKey[ctx.voice()]?.mp3 ? ctx.voice() : MP3_VOICES[0].key;
+      const other = Voices.byKey[ctx.voice()];
+      const note = $("convert-voice-note");
+      if (note) note.textContent = other?.mp3 ? ""
+        : `${other?.name ?? "Your voice"} reads aloud here, but its licence isn't clear enough for making audio files to keep or share, so MP3s use ${MP3_VOICES.map((v) => v.name).join(" or ")}. About → Voices says why.`;
       $("convert-speed").value = ctx.rate();
       const pages = ctx.pageCount(), scopeBox = $("convert-scope");
       scopeBox.replaceChildren(new Option(`Whole document (${pages} page${pages === 1 ? "" : "s"})`, "all"),

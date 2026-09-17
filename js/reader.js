@@ -244,12 +244,12 @@
         + (n ? ` · ${n} reading-order change${n === 1 ? "" : "s"} of yours put back` : "");
       // Nothing to read says why, rather than leaving Read aloud greyed out in silence.
       const why = done.words === 0
-        ? `This PDF has no text to read — it may be a scan.${doc.textless.length ? " File ▾ → Recognise text reads the words off its pages" : ""}`
+        ? `This PDF has no text to read — it may be a scan.${doc.textless.length ? " Reading ▾ → Recognise text reads the words off its pages" : ""}`
         : done.sentences === 0 ? NOTHING_SET : null;
       if (why) openedStatus = `${pagesCount()} · ${why}`;
       else if (doc.textless.length) {
         const n = doc.textless.length;
-        openedStatus += ` · ${n} page${n === 1 ? " is a picture" : "s are pictures"} with no text — File ▾ → Recognise text`;
+        openedStatus += ` · ${n} page${n === 1 ? " is a picture" : "s are pictures"} with no text — Reading ▾ → Recognise text`;
       }
       voice.open(done.sentences);
       setReadable(done.sentences > 0, why);
@@ -933,6 +933,29 @@
     }
     from ??= (await reading.ask({ type: "firstSentenceOn", page })).sentence ?? 0;
     if (mine === generation) voice.play(from);
+  }
+
+  const BACK_SECONDS = 10;
+
+  /* Reading ▾ → Read from the top of this page: the page most of the view shows. */
+  function readThisPage() {
+    if (!doc?.sentences) return;
+    voice.prepare();     // inside the click, which is what lets it make sound
+    const mine = generation, page = currentPage();
+    reading.ask({ type: "firstSentenceOn", page }).then(({ sentence }) => {
+      if (mine !== generation) return;
+      if (sentence == null) { status(`Nothing to read from page ${page + 1} on`); return; }
+      readFrom(sentence);
+    });
+  }
+
+  /* Reading ▾ → Go to where the voice is: the word being said, a third of the way down. */
+  function goToVoice() {
+    if (!lit.made) return;
+    const [, page, rect] = lit.made.words[lit.position ?? 0];
+    const top = geometry.offsets[page] + rect[1] * zoom, bottom = geometry.offsets[page] + rect[3] * zoom;
+    view.scrollTop = Math.max(0, (top + bottom) / 2 - view.clientHeight / 3);
+    update();
   }
 
   function togglePlay() {
@@ -1642,7 +1665,15 @@
     };
   };
   function readingMenu() {
+    const going = voice.state !== "stopped" && voice.source === "document";
     return [
+      { label: "Read from the top of this page", enabled: built() && doc.sentences > 0, run: readThisPage },
+      { label: "Back 10 seconds", keys: "Shift+←", enabled: voice.state !== "stopped", run: () => voice.back(BACK_SECONDS) },
+      { label: "Go to where the voice is", enabled: going && !!lit.made, run: goToVoice },
+      "-",
+      ocr.running ? { label: "Stop recognising text", run: () => ocr.stop() }
+        : { label: "Recognise text in this scan…", enabled: !!doc?.textless?.length, run: recogniseText },
+      "-",
       ...sleepMenu(),
       "-",
       { label: "How to say words…", run: () => openSay() },
@@ -1757,8 +1788,6 @@
     { label: "Open…", keys: "Ctrl+O", run: chooseFile },
     ...recentItems(),
     { label: "Find in document…", keys: "Ctrl+F", enabled: !!doc, run: () => find.open() },
-    ocr.running ? { label: "Stop recognising text", run: () => ocr.stop() }
-      : { label: "Recognise text in this scan…", enabled: !!doc?.textless?.length, run: recogniseText },
     "-",
     // PDF only: highlights and notes are annotations on rectangles of a page, which no
     // flowing format can hold. The notes on their own go out as text. See PARITY.md.
@@ -1944,6 +1973,7 @@
     pause: () => voice.pause(),
     playpause: () => togglePlay(),
     previoustrack: () => voice.skip(-1),
+    seekbackward: () => voice.back(BACK_SECONDS),
     nexttrack: () => voice.skip(1),
     stop: () => voice.stop(),
   };
@@ -1959,7 +1989,7 @@
     mediaKeys[action]();
   }
   if ("mediaSession" in navigator) {
-    for (const action of ["play", "pause", "previoustrack", "nexttrack", "stop"]) {
+    for (const action of ["play", "pause", "previoustrack", "nexttrack", "seekbackward", "stop"]) {
       try { navigator.mediaSession.setActionHandler(action, () => media(action)); } catch { /* not offered here */ }
     }
   }
@@ -2021,7 +2051,8 @@
     const across = { ArrowLeft: -1, ArrowRight: 1 }[key];
     if (across && doc.words) {
       e.preventDefault();
-      if (isReading()) voice.skip(across);
+      if (isReading() && e.shiftKey && across < 0) voice.back(BACK_SECONDS);
+      else if (isReading()) voice.skip(across);
       else moveCaret(ctrl ? "sentence" : "word", across, e.shiftKey);
       return;
     }

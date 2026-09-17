@@ -61,13 +61,18 @@ Added 17 September, asked for by Kat.
 - [ ] Each switch lights when on, and agrees with the menus after changing it either way (and after `F9`, `Ctrl`+`B`, `Ctrl`+`Shift`+`H`)
 - [ ] The ☾ / ☀ switch flips night and day at once
 - [ ] The timer switch opens the timer's choices, then shows the one picked ("15 min", "End of page"), and goes back to *Timer off* when it stops reading
-- [ ] At a narrow window (about 1000px) the top bar still fits and the switches wrap rather than spill
+- [ ] At a narrow window (about 1000px) the top bar still fits and the switches show as icons alone
+- [ ] The document's title is in the bottom bar, beside the zoom, not the top bar
+- [ ] **Reading ▾ → Read from the top of this page** starts at the page on screen
+- [ ] **Reading ▾ → Back 10 seconds** (or `Shift`+`←` while reading, or a headset's skip back) goes back about ten seconds of speech -- mid-sentence, or into the sentence before -- and a paused reading stays paused
+- [ ] Scroll away while reading, pause, then **Reading ▾ → Go to where the voice is** brings the lit word back into view
+- [ ] **Recognise text in this scan** is in Reading ▾ now, not File ▾
 
 ## Recognising text in a scan
 
 Added 17 September. Use a scanned reading with no text layer (if you can select no text in it elsewhere, it has none).
 
-- [ ] Opening it says it has no text, and points to **File ▾ → Recognise text in this scan**
+- [ ] Opening it says it has no text, and points to **Reading ▾ → Recognise text in this scan**
 - [ ] Recognising shows progress page by page, with time left; **Stop recognising text** stops it
 - [ ] Afterwards it reads aloud, and the lit words sit over the words in the picture
 - [ ] Find, highlights and Save a copy work; the saved copy is searchable in another PDF reader

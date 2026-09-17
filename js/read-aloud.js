@@ -19,6 +19,7 @@
  *   reader.play(from?)           from a sentence, or carry on
  *   reader.prepare()             in the click or key press that starts reading
  *   reader.pause() / toggle() / skip(±1) / setRate(r) / stop()
+ *   reader.back(seconds)         back through the audio, into earlier sentences if need be
  *   reader.setVoice(key)         another voice from js/voices.js; a reading carries on
  *                                in it from the sentence it was on
  *   reader.remake()              the pronunciation list changed: make the sentences ahead again
@@ -32,8 +33,9 @@
   const PREFETCH = 5;
   const CHUNK = 40;            // sentences asked of the document worker at once
   // A voice worker queues everything it is asked; a clip this far behind the
-  // playhead, or this far past the prefetch, is not worth keeping.
-  const KEEP_BEHIND = 1, KEEP_AHEAD = PREFETCH + 2;
+  // playhead, or this far past the prefetch, is not worth keeping. Two behind
+  // are kept so going back a sentence, or 10 seconds, plays at once.
+  const KEEP_BEHIND = 2, KEEP_AHEAD = PREFETCH + 2;
 
   function create({ askDocument, onSentence, onWord, onState, onStatus, voice: firstVoice = DEFAULT_VOICE, voiceName = (k) => k,
                     pronunciations = () => [] }) {
@@ -43,6 +45,7 @@
     let index = 0;                 // the sentence playing, or about to
     let state = "stopped";
     let session = 0;               // bumped on every stop, seek and document
+    let startAt = 0;               // seconds into the first sentence a play starts from
     let source = "document";       // which sentences the document worker hands out
     const sentences = new Map();   // index -> sentence data, a chunk at a time
     const chunks = new Map();      // first index of a chunk -> its promise
@@ -234,16 +237,19 @@
 
         playing = { i, made };
         let shown = -1;
+        const offset = startAt;
+        startAt = 0;
         const follow = () => {
           const heard = heardNow();
-          let k = shown;
+          // Gone back within the sentence: find the word again from its start.
+          let k = shown >= 0 && made.lit[shown][0] > heard ? -1 : shown;
           while (k + 1 < made.lit.length && made.lit[k + 1][0] <= heard) k++;
           if (k !== shown) { shown = k; onWord(i, made.lit[k][1]); }
           frame = nextFrame(follow);
         };
         await new Promise((resolve) => {
           finish = resolve;
-          sound(0);
+          sound(Math.min(offset, made.natural.length / made.sampleRate));
           frame = nextFrame(follow);
         });
         cancelFrame();
@@ -251,14 +257,14 @@
         node = null;
         playing = null;
         finish = null;
-        clips.delete(i);
         index = i + 1;
       }
       if (mine === session) { setState("stopped"); onSentence(null, null); index = 0; }
     }
 
-    async function play(from = null) {
+    async function play(from = null, at = 0) {
       if (!count) return;
+      startAt = at;
       // Made inside the click or key press, which is what lets it make sound.
       context ??= new AudioContext();
       if (from === null && state === "paused") { resume(); return; }
@@ -332,6 +338,29 @@
         if (state === "stopped" || !count) return;
         const wasPaused = state === "paused";
         play(index + step).then(() => { if (wasPaused) pause(); });
+      },
+      /* Back `seconds` of the voice's own pace, as a podcast player's skip
+       * back: within the sentence playing when it has been going that long,
+       * otherwise into the sentences before it, made again to know how long
+       * they are. Paused stays paused. */
+      async back(seconds) {
+        if (state === "stopped" || !count) return;
+        const wasPaused = state === "paused";
+        const heard = playing && playing.i === index ? heardNow() : 0;
+        if (playing && node && heard >= seconds) { sound(heard - seconds); return; }
+        const mine = session;
+        let i = index, left = seconds - heard, at = 0;
+        while (i > 0) {
+          i--;
+          let made;
+          try { made = await clip(i); } catch { if (mine !== session) return; continue; }
+          if (mine !== session) return;
+          const length = made.natural.length / made.sampleRate;
+          if (length >= left) { at = length - left; break; }
+          left -= length;
+        }
+        await play(i, at);
+        if (wasPaused) pause();
       },
       /* A new speed, heard at once: the sentence playing carries on from the
        * word it has reached, and clips made ahead are sped up when they play. */

@@ -85,13 +85,15 @@
   #switches-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
   @media (prefers-reduced-motion: reduce) { #switches-toggle svg { transition: none; } }
   .dim { color: var(--dim); }
-  /* The title takes whatever room is left, and none if there is none: it is
-     also the tab's name, so nothing is lost when it is squeezed out. */
-  #title { flex: 1 1 0; width: 0; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* The document's title, in the bottom bar beside the zoom. It takes whatever room is left, and
+     none if there is none: it is also the tab's name, so nothing is lost when it is squeezed out. */
+  #title { flex: 1 1 0; width: 0; min-width: 0; padding-right: 6px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   header.bar { grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
   header.bar button { white-space: nowrap; }
-  /* The voice box names each voice and says how it reads; on a short bar it shows the name and the list keeps the rest. */
-  @media (max-width: 1150px) { header.bar label.dim { display: none; } #voice { width: 11em; } }
+  /* The voice box shows the name and the start of how it reads; the list, when open, is as wide as it
+     needs to be to show all of it. Shorter still on a short bar. */
+  #voice { width: 13em; text-overflow: ellipsis; }
+  @media (max-width: 1150px) { header.bar label.dim { display: none; } #voice { width: 10em; } }
   #status { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #reading-time { flex-shrink: 0; white-space: nowrap; padding-right: 10px; border-right: 1px solid var(--border); cursor: default; }
 
@@ -324,7 +326,6 @@
     <label class="dim" for="voice">Voice</label>
     <select id="voice" title="Who reads to you" aria-label="Voice"></select>
     <button id="voice-sample" class="square" aria-label="Hear this voice" title="Hear this voice">▶</button>
-    <span id="title" class="dim"></span>
     <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
     <button id="switches-toggle" class="square" aria-controls="switches" aria-expanded="false"
             aria-label="Quick switches" title="Show the quick switches: night or day, what is read, the timer, the panels">
@@ -531,6 +532,7 @@
         <tr><td>Space</td><td>Start reading, or pause it</td></tr>
         <tr><td>Enter</td><td>Read the selected text, then stop</td></tr>
         <tr><td>←  →</td><td>Back or forward one sentence, while it is reading</td></tr>
+        <tr><td>Shift+←</td><td>Back 10 seconds, while it is reading</td></tr>
         <tr><td>Media keys</td><td>Play/pause, next and previous on a keyboard or headset, and the browser's own media controls, do the same — even from another tab</td></tr>
       </table>
       <h2>Choosing what gets read</h2>
@@ -609,7 +611,7 @@
       <p><b>Read aloud in a natural voice</b><br>A Piper voice, running in this tab. It is downloaded once, and works offline after that.</p>
       <p><b>Follow along</b><br>As Mimick reads, the sentence and the word being said are lit on the page.</p>
       <p><b>More than PDFs</b><br>Word (.docx), OpenDocument (.odt), EPUB and plain text files open too, laid out as pages.
-        A scanned PDF with no text can have its words recognised (File ▾ → Recognise text), here in the browser.</p>
+        A scanned PDF with no text can have its words recognised (Reading ▾ → Recognise text), here in the browser.</p>
       <p><b>Find your way</b><br>A document's table of contents sits beside it (F9), and Ctrl+F finds any text.</p>
       <p><b>Say it right</b><br>Teach the voice how to say a name or a term: select it, right-click, How to say.</p>
       <p><b>Read at your speed</b><br>From 0.75× to 4×, changed at any moment.</p>
@@ -702,6 +704,7 @@
     <button id="next" class="square" aria-label="Next page" title="Next page  (Page Down)" disabled>›</button>
   </div>
   <div class="right">
+    <span id="title" class="dim"></span>
     <button id="zoom-out" class="square" aria-label="Zoom out" title="Zoom out  (Ctrl+−)">−</button>
     <input id="zoom-slider" type="range" aria-label="Zoom" min="40" max="400" step="1" title="Zoom">
     <button id="zoom-in" class="square" aria-label="Zoom in" title="Zoom in  (Ctrl++)">+</button>

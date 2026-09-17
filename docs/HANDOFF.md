@@ -100,9 +100,7 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
 6. Several features are browser-only now and listed in `PARITY.md`, *For the
    desktop*: whether the desktop wants them.
 7. ~~Display ▾ has grown long~~ -- split on 17 September, as Kat asked: see
-   *The menus, reorganised*. **Waiting on Kat:** four possible additions to
-   Reading ▾ (skip back 10 seconds; start reading from the top of this page; go
-   back to where the voice is; move Recognise text there from File ▾).
+   *The menus, reorganised*, with the four additions Kat approved.
 
 ### The menus, reorganised (17 September, asked for by Kat)
 
@@ -121,7 +119,24 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
   the icons show. Each mirrors a menu entry, so `showSwitches` redraws after
   every click or key anywhere (a capture listener, `setTimeout`), and when the
   timer stops or the theme changes.
-- **Mimick's name** moved to the bottom bar's left end.
+- **Mimick's name** moved to the bottom bar's left end, and **the document's
+  title** to the bottom bar's right, beside the zoom (the top bar was crowded).
+  **The voice box** is 13em (10em below 1150px); the open list is as wide as
+  its longest entry, so the descriptions still show when choosing.
+- **Reading ▾ additions** (Kat approved): *Read from the top of this page*
+  (`readThisPage`, the document worker's `firstSentenceOn`); *Back 10 seconds*
+  (`voice.back(seconds)` in `js/read-aloud.js`: within the sentence playing if
+  it has been going that long, else into earlier sentences, made again to know
+  their length -- natural-pace seconds, as a podcast player; `Shift`+`←` while
+  reading, and the media session's `seekbackward`); *Go to where the voice is*
+  (`goToVoice`); and *Recognise text in this scan* moved here from File ▾.
+  `tools/check_back.mjs`.
+- **Ctrl+Enter in the note editor** already saved and closed; `check_notes` now
+  presses it from inside the note box (Kat asked).
+- **`check_sleep` fails on this machine as of 17 September, even on an
+  unchanged HEAD**: the voice was slow (another session busy), and the check's
+  → presses every 0.7 s restart each sentence before it is made. Reading itself
+  advances. Give its skip loop longer waits if it keeps failing.
 - **Layout fix found on the way:** `body` was a five-row grid, and with the
   highlight strip hidden the page area landed in an `auto` row (220px tall on
   the empty page) while the footer took the `1fr`. `body` is now a flex column

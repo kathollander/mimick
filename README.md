@@ -39,7 +39,7 @@ it works with no internet connection, and Chrome can install it as an app.
    there. The **‹** at the top of that panel, and the **›** on the notes
    panel, put them away; a tab on the edge of the page brings each back (`F9`
    for contents).
-9. **A scan with no text?** Mimick says so; **File ▾ → Recognise text in this
+9. **A scan with no text?** Mimick says so; **Reading ▾ → Recognise text in this
    scan** reads the words off its pages, in the browser (a few seconds a page),
    and remembers them for next time.
 10. **A name said wrong?** Select the word, right-click, **How to say…**, and

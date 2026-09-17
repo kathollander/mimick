@@ -5,7 +5,7 @@
  *
  * Makes a scan of the test paper in the document worker -- each page drawn as a
  * picture at 150 dpi into a new PDF, with no text -- and opens it. Checks it
- * says there is no text and offers File → Recognise text; that recognising reads
+ * says there is no text and offers Reading → Recognise text; that recognising reads
  * the words back, near enough the printed ones, as sentences to read that Find
  * finds and that can be highlighted, with each word's box over the word in the
  * picture; that opening the scan again puts the text back without reading the
@@ -46,8 +46,8 @@ const openScan = async () => {
 await openScan();
 await wait(`/no text to read/.test(document.getElementById("status").textContent)`, 30000).catch(() => {});
 check("the scan says it has no text, and where to recognise it", /^3 pages · This PDF has no text to read .*Recognise text/.test(await r.status()), await r.status());
-await r.click(await r.centre("#file-menu")); await sleep(300);
-check("File offers Recognise text", (await r.menuLabels())?.includes("Recognise text in this scan…"), await r.menuLabels());
+await r.click(await r.centre("#reading-menu")); await sleep(300);
+check("Reading offers Recognise text", (await r.menuLabels())?.includes("Recognise text in this scan…"), await r.menuLabels());
 
 // 2. Recognising.
 const t0 = Date.now();
@@ -85,8 +85,10 @@ await wait(`!document.getElementById("play").disabled`, 60000).catch(() => {});
 check("opened again, the text is put back straight away", !(await ev(`document.getElementById("play").disabled`)) && Date.now() - t1 < 20000, [await r.status(), Date.now() - t1]);
 await wait(`document.querySelectorAll(".hl.annot").length > 0`, 10000).catch(() => {});
 check("…with the highlight", (await ev(`document.querySelectorAll(".hl.annot").length`)) > 0);
-await r.click(await r.centre("#file-menu")); await sleep(300);
+await r.click(await r.centre("#reading-menu")); await sleep(300);
 check("…and nothing left to recognise", (await r.menuLabels())?.includes("(off) Recognise text in this scan…"), await r.menuLabels());
+await r.key("Escape"); await sleep(200);
+await r.click(await r.centre("#file-menu")); await sleep(300);
 
 // 4. Forget takes the recognised text too.
 await r.menu("Forget this document…"); await sleep(300);
@@ -116,9 +118,9 @@ fs.writeFileSync(half, Buffer.from(halfMade, "base64"));
 }
 await wait(`/are pictures/.test(document.getElementById("status").textContent)`, 30000).catch(() => {});
 const halfSaid = await r.status();
-check("a half-scanned PDF reads its text page, and says two pages are pictures", /^3 pages · \d+ sentences to read .*2 pages are pictures with no text — File ▾ → Recognise text/.test(halfSaid), halfSaid);
+check("a half-scanned PDF reads its text page, and says two pages are pictures", /^3 pages · \d+ sentences to read .*2 pages are pictures with no text — Reading ▾ → Recognise text/.test(halfSaid), halfSaid);
 const firstCount = Number(halfSaid.match(/(\d+) sentences to read/)?.[1] ?? 0);
-await r.click(await r.centre("#file-menu")); await sleep(300);
+await r.click(await r.centre("#reading-menu")); await sleep(300);
 await r.menu("Recognise text in this scan…");
 await wait(`/Recognising text: page \\d of 2/.test(document.getElementById("status").textContent)`, 60000).catch(() => {});
 check("…and recognises only those two", /Recognising text: page \d of 2/.test(await r.status()), await r.status());
