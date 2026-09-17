@@ -79,7 +79,9 @@ try {
 
   await openFile(path.join(root, "sample/test-paper.pdf"));
   await wait(`return !document.getElementById("play").disabled`);
-  check("the test paper opens, with sentences to read", /^3 pages · 29 sentences to read/.test(await status()), await status());
+  // Not the status line: on a first visit "Ready to work offline" can land on top of it.
+  check("the test paper opens, with sentences to read", (await js(`return document.getElementById("total").textContent`)) === "of 3"
+    && !(await js(`return document.getElementById("play").disabled`)), await status());
   check("…and its contents", (await js(`return document.querySelectorAll("#contents-list .toc-row").length`)) === 6);
 
   await click("#view");

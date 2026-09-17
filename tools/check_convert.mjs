@@ -30,7 +30,7 @@ const set = (id, value, event = "change") => ev(`(() => { const e = document.get
 // 1. The menu and the dialog.
 await r.click(await r.centre("#file-menu")); await sleep(300);
 const labels = await r.menuLabels();
-check("File lists Open, Find, Save, Export notes, Forget and Convert to MP3", JSON.stringify(labels) === JSON.stringify(["Open…", "Find in document…", "Save a copy (PDF)…", "Export notes…", "Forget this document…", "Convert to MP3…"]), labels);
+check("File lists Open, Find, Save, Export notes, Forget and Convert to MP3", JSON.stringify(labels) === JSON.stringify(["Open…", "Find in document…", "(off) Recognise text in this scan…", "Save a copy (PDF)…", "Export notes…", "Forget this document…", "Convert to MP3…"]), labels);
 await r.menu("Convert to MP3…");
 check("Convert to MP3 opens its window", await ev(`document.getElementById("convert-dialog").open`));
 await wait(`/^Conversion from text to audio: /.test(document.getElementById("convert-time").textContent)`, 20000);
