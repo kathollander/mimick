@@ -1720,7 +1720,8 @@
     if (state.ready || state.total || state.error) wasReady = state.ready;
     if (state.updateReady && !offeredUpdate) {
       offeredUpdate = true;
-      if (!doc && performance.now() < 15000) { status("Updating Mimick…"); MimickOffline.update(); }
+      // Straight away only on a page nobody has used yet: a reload now loses nothing.
+      if (!generation && performance.now() < 15000) { status("Updating Mimick…"); MimickOffline.update(); }
       else if (voice.state === "stopped") status("A new version of Mimick is ready — Help ▾ → Update Mimick");
     }
   });
