@@ -4,12 +4,15 @@ A PDF reader that reads aloud in natural voices, highlighting each word as it
 speaks it — in a browser tab, with nothing installed and nothing uploaded. Your
 document is opened by your own browser and never leaves your machine.
 
-[`reader.html`](reader.html) is the reader. It opens a PDF, shows it, and reads
-it aloud in one of seven natural voices at 0.75× to 4×, with the sentence and
-the word being said lit on the page. You can click any sentence to read from
-there, find text, highlight and write notes, choose what gets read and what is
-skipped, and turn a document into an MP3. Once it has loaded, it works with no
-internet connection, and Chrome can install it as an app.
+[`reader.html`](reader.html) is the reader. It opens a PDF -- or a Word,
+OpenDocument, EPUB or plain text file -- shows it, and reads it aloud in one of
+seven natural voices at 0.75× to 4×, with the sentence and the word being said
+lit on the page. You can click any sentence to read from there, jump around by
+the table of contents, find text, highlight and write notes (and export them),
+choose what gets read and what is skipped, teach the voice how to say a name,
+and turn a document into an MP3. It keeps your place in each document, has a
+light and a dark theme, and answers a keyboard's media keys. Once it has loaded,
+it works with no internet connection, and Chrome can install it as an app.
 
 ## How to use it
 
