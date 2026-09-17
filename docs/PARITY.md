@@ -63,7 +63,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 - 🟡 Convert to MP3: document, page range or selection, with estimates and cancel. Not yet: opening the file's folder afterwards. Switching its cleanup away from Display reads the whole PDF a second time (the desktop's `ExportDialog._source`), which on a long book takes as long as opening it, and cannot be stopped part way; building only the pages asked for would fix it
 - ✅ Keyboard shortcuts window (**Help ▾**, or `?`)
-- ✅ About window, and a link to the source
+- ✅ About window, and a link to the source; **voice credits** (dataset, licence, link, and the voice each was trained on) — *check the desktop credits them too*
 - ⬜ Forget this document (clear what the browser keeps)
 
 ## For the desktop

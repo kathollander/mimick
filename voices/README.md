@@ -23,4 +23,5 @@ its own recordings'.
 2013) are licensed for research only, and cannot be passed on. Kat keeps Joe,
 Kusal, VCTK and LibriTTS, accepting the risk that Lessac's terms reach them, for
 a free tool for students and accessibility. The credits the CC BY, BY-SA and
-BY-NC-SA licences ask for are in the reader's **About** window.
+BY-NC-SA licences ask for are in the reader's **About** window (`reader.html`,
+*Voices*), with a link to each dataset and licence; change both together.

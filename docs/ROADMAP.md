@@ -84,7 +84,7 @@ keyboard's media keys and the browser's own media controls. About ten lines
 in `js/reader.js` beside the existing key handling; the "next" and
 "previous" actions are the existing ↶ ↷.
 
-**9. Voice credits in About**, as the licences ask (CC BY, BY-SA, BY-NC-SA):
+**9. ✅ Voice credits in About.** Done 17 September, from each voice's `MODEL_CARD` at the pinned revision., as the licences ask (CC BY, BY-SA, BY-NC-SA):
 voice name, dataset, licence, link. `voices/README.md` is the source once
 item 0 has fixed its table.
 

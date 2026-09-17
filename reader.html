@@ -198,6 +198,9 @@
   .long h2:first-child { margin-top: 0; }
   .long table { border-collapse: collapse; }
   .long td { padding: 3px 14px 3px 0; vertical-align: top; }
+  .long table.credits { width: 100%; font-size: 12px; }
+  .long .credits th { padding: 3px 14px 3px 0; text-align: left; color: var(--dim); font-weight: 600; }
+  .long .credits td:first-child { white-space: nowrap; color: var(--text); }
   .long td:first-child { white-space: nowrap; font-weight: 600; }
   .long td:last-child, .long p { color: var(--dim); }
   .long p { margin: 0 0 12px; }
@@ -517,6 +520,40 @@
         <a href="https://github.com/espeak-ng/espeak-ng" target="_blank" rel="noopener">espeak-ng</a> (the voice) ·
         <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime</a> (running it) ·
         <a href="https://lame.sourceforge.io/" target="_blank" rel="noopener">LAME</a>, as lamejs (MP3 files)</p>
+      <h2>Voices</h2>
+      <p>Every voice is a <a href="https://huggingface.co/rhasspy/piper-voices" target="_blank" rel="noopener">Piper voice</a>,
+        trained on recordings people shared, and their licences ask for these credits. Kathleen and Southern English
+        are built on Ryan, whose licence is non-commercial: they may only be used free of charge, as Mimick is.</p>
+      <table class="credits">
+        <tr><th>Voice</th><th>Recordings</th><th>Trained on top of</th></tr>
+        <tr><td>Norman</td>
+          <td><a href="https://librivox.org" target="_blank" rel="noopener">LibriVox</a> readings, public domain; voice by
+            <a href="https://brycebeattie.com/files/tts/" target="_blank" rel="noopener">Bryce Beattie</a></td>
+          <td>—</td></tr>
+        <tr><td>Kathleen</td>
+          <td><a href="https://github.com/rhasspy/dataset-voice-kathleen" target="_blank" rel="noopener">Kathleen dataset</a>, CC0</td>
+          <td>Ryan: <a href="https://www.kaggle.com/datasets/roholazandie/ryanspeech" target="_blank" rel="noopener">RyanSpeech</a>,
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></td></tr>
+        <tr><td>Southern English</td>
+          <td><a href="https://www.openslr.org/83/" target="_blank" rel="noopener">Crowdsourced UK and Ireland English Dialect
+            speech</a> (OpenSLR 83, Google),
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a></td>
+          <td>Ryan: RyanSpeech, CC BY-NC-SA 4.0</td></tr>
+        <tr><td>Joe</td>
+          <td><a href="https://github.com/OHF-Voice/voice-datasets" target="_blank" rel="noopener">OHF-Voice voice datasets</a>, CC0</td>
+          <td>Lessac (Blizzard Challenge 2013, Lessac Technologies)</td></tr>
+        <tr><td>Kusal</td>
+          <td><a href="https://github.com/MycroftAI/mimic2" target="_blank" rel="noopener">Mycroft AI Mimic 2</a> recordings</td>
+          <td>Lessac</td></tr>
+        <tr><td>VCTK</td>
+          <td><a href="https://datashare.ed.ac.uk/handle/10283/3443" target="_blank" rel="noopener">CSTR VCTK Corpus</a>,
+            University of Edinburgh, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></td>
+          <td>Lessac</td></tr>
+        <tr><td>LibriTTS</td>
+          <td><a href="https://www.openslr.org/141/" target="_blank" rel="noopener">LibriTTS-R</a> (OpenSLR 141, Google),
+            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></td>
+          <td>Lessac</td></tr>
+      </table>
       <h2>Written by</h2>
       <p>Claude Code</p>
       <h2>Arranged by</h2>

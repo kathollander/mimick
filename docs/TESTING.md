@@ -51,6 +51,10 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Voice credits
+
+- [ ] **Help ▾ → About Mimick** has a *Voices* table; every link opens the right dataset or licence
+
 ## Media keys
 
 Added 17 September. Needs a keyboard with media keys, or a headset with buttons.

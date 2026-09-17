@@ -72,7 +72,15 @@ title, "Mimick · voice". `tools/check_media.mjs` shares `check_convert`'s
 profile to reuse its downloaded voice -- run `check_convert` first on a new machine.
 **Needs a person:** real media keys from another tab, and a Bluetooth headset.
 
-**Next: Ship 1 item 9** -- a PDF with no text says so; File ▾
+**Item 9, voice credits: done.** About → *Voices*: a table of voice,
+recordings (dataset, licence, link) and the voice it was trained on, from each
+voice's `MODEL_CARD` in `rhasspy/piper-voices` at the pinned revision. Joe,
+Kusal, VCTK and LibriTTS say "Lessac" without its licence, as Kat decided to
+keep them (see *Next*, item 0).
+
+**Ship 1 is done.** What is left before the link goes out is Kat's: the git
+history decision above, a look at Firefox and Safari, the new sections at the
+top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
 **Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
 (`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
 the repository public.
