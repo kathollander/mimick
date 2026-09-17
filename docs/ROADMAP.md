@@ -63,7 +63,7 @@ can lay text out as a PDF in the worker (`fitz.Story` or
 `Page.insert_htmlbox`), and then it *is* a PDF as far as `document.py` is
 concerned, highlights and notes included. Same pipeline for item 8 later.
 
-**6. A PDF with no text.** A scanned PDF without a text layer opens with zero
+**6. ✅ A PDF with no text.** Done 17 September: the status line and Read aloud's tooltip say so; a PDF with words but nothing set to be read says how to choose (and the reading order now works on it); `tools/check_scan.mjs`. A scanned PDF without a text layer opens with zero
 sentences and a greyed-out Read aloud, and says nothing. Detect it after open
 and say "This PDF has no text to read -- it may be a scan without OCR."
 OCR itself is Ship 3.

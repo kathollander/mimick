@@ -51,6 +51,14 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## A PDF with no text
+
+Added 17 September.
+
+- [ ] A scanned PDF with no text layer opens, shows its pages, and the bottom bar says it has no text to read and may be a scan
+- [ ] Hovering the greyed **Read aloud** says the same
+- [ ] In **Show reading order**, skipping every region says "Nothing here is set to be read"; clicking one back makes Read aloud work again
+
 ## Contents panel, and the panel tabs
 
 Added 17 September. Use a PDF with bookmarks -- a textbook or a thesis; most

@@ -44,7 +44,16 @@ Evince uses it for the side pane and Chrome leaves it free (`Ctrl`+`Shift`+`B`
 is the bookmarks bar). The test paper now has bookmarks
 (`tools/make_test_paper.py`, regenerated); `tools/check_contents.mjs`.
 
-**Next: Ship 1 items 6 to 9, in order** -- a PDF with no text says so; File ▾
+**Item 6, a PDF with no text: done.** No words at all: "This PDF has no text
+to read — it may be a scan without OCR", in the status line and on Read
+aloud's tooltip. Words but no sentences (every region skipped): "Nothing here
+is set to be read — Display ▾ → Show reading order". That second case used to
+be stuck: every reading-order and switch path asked `!doc?.sentences`, which
+is true for 0 as well as for not-built-yet. They now ask `built()`
+(`doc.sentences != null`); `togglePlay`, Convert and reading still want at
+least one. `tools/check_scan.mjs` makes its PDFs in the worker's PyMuPDF.
+
+**Next: Ship 1 items 7 to 9, in order** -- a PDF with no text says so; File ▾
 **Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
 (`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
 the repository public.
@@ -199,6 +208,7 @@ node tools/check_order.mjs           # the same
 node tools/check_find.mjs            # the same
 node tools/check_text.mjs            # the same
 node tools/check_contents.mjs        # the same
+node tools/check_scan.mjs            # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

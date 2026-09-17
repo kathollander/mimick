@@ -198,7 +198,7 @@
       for (const id of ["prev", "next", "page"]) $(id).disabled = false;
       contents.open(info.outline);
       relayout({ page: 0, fraction: 0 });
-      openedStatus = `${doc.pages.length} pages · getting the reading ready…`;
+      openedStatus = `${pagesCount()} · getting the reading ready…`;
       showProgress();
       view.focus();
     } catch (err) {
@@ -219,17 +219,22 @@
       Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes });
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
       const n = restored?.restored ?? 0;
-      openedStatus = `${doc.pages.length} pages · ${done.sentences} sentences to read · opened in ${seconds}s`
+      openedStatus = `${pagesCount()} · ${done.sentences} sentences to read · opened in ${seconds}s`
         + (n ? ` · ${n} reading-order change${n === 1 ? "" : "s"} of yours put back` : "");
+      // Nothing to read says why, rather than leaving Read aloud greyed out in silence.
+      const why = done.words === 0
+        ? "This PDF has no text to read — it may be a scan without OCR (text recognition)"
+        : done.sentences === 0 ? NOTHING_SET : null;
+      if (why) openedStatus = `${pagesCount()} · ${why}`;
       voice.open(done.sentences);
-      setReadable(done.sentences > 0);
+      setReadable(done.sentences > 0, why);
       notes.open(doc);
       redrawMarks();
       measureReading();
       find.opened();
     } catch (err) {
       if (mine !== generation) return;
-      openedStatus = `${doc.pages.length} pages · this one cannot be read aloud: ${err.message}`;
+      openedStatus = `${pagesCount()} · this one cannot be read aloud: ${err.message}`;
     }
     showProgress();
   }
@@ -633,9 +638,15 @@
     onStatus: status,
   });
 
-  function setReadable(on) {
+  /* The sentences are built -- perhaps none of them, which is not the same as
+   * not yet: the reading order and the switches can still change that. */
+  const built = () => doc?.sentences != null;
+  const pagesCount = () => `${doc.pages.length} page${doc.pages.length === 1 ? "" : "s"}`;
+  const NOTHING_SET = "Nothing here is set to be read — Display ▾ → Show reading order to choose what is";
+
+  function setReadable(on, why = null) {
     $("play").disabled = !on;
-    $("play").title = on ? "Start or pause reading  (Space)" : "Reading aloud is ready once the sentences are";
+    $("play").title = on ? "Start or pause reading  (Space)" : why ?? "Reading aloud is ready once the sentences are";
   }
 
   /* The sentence tint and the word, over one page, placed in fractions of the
@@ -1146,7 +1157,7 @@
       skip_citations: on ? "Citations will be skipped" : "Citations will be read aloud",
       read_footnotes: on ? "Footnotes will be read" : "Footnotes will be passed over",
     }[name];
-    if (name === "click_read" || !doc?.sentences) { if (said) status(said); return; }
+    if (name === "click_read" || !built()) { if (said) status(said); return; }
     await rebuild((anchor) => call("set_reading", name, on, anchor),
                   ({ sentences }) => said ?? `${sentences} sentences · ${on ? "tidied for reading" : "reading the PDF verbatim"}`);
   }
@@ -1165,9 +1176,10 @@
     voice.open(result.sentences, "document");
     order.forget();
     measureReading();
-    openedStatus = `${doc.pages.length} pages · ${result.sentences} sentences to read`;
+    openedStatus = `${pagesCount()} · ${result.sentences ? `${result.sentences} sentences to read` : NOTHING_SET}`;
+    setReadable(result.sentences > 0, result.sentences ? null : NOTHING_SET);
     status(say(result));
-    if (wasReading) voice.play(result.resume);
+    if (wasReading && result.sentences) voice.play(result.resume);
     redrawMarks();
     return result;
   }
@@ -1186,7 +1198,7 @@
     const saved = () => { try { return JSON.parse(recall(storeKey()) || "{}") || {}; } catch { return {}; } };
 
     function draw(page, pageEl) {
-      if (!shown || !doc?.sentences) return;
+      if (!shown || !built()) return;
       const found = pages.get(page);
       if (!found) {
         // A rebuild while this is on its way forgets it; only the latest ask may land.
@@ -1230,7 +1242,7 @@
       remember("mimick-show-order", shown ? "1" : "0");
       pagesEl.classList.toggle("planning", shown);
       if (!shown) status("Reading order hidden");
-      else if (!doc?.sentences) status(doc ? "The reading order shows once the document is ready" : "Open a PDF to see its reading order");
+      else if (!built()) status(doc ? "The reading order shows once the document is ready" : "Open a PDF to see its reading order");
       else { const mine = generation, said = await counts(); if (mine === generation && shown) status(said); }
       redrawMarks();
     }
@@ -1256,7 +1268,7 @@
     }
 
     async function reset() {
-      if (!doc?.sentences || busy) return;
+      if (!built() || busy) return;
       busy = true;
       try {
         forgetStored(doc.key);
@@ -1281,7 +1293,7 @@
       draw, at, toggle, click, reset, restore,
       forget: () => pages.clear(),
       get on() { return shown; },
-      get shown() { return shown && !!doc?.sentences; },
+      get shown() { return shown && built(); },
       get changed() { return !!doc && Object.keys(saved()).length > 0; },
     };
   })();
@@ -1297,7 +1309,7 @@
         run: () => setSwitch("read_footnotes", !switchOn("read_footnotes")) },
       { label: "Clean up text for reading", checked: switchOn("clean_text"),
         run: () => setSwitch("clean_text", !switchOn("clean_text")) },
-      { label: "Reset reading order", enabled: !!doc?.sentences && order.changed, run: order.reset },
+      { label: "Reset reading order", enabled: built() && order.changed, run: order.reset },
       "-",
       ...contents.displayMenu(),
       ...notes.displayMenu(),
