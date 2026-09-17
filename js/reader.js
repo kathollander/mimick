@@ -155,6 +155,7 @@
     voice.open(0);
     closeMenu();
     notes.close();
+    find.forget();
     order.forget();
     before = null;
     showReadingTime();
@@ -215,6 +216,7 @@
       notes.open(doc);
       redrawMarks();
       measureReading();
+      find.opened();
     } catch (err) {
       if (mine !== generation) return;
       openedStatus = `${doc.pages.length} pages · this one cannot be read aloud: ${err.message}`;
@@ -607,6 +609,7 @@
     };
     order.draw(page, slot.el);
     notes.draw(page, slot.el);
+    find.draw(page, slot.el);
     for (const [on, box] of selectionBoxes) if (on === page) add("selection", box, 1);
     if (lit.made) {
       for (const [on, box] of lit.made.lines) if (on === page) add("sentence", box);
@@ -1283,6 +1286,7 @@
   });
   dropDown("file-menu", () => [
     { label: "Open…", keys: "Ctrl+O", run: chooseFile },
+    { label: "Find in document…", keys: "Ctrl+F", enabled: !!doc, run: () => find.open() },
     "-",
     { label: convert.running ? "Converting to MP3…" : "Convert to MP3…", enabled: !!doc?.sentences && !convert.running,
       run: convert.open },
@@ -1324,6 +1328,41 @@
     },
   });
 
+  // --- finding text -------------------------------------------------------------
+  // js/find.js; this is what it needs of the reader.
+
+  const find = MimickFind.create({
+    call, status, placeBox,
+    ready: () => !!doc?.words,
+    hasDocument: () => !!doc,
+    generation: () => generation,
+    currentPage: () => (doc ? currentPage() : 0),
+    redraw: () => doc && redrawMarks(),
+    redrawPage: (page) => drawHighlight(page),
+    focusPage: () => view.focus(),
+    selectionText: () => (selection && selectionText?.for === selection ? selectionText.text : null),
+    select(first, last) {
+      anchor = null;
+      setSelection(first, last);
+      placeCaret(last + 1, true);
+    },
+    /* Bring a rectangle of a page into the middle of the view, or the page's top. */
+    scrollToRect(page, rect) {
+      if (!doc || page >= geometry.offsets.length) return;
+      if (!rect) { goToPage(page); return; }
+      const [x0, y0, x1, y1] = rect;
+      const top = geometry.offsets[page] + y0 * zoom, bottom = geometry.offsets[page] + y1 * zoom;
+      if (top < view.scrollTop + 40 || bottom > view.scrollTop + view.clientHeight - 40) {
+        view.scrollTop = Math.max(0, (top + bottom) / 2 - view.clientHeight / 3);
+      }
+      const left = geometry.lefts[page] + x0 * zoom, right = geometry.lefts[page] + x1 * zoom;
+      if (left < view.scrollLeft || right > view.scrollLeft + view.clientWidth) {
+        view.scrollLeft = Math.max(0, (left + right) / 2 - view.clientWidth / 2);
+      }
+      update();
+    },
+  });
+
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
@@ -1338,6 +1377,8 @@
     if (ctrl && (e.key === "=" || e.key === "+")) { e.preventDefault(); setZoom(zoom * L.ZOOM_STEP); return; }
     if (ctrl && e.key === "-") { e.preventDefault(); setZoom(zoom / L.ZOOM_STEP); return; }
     if (ctrl && e.key === "0") { e.preventDefault(); setZoom(L.ZOOM_DEFAULT); return; }
+    if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") { e.preventDefault(); find.open(); return; }
+    if (e.key === "F3" || (ctrl && !e.altKey && e.key.toLowerCase() === "g")) { e.preventDefault(); find.step(e.shiftKey ? -1 : 1); return; }
     if (typing || !doc) return;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     // A focused button acts on Space and Enter itself.
@@ -1353,6 +1394,7 @@
       else if (!$("play").disabled) togglePlay();
       return;
     }
+    if (key === "Escape" && find.isOpen) { find.close(false); return; }
     if (key === "Escape") { anchor = null; setSelection(null); return; }
     if (key === "?" && !ctrl) { e.preventDefault(); $("keys-dialog").showModal(); return; }
     if (ctrl && !e.shiftKey && key === "a") { e.preventDefault(); selectPage(); return; }

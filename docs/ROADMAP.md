@@ -16,11 +16,11 @@ write the reason down -- do not stop to ask.
 
 ## Ship 1 -- to classmates
 
-**0. The review fixes** in `HANDOFF.md`, *To do first*. Broken sample path,
+**0. ✅ The review fixes** in `HANDOFF.md`, *To do first*. Broken sample path,
 `voice.html`, the default voice, the personal-information sweep, the licence
 table. Nothing below until these are done and every check passes.
 
-**1. Find in document, `Ctrl`+`F`.** Non-negotiable. A box in the top bar (or
+**1. ✅ Find in document, `Ctrl`+`F`.** Done 17 September: `js/find.js`, `reader.find` / `found_on`, `tools/check_find.mjs`. Non-negotiable. A box in the top bar (or
 a strip under it, as Chrome's own); typing highlights every match on the
 page, `Enter` / `Shift`+`Enter` move between them, the page scrolls to the
 current one, a count ("3 of 41"), `Esc` closes. Match case off by default.

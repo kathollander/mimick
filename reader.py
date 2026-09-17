@@ -350,6 +350,90 @@ def caret_place(caret: int, trailing: bool) -> list | None:
     return [word.page, round(x1 if at_end else x0, 2), round(y0, 2), round(y1, 2)]
 
 
+# -- finding text --------------------------------------------------------------
+#
+# Ctrl+F. The search runs over every word on the pages, read or not, as the
+# words are written: a word broken across a line is put back together, as
+# ``_join_words`` does for copying, and curly quotes, ligatures and the like are
+# folded so what is typed finds what is printed. A match is a run of whole words
+# -- ``[first, last, page]`` -- so it is lit, selected and read like a selection.
+
+_FOLD = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'", "\u2032": "'",
+                       "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u2033": '"',
+                       "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-", "\u2212": "-",
+                       "\u00ad": None, "\u00a0": " "})
+FIND_LIMIT = 20000
+_find_text: dict = {}        # cache: the document's words as one string, each case
+_found: list[list[int]] = []
+
+
+def _fold(text: str, match_case: bool) -> str:
+    import unicodedata
+    text = unicodedata.normalize("NFKC", text).translate(_FOLD)
+    return text if match_case else text.casefold()
+
+
+def _searchable(document: Document, match_case: bool):
+    """The document's words as one string, and where each word starts in it."""
+    key = (id(document), len(document.words), match_case)
+    if _find_text.get("key") != key:
+        from array import array
+        parts, starts, at = [], array("l"), 0
+        words = document.words
+        for word, following in zip(words, words[1:] + [None]):
+            text = _fold(word.text, match_case)
+            if word.joins_next and text.endswith("-"):
+                real = following is not None and following.text[:1].isupper()
+                piece = text if real else text[:-1]
+            else:
+                piece = text + " "
+            starts.append(at)
+            parts.append(piece)
+            at += len(piece)
+        _find_text.clear()
+        _find_text.update(key=key, text="".join(parts), starts=starts)
+    return _find_text["text"], _find_text["starts"]
+
+
+def find(query: str, match_case: bool = False) -> dict:
+    """Every place ``query`` is written: ``[first word, last word, page]``, in
+    document order, up to FIND_LIMIT. Spaces in the query match any spacing."""
+    global _found
+    from bisect import bisect_right
+    document = _open()
+    needle = " ".join(_fold(query or "", bool(match_case)).split())
+    _found = []
+    if not needle:
+        return {"matches": [], "more": False}
+    text, starts = _searchable(document, bool(match_case))
+    words = document.words
+    at = text.find(needle)
+    while at >= 0:
+        first = bisect_right(starts, at) - 1
+        last = bisect_right(starts, at + len(needle) - 1) - 1
+        _found.append([first, last, words[first].page])
+        if len(_found) >= FIND_LIMIT:
+            return {"matches": _found, "more": text.find(needle, at + 1) >= 0}
+        at = text.find(needle, at + 1)
+    return {"matches": _found, "more": False}
+
+
+def found_on(page: int) -> list[list]:
+    """The last search's matches drawn on ``page``: ``[match number, [rects]]``."""
+    words = _open().words
+    out = []
+    for number, (first, last, starts_on) in enumerate(_found):
+        # Words run page by page, so matches do too.
+        if starts_on > page:
+            break
+        if words[last].page < page:
+            continue
+        chosen = [w.rect for w in words[first:last + 1] if w.page == page]
+        if chosen:
+            out.append([number, [_rect(box) for box in _merge_rects(chosen)]])
+    return out
+
+
 # -- highlights and notes ---------------------------------------------------
 #
 # The desktop's AnnotationStore, on the open document. Every change answers
@@ -472,9 +556,11 @@ def set_author(name: str) -> None:
 
 
 def close() -> None:
-    global _document, _selection, _store
+    global _document, _selection, _store, _found
     forget_alternate()
     _selection = []
+    _found = []
+    _find_text.clear()
     _choices.clear()
     _store = None
     if _document is not None:

@@ -69,6 +69,18 @@
   .page .hl.sentence { background: rgba(91, 157, 255, .19); }
   .page .hl.word { background: rgba(255, 190, 60, .51); border-radius: 2px; }
   .page .hl.selection { background: rgba(120, 200, 255, .27); border-radius: 3px; }
+  /* Find: every match, and the one Enter is on. */
+  .page .hl.found { background: rgba(255, 225, 40, .42); border-radius: 2px; }
+  .page .hl.found.current { background: rgba(255, 140, 0, .55); box-shadow: 0 0 0 1.5px #d96c00; }
+
+  #find-bar { position: absolute; z-index: 6; top: 10px; right: 26px; display: flex; align-items: center; gap: 6px;
+              padding: 6px 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+              box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+  #main:has(#notes:not([hidden])) #find-bar { right: 298px; }
+  #find-input { width: 220px; padding: 5px 8px; }
+  #find-input.none { border-color: #c4524f; }
+  #find-count { min-width: 76px; color: var(--dim); white-space: nowrap; text-align: right; }
+  #find-bar label { display: flex; align-items: center; gap: 4px; color: var(--dim); white-space: nowrap; }
   /* The text cursor, in the desktop's CARET; it blinks unless the voice is reading. */
   .page .caret { position: absolute; width: 2px; margin-left: -1px; background: #7fb4ff; pointer-events: none;
                  animation: blink 1s steps(1) infinite; }
@@ -271,6 +283,14 @@
   </div>
 </aside>
 <svg id="connectors" aria-hidden="true"></svg>
+<div id="find-bar" role="search" aria-label="Find in document" hidden>
+  <input id="find-input" type="text" placeholder="Find in document" aria-label="Find in document" autocomplete="off" spellcheck="false">
+  <span id="find-count" aria-live="polite"></span>
+  <label title="Only find text with the same capital letters"><input id="find-case" type="checkbox"> Match case</label>
+  <button id="find-prev" class="square" title="Previous match  (Shift+Enter)" aria-label="Previous match" disabled>↑</button>
+  <button id="find-next" class="square" title="Next match  (Enter)" aria-label="Next match" disabled>↓</button>
+  <button id="find-close" class="square" title="Close  (Esc)" aria-label="Close find">✕</button>
+</div>
 </div>
 
 <div id="markup-bottom" class="strip" hidden></div>
@@ -368,6 +388,12 @@
         <tr><td>Shift+Home / Shift+End</td><td>Select to the start or end of the line</td></tr>
         <tr><td>Ctrl+Shift+← / Ctrl+Shift+→</td><td>Select to the next sentence</td></tr>
       </table>
+      <h2>Finding text</h2>
+      <table>
+        <tr><td>Ctrl+F</td><td>Find in the document; every match is lit</td></tr>
+        <tr><td>Enter / Shift+Enter</td><td>Next or previous match (also F3 and Shift+F3)</td></tr>
+        <tr><td>Esc</td><td>Close, leaving the match selected — then Enter reads it, or Ctrl+H highlights it</td></tr>
+      </table>
       <h2>Moving around</h2>
       <table>
         <tr><td>Page Up / Page Down</td><td>Turn the page</td></tr>
@@ -464,5 +490,6 @@
 <script src="js/notes-store.js"></script>
 <script src="js/notes.js"></script>
 <script src="js/convert.js"></script>
+<script src="js/find.js"></script>
 <script src="js/reader.js"></script>
 </html>
