@@ -223,15 +223,20 @@
       const restored = await order.restore();
       if (mine !== generation) return;
       if (restored) done.sentences = restored.sentences;
-      Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes });
+      Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes,
+                           textless: done.textless ?? [] });
       // A scan whose text was recognised before: put it back, rather than asking again.
-      if (done.words === 0) {
+      if (doc.textless.length) {
         const found = await MimickOcr.stored(key);
         if (mine !== generation) return;
-        if (found?.some(([, words]) => words.length)) {
-          applyRecognised(found, "Putting back the text recognised in this scan last time…");
+        const missing = new Set(doc.textless);
+        if (found?.some(([page, words]) => missing.has(page) && words.length)) {
+          applyRecognised(found.filter(([page]) => missing.has(page)), "Putting back the text recognised in this scan last time…");
           return;
         }
+        // Pages already tried and found blank are not offered again.
+        const tried = new Set((found ?? []).map(([page]) => page));
+        doc.textless = doc.textless.filter((page) => !tried.has(page));
       }
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
       const n = restored?.restored ?? 0;
@@ -239,9 +244,13 @@
         + (n ? ` · ${n} reading-order change${n === 1 ? "" : "s"} of yours put back` : "");
       // Nothing to read says why, rather than leaving Read aloud greyed out in silence.
       const why = done.words === 0
-        ? "This PDF has no text to read — it may be a scan. File ▾ → Recognise text reads the words off its pages"
+        ? `This PDF has no text to read — it may be a scan.${doc.textless.length ? " File ▾ → Recognise text reads the words off its pages" : ""}`
         : done.sentences === 0 ? NOTHING_SET : null;
       if (why) openedStatus = `${pagesCount()} · ${why}`;
+      else if (doc.textless.length) {
+        const n = doc.textless.length;
+        openedStatus += ` · ${n} page${n === 1 ? " is a picture" : "s are pictures"} with no text — File ▾ → Recognise text`;
+      }
       voice.open(done.sentences);
       setReadable(done.sentences > 0, why);
       notes.open(doc);
@@ -269,11 +278,11 @@
   });
   async function recogniseText() {
     if (!doc || ocr.running) return;
-    const mine = generation, { key, pages } = doc;
+    const mine = generation, { key, pages, textless } = doc;
     status(`Recognising text: getting ready…`);
     let found;
     try {
-      found = await ocr.recognise(pages);
+      found = await ocr.recognise(pages, textless);
     } catch (err) {
       if (mine === generation) status(err.message === "cancelled" ? "Stopped recognising text" : `Could not recognise the text: ${err.message}`);
       return;
@@ -283,7 +292,8 @@
     if (mine !== generation) return;
     const count = found.reduce((n, [, words]) => n + words.length, 0);
     if (!count) { status("No words could be recognised in this scan"); return; }
-    await MimickOcr.keep(key, found);
+    const before = (await MimickOcr.stored(key)) ?? [];
+    await MimickOcr.keep(key, [...before.filter(([page]) => !textless.includes(page)), ...found]);
     applyRecognised(found, `Found ${count.toLocaleString()} words — putting them into the pages…`);
   }
   async function applyRecognised(found, said) {
@@ -1682,7 +1692,7 @@
     ...recentItems(),
     { label: "Find in document…", keys: "Ctrl+F", enabled: !!doc, run: () => find.open() },
     ocr.running ? { label: "Stop recognising text", run: () => ocr.stop() }
-      : { label: "Recognise text in this scan…", enabled: doc?.words === 0, run: recogniseText },
+      : { label: "Recognise text in this scan…", enabled: !!doc?.textless?.length, run: recogniseText },
     "-",
     // PDF only: highlights and notes are annotations on rectangles of a page, which no
     // flowing format can hold. The notes on their own go out as text. See PARITY.md.

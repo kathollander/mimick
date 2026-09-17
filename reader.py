@@ -61,6 +61,7 @@ def open_document(pdf_bytes: bytes, name: str, skip_citations: bool = True,
         "sentences": len(_document.sentences),
         "words": len(_document.words),
         "has_footnotes": _document.has_footnotes,
+        "textless": pages_without_text(),
     }
 
 
@@ -548,6 +549,13 @@ def document_to_pdf(data, kind: str, title: str) -> bytes:
 # text, each word stretched over the box it was found in, so the rest of the
 # reader -- reading, highlights, Find, Save a copy -- sees an ordinary PDF, and
 # other PDF readers can search the saved copy too.
+
+
+def pages_without_text() -> list[int]:
+    """Pages that are a picture and no words: scanned, and worth recognising."""
+    document = _open()
+    return [number for number in range(document.page_count)
+            if not document.page_words.get(number) and document.doc[number].get_images()]
 
 
 def add_text_layer(found: list) -> bytes:

@@ -11,7 +11,7 @@
  * rather than reading every page again. Forget this document removes it.
  *
  *   const ocr = MimickOcr.create(ctx)   ctx: see reader.js, "recognising text"
- *   ocr.recognise(pageSizes)            [[page, words]]; throws "cancelled" if stopped
+ *   ocr.recognise(pageSizes, pages)     [[page, words]] for those pages; throws "cancelled" if stopped
  *   ocr.stop() / ocr.running
  *   MimickOcr.stored(key) / keep(key, found) / forget(key)
  */
@@ -73,14 +73,14 @@
 
     /* Every page's words, [[page, [[text, x0, y0, x1, y1] in points]]], a
      * line's words given the line's own top and bottom so they sit level. */
-    async function recognise(pageSizes) {
+    async function recognise(pageSizes, pages = pageSizes.map((_, i) => i)) {
       if (job) throw new Error("already recognising text");
       const mine = job = { cancelled: false };
       const found = [];
       const t0 = performance.now();
       try {
         const worker = await engine();
-        for (let page = 0; page < pageSizes.length; page++) {
+        for (const [count, page] of pages.entries()) {
           if (mine.cancelled) throw new Error("cancelled");
           const [width] = pageSizes[page];
           const scale = Math.min(MAX_SCALE, TARGET_WIDTH / width);
@@ -105,8 +105,8 @@
             }
           }
           found.push([page, words]);
-          const each = (performance.now() - t0) / (page + 1);
-          ctx.progress(page + 1, pageSizes.length, each * (pageSizes.length - page - 1));
+          const each = (performance.now() - t0) / (count + 1);
+          ctx.progress(count + 1, pages.length, each * (pages.length - count - 1));
         }
         return found;
       } finally {

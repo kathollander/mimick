@@ -14,7 +14,8 @@
  *                                          and the text cursor
  * Messages out:
  *   { type: "ready", loadMs }
- *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, openMs }
+ *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, textless, openMs }
+ *       textless: the pages that are a picture with no words (reader.pages_without_text)
  *   { type: "sentences", id, sentences }
  *       each { page, text, words: [[index, page, [x0, y0, x1, y1]]],
  *              lines: [[page, [x0, y0, x1, y1]]] }   see reader.sentences

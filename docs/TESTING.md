@@ -61,6 +61,7 @@ Added 17 September. Use a scanned reading with no text layer (if you can select 
 - [ ] Find, highlights and Save a copy work; the saved copy is searchable in another PDF reader
 - [ ] Opening the same scan again is quick, with no recognising
 - [ ] A long scan (100+ pages): how long it takes, and whether the tab stays usable
+- [ ] A reading with a typed first page and scanned pages after: it says how many pages are pictures, and recognising reads only those
 
 ## Sleep timer
 

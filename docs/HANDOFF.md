@@ -193,7 +193,10 @@ MuPDF then gives back exactly those rectangles. The result opens under the
 **same key**, so drawn pages, place and notes carry over; the words go in
 IndexedDB `mimick-ocr` under that key, and `openBytes` puts them back itself
 when a PDF with no words has some kept (never with an empty result, or it would
-loop). Forget removes them. The test paper, scanned at 150 dpi, comes back as
+loop). Forget removes them. **Half-scanned PDFs too:** `open_document` answers
+`textless` (`pages_without_text`: no words, and an image), and only those pages
+are recognised; the status line says how many are pictures. Pages tried and
+found blank are not offered again. What is kept is merged per page. The test paper, scanned at 150 dpi, comes back as
 the same 29 sentences in about 6 s. Rotated pages: `derotation_matrix` and
 `rotate` are used but untested.
 

@@ -95,5 +95,36 @@ await openScan();
 await wait(`/no text to read/.test(document.getElementById("status").textContent)`, 30000).catch(() => {});
 check("after Forget, the scan has no text again", /no text to read/.test(await r.status()), await r.status());
 
+// 5. Half a scan: a page of text, then pages that are pictures. Only those are read.
+await r.openPdf(path.join(root, "sample/test-paper.pdf"));
+const halfMade = await r.inWorker("document-worker.js", `python.then((py) => py.runPython(\`
+import base64, pymupdf, reader
+src = reader._open().doc
+out = pymupdf.open()
+out.insert_pdf(src, from_page=0, to_page=0)
+for p in list(src)[1:]:
+    page = out.new_page(width=p.rect.width, height=p.rect.height)
+    page.insert_image(page.rect, pixmap=p.get_pixmap(dpi=150, annots=False))
+base64.b64encode(out.tobytes(deflate=True)).decode()
+\`))`);
+const half = path.join(folder, "half scanned.pdf");
+fs.writeFileSync(half, Buffer.from(halfMade, "base64"));
+{
+  const { root: dom } = (await r.t.send("DOM.getDocument")).result;
+  const { nodeId } = (await r.t.send("DOM.querySelector", { nodeId: dom.nodeId, selector: "#file" })).result;
+  await r.t.send("DOM.setFileInputFiles", { nodeId, files: [half] });
+}
+await wait(`/are pictures/.test(document.getElementById("status").textContent)`, 30000).catch(() => {});
+const halfSaid = await r.status();
+check("a half-scanned PDF reads its text page, and says two pages are pictures", /^3 pages · \d+ sentences to read .*2 pages are pictures with no text — File ▾ → Recognise text/.test(halfSaid), halfSaid);
+const firstCount = Number(halfSaid.match(/(\d+) sentences to read/)?.[1] ?? 0);
+await r.click(await r.centre("#file-menu")); await sleep(300);
+await r.menu("Recognise text in this scan…");
+await wait(`/Recognising text: page \\d of 2/.test(document.getElementById("status").textContent)`, 60000).catch(() => {});
+check("…and recognises only those two", /Recognising text: page \d of 2/.test(await r.status()), await r.status());
+await wait(`/sentences to read/.test(document.getElementById("status").textContent) && !/pictures/.test(document.getElementById("status").textContent)`, 120000).catch(() => {});
+const halfAfter = await r.status();
+check("…after which the whole paper reads", Number(halfAfter.match(/(\d+) sentences to read/)?.[1] ?? 0) > firstCount && !/pictures/.test(halfAfter), [firstCount, halfAfter]);
+
 fs.rmSync(folder, { recursive: true, force: true });
 r.finish();
