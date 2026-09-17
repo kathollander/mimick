@@ -541,6 +541,39 @@ def document_to_pdf(data, kind: str, title: str) -> bytes:
         return pdf.tobytes(garbage=3, deflate=True)
 
 
+# -- recognised text, for scans ---------------------------------------------------
+#
+# A scanned PDF has pictures of pages and no words. js/ocr.js reads the words off
+# each page with Tesseract; this writes them back into the PDF as invisible
+# text, each word stretched over the box it was found in, so the rest of the
+# reader -- reading, highlights, Find, Save a copy -- sees an ordinary PDF, and
+# other PDF readers can search the saved copy too.
+
+
+def add_text_layer(found: list) -> bytes:
+    """``found`` is ``[[page, [[text, x0, y0, x1, y1], ...]], ...]`` in PDF points,
+    a line's words sharing its top and bottom. Answers the PDF with the words in."""
+    doc = _open().doc
+    font = pymupdf.Font("helv")
+    height_per_size = font.ascender - font.descender
+    for number, words in found:
+        page = doc.load_page(int(number))
+        derotate = page.derotation_matrix
+        for text, x0, y0, x1, y1 in words:
+            text = str(text).strip()
+            if not text or x1 <= x0 or y1 <= y0:
+                continue
+            size = (y1 - y0) / height_per_size
+            width = font.text_length(text, size)
+            if size <= 0 or width <= 0:
+                continue
+            start = pymupdf.Point(x0, y1 + font.descender * size) * derotate
+            page.insert_text(start, text, fontsize=size, fontname="helv", render_mode=3,
+                             rotate=page.rotation,
+                             morph=(start, pymupdf.Matrix((x1 - x0) / width, 1)))
+    return doc.tobytes(garbage=3, deflate=True)
+
+
 # -- finding text --------------------------------------------------------------
 #
 # Ctrl+F. The search runs over every word on the pages, read or not, as the

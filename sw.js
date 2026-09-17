@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "68844c04f23c9ba7";
+const VERSION = "b982910fa8849c5b";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -42,6 +42,7 @@ const FILES = [
   "js/mp3-worker.js",
   "js/notes-store.js",
   "js/notes.js",
+  "js/ocr.js",
   "js/offline.js",
   "js/page-layout.js",
   "js/page-store.js",
@@ -79,6 +80,10 @@ const FILES = [
   "vendor/pyodide/pyodide.asm.wasm",
   "vendor/pyodide/pyodide.js",
   "vendor/pyodide/python_stdlib.zip",
+  "vendor/tesseract/eng.traineddata.gz",
+  "vendor/tesseract/tesseract-core-simd-lstm.wasm.js",
+  "vendor/tesseract/tesseract.min.js",
+  "vendor/tesseract/worker.min.js",
   "voices/en_GB-southern_english_female-low.mp3",
   "voices/en_GB-vctk-medium.mp3",
   "voices/en_US-joe-medium.mp3",

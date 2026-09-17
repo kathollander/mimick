@@ -40,7 +40,7 @@ Kat asked for the launch work to be done overnight, from
 - **Accessibility, first pass**: a light theme following the system (Display ▾ →
   Theme), less motion, names on every control, the contents tree's keys.
 - **How to say words**: a pronunciation list.
-- From Ship 3: **a sleep timer**, and **Firefox** checked by script (`check_firefox.mjs`).
+- From Ship 3: **OCR for scans**, **a sleep timer**, and **Firefox** checked by script (`check_firefox.mjs`).
 
 **Not done from Ship 2: read aloud while a long document is still opening.** It
 needs `Document` in the desktop's shared `document.py` to build page by page
@@ -174,6 +174,23 @@ stops the cursor blinking. Every glyph button (‹ › ↶ ↷ ⚙ ▶ − +) an
 now has an `aria-label`. **The highlight colours were measured for colour
 blindness, not changed** (they are shared with the desktop): the numbers are in
 `PARITY.md`, *For the desktop*. `tools/check_access.mjs`.
+
+**Ship 3: OCR.** `vendor/tesseract/`: tesseract.js 7.0.0's `tesseract.min.js`
+and `worker.min.js`, core 7.0.0's `tesseract-core-simd-lstm.wasm.js` (named
+exactly, so tesseract.js does no feature detection and fetches nothing else --
+every target browser has SIMD) and `eng.traineddata.gz` from `4.0.0_best_int`;
+no CDN (`workerBlobURL: false`, `cacheMethod: "none"`, absolute paths). `js/ocr.js`
+renders each page through `pool[0]` at about 2200 px across, gives Tesseract a
+PNG, and keeps words with their *line's* top and bottom so a line's boxes sit
+level. `reader.add_text_layer` writes each word with `render_mode=3` in Helvetica,
+sized so its font box is the line's height and `morph`ed to the word's width --
+MuPDF then gives back exactly those rectangles. The result opens under the
+**same key**, so drawn pages, place and notes carry over; the words go in
+IndexedDB `mimick-ocr` under that key, and `openBytes` puts them back itself
+when a PDF with no words has some kept (never with an empty result, or it would
+loop). Forget removes them. The test paper, scanned at 150 dpi, comes back as
+the same 29 sentences in about 6 s. Rotated pages: `derotation_matrix` and
+`rotate` are used but untested.
 
 **Ship 3: the sleep timer.** Display ▾ → Stop reading. `setSleep` keeps
 `{kind, label}`; minutes set a `due` flag after the time, page and section
@@ -315,6 +332,7 @@ the reason down rather than stopping to ask.
 | `js/reader.js` | Opening, pages, zoom, the reading controls, selecting and the cursor, the right-click and Display menus, every key. |
 | `js/read-aloud.js` | The player: prefetch, Web Audio, speed, which word is lit. No DOM. |
 | `js/notes.js` | Highlights on the page, the notes panel, note editor, undo, the movable strip, the Notes menu. |
+| `js/ocr.js` | Recognising text in scans with Tesseract, and keeping what was found. |
 | `js/pronounce.js` | How to say words: the pronunciation list, swapped in by the voice worker. |
 | `js/recent.js` | Open Recent: file handles kept in IndexedDB. |
 | `js/contents.js` | The table of contents panel (the PDF's bookmarks), its edge tab and `F9`. |
@@ -348,6 +366,7 @@ node tools/check_forget.mjs          # the same
 node tools/check_recent.mjs          # the same
 node tools/check_access.mjs          # the same
 node tools/check_say.mjs             # the same; reuses the voice check_convert downloaded
+node tools/check_ocr.mjs             # the same
 node tools/check_sleep.mjs           # the same; reuses the voice check_convert downloaded
 node tools/check_firefox.mjs         # Firefox through geckodriver; --voice also reads aloud
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732

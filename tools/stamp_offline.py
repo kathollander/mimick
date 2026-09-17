@@ -28,6 +28,7 @@ PATTERNS = [
     "vendor/piper/piper_phonemize.js", "vendor/piper/piper_phonemize.wasm", "vendor/piper/piper_phonemize.data",
     "vendor/onnxruntime/*.js", "vendor/onnxruntime/*.mjs", "vendor/onnxruntime/*.wasm",
     "vendor/lamejs/lamejs.iife.js",
+    "vendor/tesseract/*.js", "vendor/tesseract/*.gz",
     "voices/*.mp3",
 ]
 

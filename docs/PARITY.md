@@ -69,6 +69,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## For the desktop
 
+- ⬜ **Recognise text in a scan (OCR)**: Tesseract reads each page, and the words go in as invisible text. Browser: `js/ocr.js`, `reader.add_text_layer`. The desktop could use Tesseract natively through PyMuPDF (`get_textpage_ocr`)
 - ⬜ **Sleep timer** (Display → Stop reading): minutes, end of page, end of section; pauses between sentences. Browser: `sleepDue` in `js/reader.js`
 - ⬜ **How to say words** (a pronunciation list): a word as printed and a sound-alike, applied before the phonemizer, with the timings put back under the printed word so highlighting is unchanged. Browser: `js/pronounce.js`
 - ⬜ **Light theme** following the system, and Display → Theme (Match the system / Dark / Light). Browser: the token sets at the top of `reader.html`

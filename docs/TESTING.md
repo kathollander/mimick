@@ -51,6 +51,17 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Recognising text in a scan
+
+Added 17 September. Use a scanned reading with no text layer (if you can select no text in it elsewhere, it has none).
+
+- [ ] Opening it says it has no text, and points to **File ▾ → Recognise text in this scan**
+- [ ] Recognising shows progress page by page, with time left; **Stop recognising text** stops it
+- [ ] Afterwards it reads aloud, and the lit words sit over the words in the picture
+- [ ] Find, highlights and Save a copy work; the saved copy is searchable in another PDF reader
+- [ ] Opening the same scan again is quick, with no recognising
+- [ ] A long scan (100+ pages): how long it takes, and whether the tab stays usable
+
 ## Sleep timer
 
 Added 17 September. Needs a voice.

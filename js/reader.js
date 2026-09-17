@@ -158,6 +158,7 @@
    * (notes, place, drawn pages); by default, a hash of the bytes. */
   async function openBytes(buffer, name, key = null) {
     const mine = ++generation;
+    ocr.stop();
     status(pythonReady ? `Opening ${name}…` : `Getting ready, then opening ${name}…`);
     $("empty").hidden = true;
     voice.open(0);
@@ -223,13 +224,22 @@
       if (mine !== generation) return;
       if (restored) done.sentences = restored.sentences;
       Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes });
+      // A scan whose text was recognised before: put it back, rather than asking again.
+      if (done.words === 0) {
+        const found = await MimickOcr.stored(key);
+        if (mine !== generation) return;
+        if (found?.some(([, words]) => words.length)) {
+          applyRecognised(found, "Putting back the text recognised in this scan last time…");
+          return;
+        }
+      }
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
       const n = restored?.restored ?? 0;
       openedStatus = `${pagesCount()} · ${done.sentences} sentences to read · opened in ${seconds}s`
         + (n ? ` · ${n} reading-order change${n === 1 ? "" : "s"} of yours put back` : "");
       // Nothing to read says why, rather than leaving Read aloud greyed out in silence.
       const why = done.words === 0
-        ? "This PDF has no text to read — it may be a scan without OCR (text recognition)"
+        ? "This PDF has no text to read — it may be a scan. File ▾ → Recognise text reads the words off its pages"
         : done.sentences === 0 ? NOTHING_SET : null;
       if (why) openedStatus = `${pagesCount()} · ${why}`;
       voice.open(done.sentences);
@@ -243,6 +253,51 @@
       openedStatus = `${pagesCount()} · this one cannot be read aloud: ${err.message}`;
     }
     showProgress();
+  }
+
+  // --- recognising text in a scan ---------------------------------------------------
+  // js/ocr.js reads the words off each page; reader.add_text_layer writes them in,
+  // and the result is opened as the same document (same key: its place, pages
+  // drawn and notes carry over). What was found is kept for next time.
+
+  const ocr = MimickOcr.create({
+    renderPage: (page, scale) => pool[0].ask({ type: "render", page, scale }).then((r) => r.bitmap),
+    progress(done, total, msLeft) {
+      const left = done < 2 ? "" : ` · ${msLeft < 60000 ? "under a minute" : `about ${Math.round(msLeft / 60000)} minutes`} left`;
+      status(`Recognising text: page ${done} of ${total}${left}`);
+    },
+  });
+  async function recogniseText() {
+    if (!doc || ocr.running) return;
+    const mine = generation, { key, pages } = doc;
+    status(`Recognising text: getting ready…`);
+    let found;
+    try {
+      found = await ocr.recognise(pages);
+    } catch (err) {
+      if (mine === generation) status(err.message === "cancelled" ? "Stopped recognising text" : `Could not recognise the text: ${err.message}`);
+      return;
+    } finally {
+      ocr.close();
+    }
+    if (mine !== generation) return;
+    const count = found.reduce((n, [, words]) => n + words.length, 0);
+    if (!count) { status("No words could be recognised in this scan"); return; }
+    await MimickOcr.keep(key, found);
+    applyRecognised(found, `Found ${count.toLocaleString()} words — putting them into the pages…`);
+  }
+  async function applyRecognised(found, said) {
+    const mine = generation, { key, name } = doc;
+    status(said);
+    let bytes;
+    try {
+      bytes = await call("add_text_layer", found);
+    } catch (err) {
+      if (mine === generation) status(`Could not put the recognised text in: ${err.message.trim().split("\n").pop()}`);
+      return;
+    }
+    if (mine !== generation) return;
+    openBytes(bytes.slice().buffer, name, key);
   }
 
   const isText = (file) => /\.txt$/i.test(file.name) || file.type === "text/plain";
@@ -604,6 +659,7 @@
   /* Back to no document open. */
   function closeDocument() {
     ++generation;
+    ocr.stop();
     clearTimeout(viewTimer);
     voice.open(0);
     closeMenu();
@@ -647,7 +703,7 @@
     for (const kind of ["position", "order", "view"]) {
       try { localStorage.removeItem(`mimick-${kind}:${key}`); } catch { /* not kept */ }
     }
-    await Promise.all([MimickNotesStore.remove(key), Store.forget(key)]);
+    await Promise.all([MimickNotesStore.remove(key), Store.forget(key), MimickOcr.forget(key)]);
     status(`Forgot ${title} — nothing about it is kept in this browser now. The file itself is untouched.`);
   });
 
@@ -1625,6 +1681,8 @@
     { label: "Open…", keys: "Ctrl+O", run: chooseFile },
     ...recentItems(),
     { label: "Find in document…", keys: "Ctrl+F", enabled: !!doc, run: () => find.open() },
+    ocr.running ? { label: "Stop recognising text", run: () => ocr.stop() }
+      : { label: "Recognise text in this scan…", enabled: doc?.words === 0, run: recogniseText },
     "-",
     // PDF only: highlights and notes are annotations on rectangles of a page, which no
     // flowing format can hold. The notes on their own go out as text. See PARITY.md.

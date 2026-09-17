@@ -556,7 +556,8 @@
       <h2>What this does</h2>
       <p><b>Read aloud in a natural voice</b><br>A Piper voice, running in this tab. It is downloaded once, and works offline after that.</p>
       <p><b>Follow along</b><br>As Mimick reads, the sentence and the word being said are lit on the page.</p>
-      <p><b>More than PDFs</b><br>Word (.docx), OpenDocument (.odt), EPUB and plain text files open too, laid out as pages.</p>
+      <p><b>More than PDFs</b><br>Word (.docx), OpenDocument (.odt), EPUB and plain text files open too, laid out as pages.
+        A scanned PDF with no text can have its words recognised (File ▾ → Recognise text), here in the browser.</p>
       <p><b>Find your way</b><br>A document's table of contents sits beside it (F9), and Ctrl+F finds any text.</p>
       <p><b>Say it right</b><br>Teach the voice how to say a name or a term: select it, right-click, How to say.</p>
       <p><b>Read at your speed</b><br>From 0.75× to 4×, changed at any moment.</p>
@@ -588,7 +589,9 @@
         <a href="https://github.com/OHF-Voice/piper1-gpl" target="_blank" rel="noopener">Piper</a> and
         <a href="https://github.com/espeak-ng/espeak-ng" target="_blank" rel="noopener">espeak-ng</a> (the voice) ·
         <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime</a> (running it) ·
-        <a href="https://lame.sourceforge.io/" target="_blank" rel="noopener">LAME</a>, as lamejs (MP3 files)</p>
+        <a href="https://lame.sourceforge.io/" target="_blank" rel="noopener">LAME</a>, as lamejs (MP3 files) ·
+        <a href="https://github.com/tesseract-ocr/tesseract" target="_blank" rel="noopener">Tesseract</a>, as
+        <a href="https://github.com/naptha/tesseract.js" target="_blank" rel="noopener">tesseract.js</a> (reading scans)</p>
       <h2>Voices</h2>
       <p>Every voice is a <a href="https://huggingface.co/rhasspy/piper-voices" target="_blank" rel="noopener">Piper voice</a>,
         trained on recordings people shared, and their licences ask for these credits. Kathleen and Southern English
@@ -667,5 +670,7 @@
 <script src="js/contents.js"></script>
 <script src="js/recent.js"></script>
 <script src="js/pronounce.js"></script>
+<script src="vendor/tesseract/tesseract.min.js"></script>
+<script src="js/ocr.js"></script>
 <script src="js/reader.js"></script>
 </html>

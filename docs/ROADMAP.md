@@ -155,7 +155,12 @@ Then Kat makes the repository public and sends the link.
 
 ## Ship 3 -- later
 
-- **OCR for scanned PDFs** in the browser (`tesseract.js`), producing a text
+- ✅ **OCR for scanned PDFs** -- done 17 September: File ▾ → Recognise text in
+  this scan. `js/ocr.js`, `vendor/tesseract` (6.8 MB, Apache-2.0),
+  `reader.add_text_layer`; kept per document, so it happens once.
+  `tools/check_ocr.mjs`. Not yet: running ahead of the reading page by page,
+  as planned below -- it reads every page first (about 2 s a page here). *Was:*
+  **OCR for scanned PDFs** in the browser (`tesseract.js`), producing a text
   layer the reader can use. Slow; run it page by page ahead of the reading.
 - ✅ **EPUB** -- done with Word, above. *Was:* Reflowable; would need its own page maker, or the same
   convert-to-PDF path at a fixed page size.
