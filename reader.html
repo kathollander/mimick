@@ -30,7 +30,12 @@
   .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 0; }
   .brand { font-weight: 600; letter-spacing: .2px; }
   .dim { color: var(--dim); }
-  #title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* The title takes whatever room is left, and none if there is none: it is
+     also the tab's name, so nothing is lost when it is squeezed out. */
+  #title { flex: 1 1 0; width: 0; min-width: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.bar { grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
+  header.bar button { white-space: nowrap; }
+  @media (max-width: 1150px) { header.bar label.dim { display: none; } }
   #status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   button, input, select { font: inherit; color: var(--text); background: var(--panel-hi);
@@ -192,6 +197,9 @@
     <button id="forward" class="square" title="Next sentence  (→)" disabled>↷</button>
   </div>
   <div class="right">
+    <label class="dim" for="voice">Voice</label>
+    <select id="voice" title="Who reads to you"></select>
+    <button id="voice-sample" class="square" title="Hear this voice">▶</button>
     <span id="title" class="dim"></span>
     <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
   </div>
@@ -404,6 +412,7 @@
 <script src="js/page-layout.js"></script>
 <script src="js/page-store.js"></script>
 <script src="js/piper-core.js"></script>
+<script src="js/voices.js"></script>
 <script src="js/read-aloud.js"></script>
 <script src="js/notes-store.js"></script>
 <script src="js/notes.js"></script>

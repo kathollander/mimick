@@ -65,9 +65,13 @@
     return self;
   }
 
-  let pythonReady = false, pageWorkersReady = 0;
+  let pythonReady = false, pageWorkersReady = 0, saidReady = false;
+  // Said once: each page worker that comes up later would otherwise write it
+  // over whatever the status line has said since.
   const readyNow = () => {
-    if (pythonReady && pageWorkersReady && !doc) status("Ready. Open a PDF to begin.");
+    if (saidReady || !pythonReady || !pageWorkersReady || doc) return;
+    saidReady = true;
+    status("Ready. Open a PDF to begin.");
   };
   const reading = startWorker("js/document-worker.js", () => { pythonReady = true; readyNow(); });
   // Each is a Python of its own, so a few, not one a core.
@@ -490,8 +494,14 @@
   // position of the word being said in its words.
   let lit = { sentence: null, made: null, position: null };
 
+  const Voices = MimickVoices;
+  const savedVoice = recall("mimick-voice");
+  const voiceLabel = (key) => { const v = Voices.byKey[key]; return v ? `${v.name} (${v.accent})` : key; };
+
   const voice = MimickReadAloud.create({
     askDocument: (message) => reading.ask(message),
+    voice: Voices.byKey[savedVoice] ? savedVoice : Voices.DEFAULT,
+    voiceName: voiceLabel,
     onSentence(index, made) {
       lit = { sentence: index, made, position: null };
       if (made) {
@@ -625,6 +635,59 @@
   $("play").onclick = () => { togglePlay(); view.focus(); };
   $("back").onclick = () => { voice.skip(-1); view.focus(); };
   $("forward").onclick = () => { voice.skip(1); view.focus(); };
+
+  // --- the voice ------------------------------------------------------------------
+  // The eight in js/voices.js. Each model downloads the first time it reads and
+  // is kept; the ▶ beside the box plays the clip shipped for it, so a voice can
+  // be heard before anything is downloaded.
+
+  for (const v of Voices.LIST) {
+    const option = new Option(`${v.name} (${v.accent})`, v.key);
+    option.title = v.note;
+    $("voice").append(option);
+  }
+  $("voice").value = voice.voice;
+  const describeVoice = () => { const v = Voices.byKey[$("voice").value]; $("voice").title = `${v.name}: ${v.note}`; };
+  describeVoice();
+
+  /* Whether a voice's model is already kept in this browser. */
+  async function voiceKept(key) {
+    try { return !!(await (await caches.open("mimick-voices-v1")).match(Voices.modelUrl(key, ".onnx"))); }
+    catch { return false; }
+  }
+
+  $("voice").onchange = async () => {
+    const key = $("voice").value;
+    describeVoice();
+    stopSample();
+    voice.setVoice(key);
+    remember("mimick-voice", key);
+    view.focus();
+    if (isReading()) return;
+    const v = Voices.byKey[key];
+    status(`${voiceLabel(key)} — ${v.note}. `
+      + ((await voiceKept(key)) ? "Ready to read." : `Downloads ${v.mb} MB the first time it reads; ▶ plays a sample now.`));
+  };
+
+  let sample = null;
+  function stopSample() {
+    if (!sample) return;
+    sample.pause();
+    sample = null;
+    $("voice-sample").textContent = "▶";
+    $("voice-sample").title = "Hear this voice";
+  }
+  $("voice-sample").onclick = () => {
+    if (sample) { stopSample(); view.focus(); return; }
+    // Not over the reading: pause it first.
+    if (isReading()) voice.pause();
+    const playing = sample = new Audio(Voices.sampleUrl($("voice").value));
+    $("voice-sample").textContent = "■";
+    $("voice-sample").title = "Stop the sample";
+    playing.onended = playing.onerror = () => { if (sample === playing) stopSample(); };
+    playing.play().catch((err) => { if (sample === playing) { stopSample(); status("The sample could not play: " + err.message); } });
+    view.focus();
+  };
 
   for (const speed of SPEEDS) $("speed").append(new Option(`${speed}×`, speed));
   const savedRate = Number(recall("mimick-rate"));

@@ -19,20 +19,23 @@
  *   reader.play(from?)           from a sentence, or carry on
  *   reader.prepare()             in the click or key press that starts reading
  *   reader.pause() / toggle() / skip(±1) / setRate(r) / stop()
+ *   reader.setVoice(key)         another voice from js/voices.js; a reading carries on
+ *                                in it from the sentence it was on
  *
  * States: "stopped", "loading" (the voice), "buffering", "playing", "paused".
  */
 (function (root) {
   "use strict";
 
-  const VOICE = "en_US-lessac-low";
+  const DEFAULT_VOICE = "en_US-lessac-low";
   const PREFETCH = 5;
   const CHUNK = 40;            // sentences asked of the document worker at once
   // A voice worker queues everything it is asked; a clip this far behind the
   // playhead, or this far past the prefetch, is not worth keeping.
   const KEEP_BEHIND = 1, KEEP_AHEAD = PREFETCH + 2;
 
-  function create({ askDocument, onSentence, onWord, onState, onStatus }) {
+  function create({ askDocument, onSentence, onWord, onState, onStatus, voice: firstVoice = DEFAULT_VOICE, voiceName = (k) => k }) {
+    let voiceKey = firstVoice;
     let count = 0;                 // sentences in the document
     let rate = 1;
     let index = 0;                 // the sentence playing, or about to
@@ -47,17 +50,18 @@
 
     // --- the voice ---------------------------------------------------------------
 
-    let worker = null, voiceReady = null, context = null, nextId = 0;
+    let worker = null, voiceReady = null, failLoad = null, context = null, nextId = 0;
     const pending = new Map();
 
     function loadVoice() {
       if (voiceReady) return voiceReady;
       worker = new Worker("js/piper-worker.js");
       voiceReady = new Promise((resolve, reject) => {
+        failLoad = reject;
         worker.onmessage = ({ data }) => {
           if (data.type === "progress") {
             const mb = (n) => (n / 1048576).toFixed(0);
-            onStatus(`Downloading the voice, once: ${mb(data.loaded)} of ${mb(data.total)} MB`);
+            onStatus(`Downloading ${voiceName(voiceKey)}, once: ${mb(data.loaded)} of ${mb(data.total)} MB`);
           } else if (data.type === "ready") {
             resolve();
           } else if (data.type === "spoken" || data.type === "error") {
@@ -75,9 +79,22 @@
       });
       // Threads need cross-origin isolation, which coi-serviceworker.js gives.
       const threads = Math.min(4, navigator.hardwareConcurrency || 1);
-      worker.postMessage({ type: "load", voice: VOICE, threads });
-      voiceReady.catch(() => { worker.terminate(); worker = null; voiceReady = null; });
+      worker.postMessage({ type: "load", voice: voiceKey, threads });
+      const mine = worker;
+      voiceReady.catch(() => { if (worker === mine) { worker.terminate(); worker = null; voiceReady = null; } });
       return voiceReady;
+    }
+
+    /* Put the voice away: its worker, what it was making, and what it made. */
+    function dropVoice() {
+      worker?.terminate();
+      failLoad?.(new Error("cancelled"));
+      worker = null;
+      voiceReady = null;
+      failLoad = null;
+      for (const { reject } of pending.values()) reject(new Error("cancelled"));
+      pending.clear();
+      clips.clear();
     }
 
     function speak(text) {
@@ -272,7 +289,19 @@
     }
 
     const api = {
-      VOICE,
+      get voice() { return voiceKey; },
+      /* Another voice. Reading carries on in it from the start of the sentence
+       * it was on; paused, it stops there, and Read aloud carries on. */
+      setVoice(next) {
+        if (next === voiceKey) return;
+        voiceKey = next;
+        const was = state, at = index;
+        halt();
+        dropVoice();
+        if (was === "stopped") return;
+        if (was === "paused") { stop(); index = at; return; }
+        play(at);
+      },
       get state() { return state; },
       get index() { return index; },
       get rate() { return rate; },

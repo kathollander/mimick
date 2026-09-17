@@ -184,6 +184,17 @@ Putting corrections back rebuilds the sentences a second time, which on the
 598-page book costs as much again as opening; passing them in at open would
 need `Document` to take them, in the desktop repo.
 
+**Later on 17 September: the voice picker.** The eight voices, their hashes
+and the pinned revision are in `js/voices.js`, which the page and
+`piper-worker.js` both load. Hashes came from the Hugging Face API's LFS
+`oid` for each `.onnx` (it reproduces lessac's exactly) and from hashing each
+`.onnx.json`. Sample clips ship in `voices/`, with their licences -- **Lessac
+and Kusal need checking before going public.** `MimickReadAloud.setVoice`
+drops the voice worker and carries on from the sentence playing. The voice box
+sits in the right of the top bar; the title now gives way when the bar is
+short of room, and the labels hide below 1150px -- the first try put the box
+on the left and pushed the bar under **Read aloud**, so ▶ started reading.
+
 **Known:** on a page printed sideways the highlight runs across the lines
 instead of along them. It comes from the shared reading code, so fix it in the
 desktop repo if at all.
@@ -197,9 +208,7 @@ desktop repo if at all.
    so reading early means building page by page (change it there, then port).
    Word indices must stay what a full build gives (desktop trap 9) -- and
    highlights are now keyed to them too.
-3. **The voice picker** -- the other seven voices in `piper.RECOMMENDED`. Each
-   needs its hashes in `piper-worker.js`'s `VOICES`, and a sample clip.
-   Nicknames after that.
+3. ~~The voice picker~~ -- done 17 September. Nicknames still to do.
 4. **Keep scroll and zoom per document across a reload**, and **Forget this
    document** (notes, drawn pages, position).
 5. **Convert to MP3**, then **Open Recent** (Chrome can keep file handles).

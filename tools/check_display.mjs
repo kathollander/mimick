@@ -72,4 +72,29 @@ check("Help offers shortcuts, About and the source", JSON.stringify(await r.menu
       await r.menuLabels());
 await r.menu("About Mimick");
 check("About opens", await ev(`document.getElementById("about-dialog").open && /Arranged by/.test(document.getElementById("about-dialog").textContent)`));
+await r.key("Escape"); await sleep(200);
+
+// 4. The voice. Nothing is downloaded here: a model is 60 MB.
+// A fresh page: the click that gave the page the keyboard above also started reading.
+await r.load();
+const voices = await ev(`[...document.getElementById("voice").options].map((o) => o.value)`);
+check("the voice box offers the eight voices, Lessac first", voices.length === 8 && voices[0] === "en_US-lessac-low", voices);
+await ev(`(() => { const s = document.getElementById("voice"); s.value = "en_US-kathleen-low"; s.dispatchEvent(new Event("change")); })()`);
+await sleep(500);
+check("choosing one says what it is like, and what it costs", /Kathleen \(US\) — calm and unhurried/.test(await r.status()), await r.status());
+await r.click(await r.centre("#voice-sample")); await sleep(1000);
+check("▶ plays its sample, and does not start reading",
+      (await ev(`document.getElementById("voice-sample").textContent`)) === "■" && (await ev(`document.getElementById("play").textContent`)) === "Read aloud");
+await r.click(await r.centre("#voice-sample")); await sleep(300);
+await r.load();
+check("the voice is remembered", (await ev(`document.getElementById("voice").value`)) === "en_US-kathleen-low");
+for (const width of [1300, 1024]) {
+  await r.t.send("Emulation.setDeviceMetricsOverride", { width, height: 800, deviceScaleFactor: 1, mobile: false });
+  await sleep(300);
+  const boxes = await ev(`[...document.querySelectorAll("header.bar button, header.bar select")].filter((e) => e.offsetParent)
+    .map((e) => { const b = e.getBoundingClientRect(); return [e.id, b.left, b.right, b.height]; })`);
+  const overlaps = boxes.filter((a, i) => boxes.some((b, j) => i < j && a[1] < b[2] - 1 && b[1] < a[2] - 1)).map((b) => b[0]);
+  check(`at ${width}px nothing in the top bar overlaps or wraps`,
+        !overlaps.length && boxes.every((b) => b[3] < 40) && boxes.every((b) => b[2] <= width), overlaps);
+}
 r.finish();

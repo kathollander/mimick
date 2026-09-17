@@ -22,7 +22,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Right-click → *Start reading from here*
 - ✅ Select text and press `Enter` (or right-click → *Read the selection*)
 - ⬜ Read aloud while a long document is still opening
-- ⬜ Voice picker: the other seven voices
+- ✅ Voice picker: the eight voices, with a sample of each
 - ⬜ Nicknames for voices
 - ✖ Microsoft online voices, Kokoro — a web page cannot reach them
 

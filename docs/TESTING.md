@@ -51,6 +51,22 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## The voice
+
+Added 17 September. Reload the page first.
+
+- [ ] The **Voice** box, top right, lists eight voices; Lessac is chosen to start with
+- [ ] Hovering over the box says what the chosen voice is like
+- [ ] ▶ plays a short sample of the chosen voice straight away, before anything downloads; ■ stops it
+- [ ] Choosing a voice you haven't used says how big it is to download
+- [ ] **Read aloud** with a new voice downloads it (the status line counts the MB), then reads
+- [ ] The second time, that voice starts at once
+- [ ] Changing voice while it reads carries on in the new voice, from the start of that sentence
+- [ ] VCTK and LibriTTS (the two bigger downloads) read too
+- [ ] The voice you chose is still chosen after a reload
+- [ ] Nothing in the top bar overlaps, at full width or in a narrower window
+- [ ] Which voices you like best -- worth noting for the default
+
 ## Reading order
 
 Added 17 September. Reload the page first.

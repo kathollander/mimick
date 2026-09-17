@@ -18,19 +18,13 @@
 importScripts("../vendor/piper/piper_phonemize.js",
               "../vendor/onnxruntime/ort.wasm.min.js",
               "timing.js",
-              "piper-core.js");
+              "piper-core.js",
+              "voices.js");
 
 // Pinned to one revision of rhasspy/piper-voices and checked by hash, so the
 // file cannot change underneath us or arrive altered. See "Security and
-// privacy" in the desktop repo's docs/FUTURE-FEATURES.md.
-const REVISION = "1162a9173d0ce503555aed757976b7a9912eae4c";
-const VOICES = {
-  "en_US-lessac-low": {
-    path: "en/en_US/lessac/low/en_US-lessac-low",
-    onnx: "f7d01dde371555732c4c314111ac79672b1a5ce2fc19266ab42178fd8df7f375",
-    json: "45754dfdebb3b8661c3fc564713772deec6e064feeb5b4e9594857dc7305193a",
-  },
-};
+// privacy" in the desktop repo's docs/FUTURE-FEATURES.md. The revision and
+// the hashes are in js/voices.js.
 const CACHE = "mimick-voices-v1";
 
 let voice = null;
@@ -58,12 +52,11 @@ self.onmessage = ({ data }) => {
 
 async function load({ voice: key, threads }) {
   const t0 = performance.now();
-  const entry = VOICES[key];
+  const entry = MimickVoices.byKey[key];
   if (!entry) throw new Error(`no such voice: ${key}`);
 
-  const base = `https://huggingface.co/rhasspy/piper-voices/resolve/${REVISION}/${entry.path}`;
-  const json = await fetchVerified(base + ".onnx.json", entry.json, false);
-  const model = await fetchVerified(base + ".onnx", entry.onnx, true);
+  const json = await fetchVerified(MimickVoices.modelUrl(key, ".onnx.json"), entry.json, false);
+  const model = await fetchVerified(MimickVoices.modelUrl(key, ".onnx"), entry.onnx, true);
 
   // Without cross-origin isolation there is no SharedArrayBuffer, and ONNX
   // Runtime quietly runs on one thread whatever it is asked for.
