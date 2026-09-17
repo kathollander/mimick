@@ -28,13 +28,14 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "716f5af9dbdf4a23";
+const VERSION = "afc1ee8421a88080";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
   "icons/icon-64.png",
   "icons/maskable-512.png",
   "index.html",
+  "js/contents.js",
   "js/convert.js",
   "js/document-worker.js",
   "js/find.js",

@@ -10,7 +10,7 @@
  *       compressed image, to be kept (js/page-store.js).
  * Messages out:
  *   { type: "ready", loadMs }
- *   { type: "opened", id, title, pages: [[w, h] in points] }
+ *   { type: "opened", id, title, pages: [[w, h] in points], outline: [[level, title, page, y, open]] }
  *   { type: "rendered", id, page, scale, bitmap, blob?, renderMs }   bitmap transferred
  *   { type: "error", id?, message }
  *

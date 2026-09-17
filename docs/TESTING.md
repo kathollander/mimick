@@ -51,6 +51,23 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Contents panel, and the panel tabs
+
+Added 17 September. Use a PDF with bookmarks -- a textbook or a thesis; most
+exported from Word have them -- and one without (the poem, `sample/sample.pdf`).
+
+- [ ] Opening a PDF with bookmarks shows them on the left, straight away, before "sentences to read" appears
+- [ ] Nested entries are indented; ▾ / ▸ open and close a level
+- [ ] Clicking an entry goes to its heading, near the top of the view, and lights it
+- [ ] Scrolling lights the section you are in, and a long list follows along
+- [ ] Right-click an entry → **Start reading from here** reads from that heading
+- [ ] The **‹** hides the panel and the page widens; the **Contents** tab on the left edge brings it back
+- [ ] `F9` and **Display ▾ → Contents panel** do the same; hidden stays hidden after a reload
+- [ ] The notes panel's **›** hides it; the **Notes** tab on the right edge brings it back
+- [ ] A PDF without bookmarks shows no panel, and the tab is greyed with a tooltip saying why
+- [ ] With both panels hidden the page sits in the middle and nothing overlaps the tabs
+- [ ] On a narrow window (about 1000px) both panels together still leave room to read
+
 ## How long it takes to read
 
 Added 17 September.

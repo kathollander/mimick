@@ -25,6 +25,25 @@ Kat asked for the launch work to be done overnight, from
 - Items 3 and 4, **How to use, Browsers, Privacy**, in `README.md` and About.
 - Item 5, **`.txt` files**: laid out as a PDF by `reader.text_to_pdf`.
 
+**Then, the second session that night (Kat asked for it directly): the contents
+panel.** The PDF's bookmarks on the left, `js/contents.js`. The outline comes
+from the *page* workers (`pages.outline`, in the `open` reply), so it shows as
+soon as the pages do, not after the sentences. Click an entry to go to its
+heading; right-click for *Start reading from here* (`reader.first_sentence_from`).
+The entry lit is the last heading above a third of the way down the view,
+except that a clicked entry stays lit until the view moves (several short
+sections can share a screen). A short outline (60 entries or fewer) opens in
+full; a longer one follows the file's own open/closed flags. **Toggle: `F9`,
+Display ▾, the panel's ‹, and a "Contents" tab on the page's left edge** --
+Kat left the placement to us; the tab is on the page itself so it is found
+without the menus, and stays (greyed, with a tooltip) for a PDF with no
+bookmarks. The notes panel got the same: a header with **›**, and a "Notes"
+tab on the right edge. `#main`'s children are placed in named grid columns so
+a hidden panel does not let the page slide into its column. `F9` because
+Evince uses it for the side pane and Chrome leaves it free (`Ctrl`+`Shift`+`B`
+is the bookmarks bar). The test paper now has bookmarks
+(`tools/make_test_paper.py`, regenerated); `tools/check_contents.mjs`.
+
 **Next: Ship 1 items 6 to 9, in order** -- a PDF with no text says so; File ▾
 **Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
 (`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
@@ -156,6 +175,7 @@ the reason down rather than stopping to ask.
 | `js/reader.js` | Opening, pages, zoom, the reading controls, selecting and the cursor, the right-click and Display menus, every key. |
 | `js/read-aloud.js` | The player: prefetch, Web Audio, speed, which word is lit. No DOM. |
 | `js/notes.js` | Highlights on the page, the notes panel, note editor, undo, the movable strip, the Notes menu. |
+| `js/contents.js` | The table of contents panel (the PDF's bookmarks), its edge tab and `F9`. |
 | `js/notes-store.js`, `js/page-store.js` | IndexedDB: notes (never evicted), drawn scan pages (evicted). |
 | `js/document-worker.js` + `reader.py` | Pyodide with the desktop's `document.py` and `annotations.py`: sentences, words, the cursor's steps, highlights. The page asks through one generic `call` message for most of it. |
 | `js/page-worker.js` + `pages.py` | Drawing pages, without annotations. |
@@ -178,6 +198,7 @@ node tools/check_display.mjs         # the same
 node tools/check_order.mjs           # the same
 node tools/check_find.mjs            # the same
 node tools/check_text.mjs            # the same
+node tools/check_contents.mjs        # the same
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

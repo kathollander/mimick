@@ -268,6 +268,17 @@ def first_sentence_on(page: int) -> int | None:
     return None
 
 
+def first_sentence_from(page: int, y: float | None = None) -> int | None:
+    """The first sentence that starts at ``y`` on ``page`` or below it, or on a
+    later page, or None: where a table of contents entry points."""
+    for index, sentence in enumerate(_open().sentences):
+        first = sentence.words[0] if sentence.words else None
+        at = first.page if first is not None else sentence.page
+        if at > page or (at == page and (y is None or first is None or first.rect[3] > y)):
+            return index
+    return None
+
+
 def sentence_at(page: int, x: float, y: float) -> int | None:
     """The sentence under a point on a page, in PDF points, or None."""
     return _open().sentence_at_point(page, x, y)

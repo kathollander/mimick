@@ -5,7 +5,7 @@ leave out. The reading cleanup, the reading order and the footnote switch only
 show themselves on a page laid out like an article -- a running header and page
 numbers, notes at the foot of the page, a reference list at the end -- so this
 makes one, with a highlight and note already on page 2, as a file marked up in
-another reader would have. Every word of it is written here, so it can ship with the source.
+another reader would have, and a table of contents (bookmarks) two levels deep. Every word of it is written here, so it can ship with the source.
 
 Run from the desktop repo, whose venv has PyMuPDF:
 
@@ -109,6 +109,16 @@ def main(out: str) -> None:
             annot = page.add_highlight_annot(quads)
             annot.set_info(content="Already in the file.", title="Another reader", subject="")
             annot.update()
+    # Bookmarks, as a word processor would export them: the title, and each
+    # section under it, pointing at its heading.
+    toc = []
+    for number, spec in enumerate(PAGES):
+        for paragraph in spec["body"]:
+            if paragraph == TITLE or paragraph == "References" or (paragraph[:2] in ("1.", "2.", "3.", "4.") and len(paragraph) < 40):
+                y = doc[number].search_for(paragraph)[0].y0
+                dest = {"kind": pymupdf.LINK_GOTO, "page": number, "to": pymupdf.Point(LEFT, y)}
+                toc.append([1 if paragraph == TITLE else 2, paragraph, number + 1, dest])
+    doc.set_toc(toc)
     doc.save(out, garbage=3, deflate=True)
 
 

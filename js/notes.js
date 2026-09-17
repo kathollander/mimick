@@ -556,6 +556,7 @@
     function setPanel(on) {
       ctx.remember("mimick-notes-panel", on ? "1" : "0");
       panel.hidden = !on;
+      $("notes-tab").hidden = on;
       // Putting the column away must not take Add note away with it.
       if (!on && settings.home === "panel") {
         placeBar("top");
@@ -751,6 +752,10 @@
     $("notes-menu").onclick = (e) => { const b = e.currentTarget.getBoundingClientRect(); ctx.showMenu(b.left, b.bottom + 4, notesMenu()); };
 
     panel.hidden = !settings.panel;
+    $("notes-tab").hidden = settings.panel;
+    // The panel's own › puts it away; the tab on the page's right edge brings it back.
+    $("notes-hide").onclick = () => { setPanel(false); ctx.focusPage(); };
+    $("notes-tab").onclick = () => setPanel(true);
     placeBar(settings.home);
     refreshControls();
 

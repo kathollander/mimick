@@ -10,6 +10,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Continuous scroll, page box, ‹ ›, `Page Up`/`Down`, `Ctrl`+`↑`/`↓`/`Home`/`End`
 - ✅ Zoom: − +, slider, % box, `Ctrl`+`+`/`−`/`0`, `Ctrl`+wheel
 - ⬜ Keep scroll and zoom per document across a reload
+- ✅ **Contents panel** (the PDF's bookmarks) on the left: nested, click to go, right-click to read from there, the section on screen lit; `F9`, **Display ▾**, or the tab on the page's edge — *the desktop has none*, see **For the desktop**
 - 🟡 Remember the reading position per document (sentence only)
 
 ## Reading aloud
@@ -68,6 +69,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 Features the browser has that the desktop app does not. Add them there too.
 
 - ⬜ **Open a plain text file** (`.txt`): laid out as a PDF, then read as one, notes and all. Browser: `text_to_pdf` in `reader.py`
+- ⬜ **Contents panel** (`F9`): the PDF's own bookmarks on the left, nested, the section on screen lit, click to go and right-click to read from there; hidden by its ‹ and brought back by a tab on the page's edge (the notes panel got the same › and tab). Browser: `js/contents.js`, `pages.outline`, `reader.first_sentence_from`
 - ⬜ **Find in document** (`Ctrl`+`F`): every match lit, Enter / Shift+Enter / F3 between them, Match case, Esc leaves the match selected. Browser: `js/find.js`, and `find` / `found_on` in `reader.py`, which fold curly quotes, dashes and ligatures and rejoin words hyphenated across a line
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`

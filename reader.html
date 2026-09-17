@@ -59,7 +59,9 @@
   a { color: var(--accent); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-  #main { position: relative; display: grid; grid-template-columns: 1fr auto; min-height: 0; }
+  #main { position: relative; display: grid; grid-template-columns: auto 1fr auto; min-height: 0; }
+  /* Placed by hand: a hidden panel must not let the page slide into its column. */
+  #contents { grid-area: 1 / 1; } #view { grid-area: 1 / 2; } #notes { grid-area: 1 / 3; }
   #view { position: relative; overflow: auto; outline: none; }
   #view::-webkit-scrollbar { width: 12px; height: 12px; }
   #view::-webkit-scrollbar-thumb { background: #39404f; border-radius: 6px; border: 2px solid var(--backdrop); }
@@ -107,6 +109,34 @@
                                  border-radius: 50%; cursor: pointer; font-size: 14px; }
   .page .remove { background: #fafafc; color: #5a606e; border: 1.2px solid #78808e; z-index: 2; }
   .page .remove:hover { background: #fff; color: #000; }
+
+  /* The table of contents, on the left; js/contents.js. */
+  #contents { width: 260px; display: grid; grid-template-rows: auto 1fr; min-height: 0;
+              background: #1a1d23; border-right: 1px solid var(--border); }
+  .panel-title { display: flex; align-items: center; gap: 6px; }
+  .panel-title h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+  .contents-head { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  #contents-list { position: relative; overflow-y: auto; padding: 6px 4px 12px; }
+  .toc-row { display: flex; align-items: baseline; gap: 2px; padding-left: calc(var(--depth) * 14px); border-radius: 5px; }
+  .toc-row:hover { background: var(--hover); }
+  .toc-row.current { background: var(--panel-hi); box-shadow: inset 3px 0 0 var(--accent); }
+  .toc-row button { background: none; border: 0; border-radius: 4px; }
+  .toc-twisty { flex: none; width: 18px; padding: 3px 0; color: var(--dim); }
+  .toc-twisty:disabled { visibility: hidden; }
+  .toc-link { flex: 1; min-width: 0; padding: 3px 4px; text-align: left; overflow-wrap: anywhere; line-height: 1.3; }
+  .toc-link:hover { background: none; }
+  .toc-link:disabled { background: none; color: var(--dim); }
+  .toc-row.current .toc-link { color: #fff; font-weight: 600; }
+  .toc-page { flex: none; padding: 0 6px 0 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
+  /* The tabs on the page's edges that bring a hidden panel back. */
+  .edge-tab { position: absolute; z-index: 4; top: 64px; padding: 10px 4px; writing-mode: vertical-rl;
+              background: var(--panel); color: var(--dim); border: 1px solid var(--border); font-size: 12px;
+              box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+  .edge-tab:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+  .edge-tab:disabled { background: var(--panel); opacity: .6; }
+  #contents-tab { left: 0; border-left: 0; border-radius: 0 7px 7px 0; }
+  #notes-tab { right: 12px; border-right: 0; border-radius: 7px 0 0 7px; }
+  .panel-hide { flex: none; }
 
   /* The notes panel: the current page's notes, stacked, beside the page. */
   #notes { width: 272px; display: grid; grid-template-rows: auto 1fr auto; min-height: 0;
@@ -242,6 +272,15 @@
 <div id="markup-top" class="strip" hidden></div>
 
 <div id="main">
+<aside id="contents" aria-label="Table of contents" hidden>
+  <div class="contents-head panel-title">
+    <h2>Contents</h2>
+    <button id="contents-hide" class="square panel-hide" title="Hide the contents  (F9)" aria-label="Hide the contents">‹</button>
+  </div>
+  <div id="contents-list" role="tree" aria-label="Table of contents"></div>
+</aside>
+<button id="contents-tab" class="edge-tab" hidden>Contents</button>
+<button id="notes-tab" class="edge-tab" title="Show the notes panel  (Ctrl+B)" hidden>Notes</button>
 <div id="view" tabindex="0">
   <div id="pages"></div>
   <div id="empty">
@@ -258,6 +297,10 @@
 
 <aside id="notes" aria-label="Notes">
   <div class="notes-head">
+    <div class="panel-title">
+      <h2>Notes</h2>
+      <button id="notes-hide" class="square panel-hide" title="Hide the notes panel  (Ctrl+B)" aria-label="Hide the notes panel">›</button>
+    </div>
     <div class="row">
       <button id="filter-quotes" class="chip" aria-pressed="true" title="Show passages you highlighted without writing anything">Highlights</button>
       <button id="filter-notes" class="chip" aria-pressed="true" title="Show the ones you wrote a note on">Notes</button>
@@ -426,6 +469,7 @@
       <table>
         <tr><td>Ctrl+Shift+H</td><td>The Highlight and Add note buttons</td></tr>
         <tr><td>Ctrl+B</td><td>The notes panel beside the page</td></tr>
+        <tr><td>F9</td><td>The table of contents, on the left</td></tr>
         <tr><td>?</td><td>This list</td></tr>
       </table>
     </div>
@@ -511,5 +555,6 @@
 <script src="js/notes.js"></script>
 <script src="js/convert.js"></script>
 <script src="js/find.js"></script>
+<script src="js/contents.js"></script>
 <script src="js/reader.js"></script>
 </html>

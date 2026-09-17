@@ -24,7 +24,35 @@ def open_pages(pdf_bytes: bytes, name: str) -> dict:
     close()
     _doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     title = ((_doc.metadata or {}).get("title") or "").strip() or Path(name).stem
-    return {"title": title, "pages": [[page.rect.width, page.rect.height] for page in _doc]}
+    return {"title": title, "pages": [[page.rect.width, page.rect.height] for page in _doc],
+            "outline": outline()}
+
+
+def outline() -> list[list]:
+    """The PDF's own table of contents, as ``[level, title, page, y, open]``.
+
+    ``page`` counts from 0, or is -1 for an entry that goes nowhere in this file
+    (a web link, a broken bookmark); ``y`` is where on the page it points, in
+    points from the top, or None for the top. ``open`` is whether the file asks
+    for the entry's children to be shown. A damaged outline gives none rather
+    than stopping the document opening."""
+    if _doc is None:
+        return []
+    try:
+        toc = _doc.get_toc(simple=False)
+    except Exception:
+        return []
+    out = []
+    for level, title, number, dest in toc:
+        page = number - 1 if 0 < number <= _doc.page_count else -1
+        y = None
+        point = dest.get("to") if isinstance(dest, dict) else None
+        if page >= 0 and point is not None:
+            height = _doc[page].rect.height
+            y = round(min(max(float(point.y), 0.0), height), 1)
+        is_open = not (isinstance(dest, dict) and dest.get("collapse"))
+        out.append([int(level), " ".join(str(title).split()), page, y, is_open])
+    return out
 
 
 def render(page: int, scale: float) -> tuple[int, int, bytes]:

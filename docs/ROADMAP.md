@@ -102,8 +102,9 @@ Then Kat makes the repository public and sends the link.
   *Next*, item 2). 45 s of a greyed-out button on a big book is the first
   thing a new user with a big file hits. Needs a change in the desktop's
   `document.py`, then a port.
-- **The PDF's outline** (table of contents) in a side panel, beside the notes
-  panel. One PyMuPDF call.
+- ✅ **The PDF's outline** (table of contents) in a side panel. Done 17 September,
+  ahead of its turn because Kat asked for it: `js/contents.js`, `F9`, a tab on
+  the page's left edge.
 - **Open Recent** in File ▾ (Chrome keeps file handles in IndexedDB).
 - **Keep scroll and zoom per document**, and **Forget this document**.
 - **Export notes** as Markdown, if item 7 did not already do it.

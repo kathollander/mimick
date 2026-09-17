@@ -164,6 +164,7 @@
     closeMenu();
     notes.close();
     find.forget();
+    contents.forget();
     order.forget();
     before = null;
     showReadingTime();
@@ -195,6 +196,7 @@
       $("total").textContent = `of ${doc.pages.length}`;
       $("page").max = doc.pages.length;
       for (const id of ["prev", "next", "page"]) $(id).disabled = false;
+      contents.open(info.outline);
       relayout({ page: 0, fraction: 0 });
       openedStatus = `${doc.pages.length} pages · getting the reading ready…`;
       showProgress();
@@ -382,6 +384,8 @@
     $("prev").disabled = current <= 0;
     $("next").disabled = current >= doc.pages.length - 1;
     notes.pageShown();
+    const line = top + height / 3, linePage = geometry.pageAt(line);
+    contents.pageShown(linePage, (line - geometry.offsets[linePage]) / zoom, top);
     drawNext();
   }
 
@@ -1295,6 +1299,7 @@
         run: () => setSwitch("clean_text", !switchOn("clean_text")) },
       { label: "Reset reading order", enabled: !!doc?.sentences && order.changed, run: order.reset },
       "-",
+      ...contents.displayMenu(),
       ...notes.displayMenu(),
       "-",
       { label: "Zoom in", keys: "Ctrl++", run: () => setZoom(zoom * L.ZOOM_STEP) },
@@ -1432,6 +1437,33 @@
     },
   });
 
+  // --- the table of contents ------------------------------------------------------
+  // js/contents.js; this is what it needs of the reader.
+
+  const contents = MimickContents.create({
+    status, remember, recall, showMenu,
+    relayout: () => update(),
+    focusPage: () => view.focus(),
+    canRead: () => !!doc?.sentences,
+    /* The top of a place on a page, a little below the top of the view. */
+    goTo(page, y) {
+      if (!doc || page >= geometry.offsets.length) return;
+      if (y == null) { goToPage(page); return; }
+      view.scrollTop = Math.max(0, geometry.offsets[page] + y * zoom - L.PAGE_MARGIN);
+      update();
+    },
+    scrollTop: () => view.scrollTop,
+    readFrom(page, y) {
+      voice.prepare();     // inside the click, which is what lets it make sound
+      const mine = generation;
+      call("first_sentence_from", page, y).then((sentence) => {
+        if (mine !== generation) return;
+        if (sentence === null) { status("Nothing to read from there"); return; }
+        readFrom(sentence);
+      }).catch((err) => status("Could not start reading there: " + err.message));
+    },
+  });
+
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
@@ -1448,6 +1480,7 @@
     if (ctrl && e.key === "0") { e.preventDefault(); setZoom(L.ZOOM_DEFAULT); return; }
     if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") { e.preventDefault(); find.open(); return; }
     if (e.key === "F3" || (ctrl && !e.altKey && e.key.toLowerCase() === "g")) { e.preventDefault(); find.step(e.shiftKey ? -1 : 1); return; }
+    if (e.key === "F9" && !ctrl && !e.altKey) { e.preventDefault(); contents.toggle(); return; }
     if (typing || !doc) return;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     // A focused button acts on Space and Enter itself.

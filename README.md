@@ -28,7 +28,11 @@ internet connection, and Chrome can install it as an app.
    hides them), and are kept in this browser as you work.
 7. **Save a copy** with `Ctrl`+`S`: the PDF with your highlights and notes in
    it, which other PDF readers can show.
-8. **Help ▾ → Keyboard shortcuts** (or `?`) lists everything else.
+8. **Contents**: a PDF with bookmarks lists them on the left; click one to go
+   there. The **‹** at the top of that panel, and the **›** on the notes
+   panel, put them away; a tab on the edge of the page brings each back (`F9`
+   for contents).
+9. **Help ▾ → Keyboard shortcuts** (or `?`) lists everything else.
 
 Mimick skips page numbers, running headers and the reference list by itself.
 **Display ▾ → Show reading order** (`Ctrl`+`R`) shows what it will read and in
