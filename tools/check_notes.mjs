@@ -133,7 +133,9 @@ s = await state();
 check("after a reload, the highlights come back", s.onPage === 1 && s.notes === "Notes  2" && /from last time are back/.test(s.status),
       [s.onPage, s.notes, s.status]);
 
-// 9. Download a copy.
+// 9. Save a copy. Headless Chrome has no save window to answer, so take the
+// download every browser without showSaveFilePicker takes.
+await ev(`delete window.showSaveFilePicker; delete Window.prototype.showSaveFilePicker`);
 for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));
 await r.key("s", CTRL);
 let file = null;
@@ -149,6 +151,24 @@ d = pymupdf.open(sys.argv[1])
 print(sorted((a.info["subject"], a.info["content"]) for p in d for a in p.annots()))`, path.join(r.downloads, file)]).toString().trim();
   check("…with both notes in it as real PDF annotations",
         found.includes("('Where it lives', 'Knowledge sits in the land.')") && found.includes("Already in the file."), found);
+}
+
+// 9b. Export notes, as Markdown, from File.
+for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));
+await r.click(await r.centre("#file-menu")); await sleep(300);
+await r.menu("Export notes…");
+let md = null;
+for (let i = 0; i < 40 && !md; i++) {
+  await sleep(250);
+  md = fs.readdirSync(r.downloads).find((f) => f.endsWith(".md"));
+}
+check("File → Export notes downloads the notes as text", md === "test-paper (notes).md", md);
+if (md) {
+  const text = fs.readFileSync(path.join(r.downloads, md), "utf8");
+  check("…headed with the title, each under its page and section, the passage quoted, heading and note after",
+        text.startsWith("# Notes: Listening to the Page") && text.includes("## Page 2 · 2. What Students Chose to Hear")
+        && text.includes("> Highlighting while listening was common.") && text.includes("**Where it lives**")
+        && text.includes("Knowledge sits in the land.") && text.includes("Already in the file."), text);
 }
 
 // 10. The panel and the strip.
@@ -214,7 +234,7 @@ await r.key("Escape");
 await r.click(await r.centre("#notes-menu"));
 const notesMenu = await r.menuLabels();
 check("Notes lists highlighting, stepping, undo and download",
-      ["Highlight selection", "Go to next note", "Undo the last highlight or note", "Download a copy with your notes", "Note appearance…"]
+      ["Highlight selection", "Go to next note", "Undo the last highlight or note", "Save a copy with your notes (PDF)…", "Export notes as text…", "Note appearance…"]
         .every((l) => notesMenu?.some((m) => m.endsWith(l))), notesMenu);
 await r.menu("Note appearance…");
 await r.click(await r.centre("#style-size"));

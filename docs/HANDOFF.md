@@ -53,7 +53,16 @@ is true for 0 as well as for not-built-yet. They now ask `built()`
 (`doc.sentences != null`); `togglePlay`, Convert and reading still want at
 least one. `tools/check_scan.mjs` makes its PDFs in the worker's PyMuPDF.
 
-**Next: Ship 1 items 7 to 9, in order** -- a PDF with no text says so; File ▾
+**Item 7, Save: done.** File ▾ has **Save a copy (PDF)…** (`Ctrl`+`S`) and
+**Export notes…**; Notes ▾ has both. `saveFile` in `js/notes.js` opens Chrome's
+save window first (it must be inside the key press) and writes once the PDF is
+made; without `showSaveFilePicker` it downloads, which is what `check_notes`
+takes (it deletes the picker, as `check_convert` does). Export is Markdown:
+`# Notes: title`, then `## Page N · section` (from the contents panel's
+`sectionAt`), the passage as a `>` quote, the colour only if more than one of
+Mimick's four is used, the heading in bold, the note.
+
+**Next: Ship 1 items 8 and 9** -- a PDF with no text says so; File ▾
 **Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
 (`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
 the repository public.

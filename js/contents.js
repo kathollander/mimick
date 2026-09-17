@@ -15,6 +15,7 @@
  *   contents.forget()           the document is closing
  *   contents.pageShown(page, y, top)   the place a third of the way down the view, in
  *                               points from its page's top; top is the view's scroll
+ *   contents.sectionAt(page, y) the title of the part that place is in, or null
  *   contents.toggle() / contents.displayMenu()
  */
 (function (root) {
@@ -197,8 +198,19 @@
     tab.onclick = () => { setPanel(true); };
     show();
 
+    /* The title of the part a place on a page is in, or null. */
+    function sectionAt(page, y) {
+      let at = null;
+      for (const e of entries) {
+        if (e.page < 0) continue;
+        if (e.page < page || (e.page === page && (e.y ?? 0) <= y + 1)) at = e;
+        else if (e.page > page) break;
+      }
+      return at?.title ?? null;
+    }
+
     return {
-      open, forget, pageShown,
+      open, forget, pageShown, sectionAt,
       toggle: () => setPanel(panel.hidden),
       displayMenu: () => [
         { label: "Contents panel", keys: "F9", checked: loaded ? !panel.hidden : wanted(), enabled: !loaded || has(),

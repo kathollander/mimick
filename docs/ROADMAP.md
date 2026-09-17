@@ -68,7 +68,7 @@ sentences and a greyed-out Read aloud, and says nothing. Detect it after open
 and say "This PDF has no text to read -- it may be a scan without OCR."
 OCR itself is Ship 3.
 
-**7. Save, in File ▾.** Today `Ctrl`+`S` is *Download a copy*, a PDF with the
+**7. ✅ Save, in File ▾.** Done 17 September: **Save a copy (PDF)…** and **Export notes…** (Markdown), in File ▾ and Notes ▾; PDF only for the document, reason in `PARITY.md`. Chrome's save window where it exists, a download elsewhere (`saveFile` in `js/notes.js`). Today `Ctrl`+`S` is *Download a copy*, a PDF with the
 highlights and notes as annotations. Make File ▾ say what it does: **Save a
 copy (PDF)**. Other output formats -- `.docx`, `.odt`, `.txt` -- are *your
 call*, with this guidance: notes and highlights are PDF annotations tied to

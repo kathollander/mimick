@@ -47,7 +47,8 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ `Ctrl`+`J` / `Ctrl`+`K` next and previous note
 - ✅ `Ctrl`+`Z` / `Ctrl`+`Shift`+`Z` undo and redo
 - ✅ Note appearance: typeface, size, your name
-- ✅ Saving: kept in the browser as you work, and **Download a copy** (`Ctrl`+`S`) — the desktop's companion PDF
+- ✅ Saving: kept in the browser as you work, and **Save a copy (PDF)** (`Ctrl`+`S`, File ▾, Notes ▾) — the desktop's companion PDF; Chrome asks where, other browsers download it
+- ✅ **Export notes** (File ▾): every highlight and note as Markdown — page, section, passage, heading, note. *The desktop has none.* **PDF only for the document itself** (17 September): highlights and notes are annotations on rectangles of a page, and a `.docx`, `.odt` or `.txt` copy has no faithful place to put them -- nor is a Word copy of a PDF a good copy of the PDF. People who want their notes elsewhere take the Markdown, which pastes into Word or Docs
 - ✅ Menus: **Notes ▾** and **Display ▾** in the top bar, standing in for the desktop's menu bar
 
 ## What gets read
@@ -70,6 +71,7 @@ Features the browser has that the desktop app does not. Add them there too.
 
 - ⬜ **Open a plain text file** (`.txt`): laid out as a PDF, then read as one, notes and all. Browser: `text_to_pdf` in `reader.py`
 - ⬜ **Contents panel** (`F9`): the PDF's own bookmarks on the left, nested, the section on screen lit, click to go and right-click to read from there; hidden by its ‹ and brought back by a tab on the page's edge (the notes panel got the same › and tab). Browser: `js/contents.js`, `pages.outline`, `reader.first_sentence_from`
+- ⬜ **Export notes** as Markdown. Browser: `notesText` in `js/notes.js`
 - ⬜ **Find in document** (`Ctrl`+`F`): every match lit, Enter / Shift+Enter / F3 between them, Match case, Esc leaves the match selected. Browser: `js/find.js`, and `find` / `found_on` in `reader.py`, which fold curly quotes, dashes and ligatures and rejoin words hyphenated across a line
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`

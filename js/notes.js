@@ -15,7 +15,7 @@
  *   notes.at(page, x, y)       the highlight under a point, or null
  *   notes.pick(item)           pick one out, or null
  *   notes.highlight(withNote) / edit(item) / remove(item) / step(±1)
- *   notes.undo() / redo() / copy(item, part) / download()
+ *   notes.undo() / redo() / copy(item, part) / download() / exportNotes()
  *   notes.menuItems(item)      what a right-click on it offers
  *   notes.pageShown(page)      the page being read changed, or moved
  */
@@ -47,6 +47,38 @@
     node.append(...children);
     return node;
   };
+
+  /* Save what `make` answers (bytes) as a file called `name`. With
+   * showSaveFilePicker, the save window comes first, so call this straight
+   * from the key press or click; closed, it answers null. Without it, the file
+   * downloads once made. Answers { name, picked }. */
+  async function saveFile(name, type, description, extension, make) {
+    let handle = null;
+    if (root.showSaveFilePicker) {
+      try {
+        handle = await root.showSaveFilePicker({ suggestedName: name, types: [{ description, accept: { [type]: [extension] } }] });
+      } catch (err) {
+        if (err.name === "AbortError") return null;
+        handle = null;                                   // anything else: download it instead
+      }
+    }
+    const bytes = await make();
+    if (handle) {
+      const writable = await handle.createWritable();
+      try {
+        await writable.write(new Blob([bytes], { type }));
+        await writable.close();
+      } catch (err) {
+        await writable.abort().catch(() => {});
+        throw err;
+      }
+      return { name: handle.name, picked: true };
+    }
+    const url = URL.createObjectURL(new Blob([bytes], { type }));
+    el("a", { href: url, download: name }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    return { name, picked: false };
+  }
 
   function create(ctx) {
     const $ = (id) => document.getElementById(id);
@@ -120,34 +152,74 @@
       if (mine !== ctx.generation()) return;
       keepFailed = !ok;
       keptAt = ok ? new Date() : null;
-      if (!ok) ctx.status("Your notes could not be kept in this browser — use Download a copy to keep them");
+      if (!ok) ctx.status("Your notes could not be kept in this browser — use Save a copy to keep them");
       showKept();
     }
     function showKept(text) {
       const label = $("notes-kept");
-      label.textContent = text ?? (keepFailed ? "Not kept — download a copy"
+      label.textContent = text ?? (keepFailed ? "Not kept — save a copy"
         : keptAt ? `Kept in this browser · ${keptAt.toTimeString().slice(0, 5)}` : "");
       label.title = "Your highlights and notes are kept in this browser, and come back when you open "
-                  + "this PDF again. Download a copy to keep them anywhere else.";
+                  + "this PDF again. Save a copy to keep them anywhere else.";
     }
 
+    /* Save a copy of the PDF with the highlights and notes in it. Where the
+     * browser lets a page choose where a file goes, the save window opens first
+     * -- it has to, inside the key press or click -- and the file is written once
+     * made; elsewhere it downloads. */
     async function download() {
       if (!doc || !ready) return;
-      ctx.status("Making a copy with your notes…");
+      const stem = doc.name.replace(/\.pdf$/i, "");
+      const name = (/ \(notes\)$/.test(stem) ? stem : stem + " (notes)") + ".pdf";
       const mine = ctx.generation();
       try {
-        const job = work.then(() => ctx.call("notes_pdf"));
-        work = job.catch(() => {});
-        const bytes = await job;
-        if (mine !== ctx.generation()) return;
-        const stem = doc.name.replace(/\.pdf$/i, "");
-        const name = (/ \(notes\)$/.test(stem) ? stem : stem + " (notes)") + ".pdf";
-        const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-        el("a", { href: url, download: name }).click();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-        ctx.status(`Downloaded ${name}, with ${plural(items.length, "highlight")}`);
+        const saved = await saveFile(name, "application/pdf", "PDF document", ".pdf", async () => {
+          ctx.status("Making a copy with your notes…");
+          const job = work.then(() => ctx.call("notes_pdf"));
+          work = job.catch(() => {});
+          const bytes = await job;
+          if (mine !== ctx.generation()) throw new Error("that document is closed now");
+          return bytes;
+        });
+        if (saved) ctx.status(`${saved.picked ? "Saved" : "Downloaded"} ${saved.name}, with ${plural(items.length, "highlight")}`);
       } catch (err) {
         ctx.status("The copy could not be made: " + err.message);
+      }
+    }
+
+    /* Every highlight and note as Markdown, in document order: the page (and the
+     * section, from the table of contents), the passage quoted, the heading and
+     * the note. Plain enough to read as text, and to paste into Word or Docs. */
+    function notesText() {
+      // Colours are named only where the reader used more than one of Mimick's own.
+      const colours = new Set(items.map((item) => colourName(item.colour)).filter(Boolean));
+      const lines = [`# Notes: ${doc.title}`, "",
+        `${doc.name} · ${plural(items.length, "highlight")}, ${items.filter((i) => flat(i.note)).length} with notes · `
+        + `exported from Mimick on ${new Date().toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}`];
+      let heading = null;
+      for (const item of items) {
+        const section = ctx.sectionAt?.(item.page, item.top);
+        const here = `## Page ${item.page + 1}${section ? ` · ${section}` : ""}`;
+        if (here !== heading) { lines.push("", here); heading = here; }
+        lines.push("", ...(item.text || "").trim().split(/\n+/).map((line) => "> " + flat(line)));
+        if (colours.size > 1 && colourName(item.colour)) lines.push("", `*${colourName(item.colour)}*`);
+        if (flat(item.title)) lines.push("", `**${flat(item.title)}**`);
+        if ((item.note || "").trim()) lines.push("", item.note.trim());
+      }
+      return lines.join("\n") + "\n";
+    }
+    const colourName = (c) => COLOURS.find(([, rgb]) => sameColour(rgb, c))?.[0] ?? null;
+
+    async function exportNotes() {
+      if (!doc || !ready) return;
+      if (!items.length) { ctx.status("There are no highlights or notes to export yet"); return; }
+      const stem = doc.name.replace(/\.pdf$/i, "").replace(/ \(notes\)$/, "");
+      try {
+        const saved = await saveFile(`${stem} (notes).md`, "text/markdown", "Markdown text", ".md",
+                                     async () => new TextEncoder().encode(notesText()));
+        if (saved) ctx.status(`${saved.picked ? "Saved" : "Downloaded"} ${saved.name}: ${plural(items.length, "highlight")} and their notes, as text`);
+      } catch (err) {
+        ctx.status("The notes could not be exported: " + err.message);
       }
     }
 
@@ -730,7 +802,8 @@
         { label: "Undo the last highlight or note", keys: "Ctrl+Z", enabled: undoStack.length > 0, run: undo },
         { label: "Redo it", keys: "Ctrl+Shift+Z", enabled: redoStack.length > 0, run: redo },
         "-",
-        { label: "Download a copy with your notes", keys: "Ctrl+S", enabled: ready, run: download },
+        { label: "Save a copy with your notes (PDF)…", keys: "Ctrl+S", enabled: ready, run: download },
+        { label: "Export notes as text…", enabled: ready && items.length > 0, run: exportNotes },
         { label: "Note appearance…", run: chooseStyle },
       ];
     }
@@ -761,12 +834,13 @@
 
     return {
       COLOURS,
-      open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download, menuItems,
+      open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download, exportNotes, notesText, menuItems,
       pageShown, connect, refreshAll, displayMenu,
       togglePanel: () => setPanel(!settings.panel),
       toggleBar: () => setBar(!settings.bar),
       get active() { return activeItem(); },
       get ready() { return ready; },
+      get count() { return items.length; },
       get editing() { return dialog.open || styleDialog.open; },
       get opening() { return opening; },
     };

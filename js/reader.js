@@ -1345,6 +1345,11 @@
     { label: "Open…", keys: "Ctrl+O", run: chooseFile },
     { label: "Find in document…", keys: "Ctrl+F", enabled: !!doc, run: () => find.open() },
     "-",
+    // PDF only: highlights and notes are annotations on rectangles of a page, which no
+    // flowing format can hold. The notes on their own go out as text. See PARITY.md.
+    { label: "Save a copy (PDF)…", keys: "Ctrl+S", enabled: notes.ready, run: notes.download },
+    { label: "Export notes…", enabled: notes.ready && notes.count > 0, run: notes.exportNotes },
+    "-",
     { label: convert.running ? "Converting to MP3…" : "Convert to MP3…", enabled: !!doc?.sentences && !convert.running,
       run: convert.open },
   ]);
@@ -1401,6 +1406,7 @@
     readRange,
     canRead: () => !!doc?.sentences,
     copy: () => copySelection(),
+    sectionAt: (page, y) => contents.sectionAt(page, y),
     scrollToPoint(page, y) {
       view.scrollTop = Math.max(0, geometry.offsets[page] + y * zoom - view.clientHeight / 3);
       update();

@@ -51,6 +51,16 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## Save a copy, and Export notes
+
+Added 17 September.
+
+- [ ] `Ctrl`+`S` opens Chrome's save window, named "… (notes).pdf"; saved, the PDF opens elsewhere with the highlights and notes in it
+- [ ] Closing the save window does nothing and says nothing wrong
+- [ ] **File ▾ → Save a copy (PDF)…** and **Notes ▾ → Save a copy with your notes (PDF)…** do the same
+- [ ] **File ▾ → Export notes…** saves "… (notes).md"; opened in a text editor it reads well: title, each note under its page (and section, if the PDF has bookmarks), the passage quoted, your heading and note
+- [ ] Pasted into Google Docs or Word it is still readable
+
 ## A PDF with no text
 
 Added 17 September.
