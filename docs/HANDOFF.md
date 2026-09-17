@@ -1,7 +1,9 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated in the early hours of 17 September, after Ship 1 and most of Ship 2.
+last updated the morning of 17 September, after Ship 1, Ship 2 bar one item,
+and part of Ship 3. The session that did it ended cleanly: tree committed, all
+24 checks passing, scratch files removed.
 
 ## Releasing
 
@@ -40,7 +42,18 @@ Kat asked for the launch work to be done overnight, from
 - **Accessibility, first pass**: a light theme following the system (Display ▾ →
   Theme), less motion, names on every control, the contents tree's keys.
 - **How to say words**: a pronunciation list.
-- From Ship 3: **OCR for scans**, **a sleep timer**, and **Firefox** checked by script (`check_firefox.mjs`).
+- From Ship 3: **OCR for scans** (whole or half-scanned), **a sleep timer**, and
+  **Firefox** checked by script (`check_firefox.mjs`).
+
+**For the next session, in order:** (1) whatever Kat found in `TESTING.md`'s
+new sections -- check for `docs/TESTING DONE.txt` first; (2) read aloud while a
+long document opens, from the plan in `ROADMAP.md`, *with Kat*, since it changes
+the desktop's `document.py` -- check that repo's `git status` for another
+session's work before touching it; (3) what is left of Ship 3 (skip back 10
+seconds; OCR ahead of the reading instead of all at once; other languages, not
+wanted yet). Work flows as before: desktop first for shared code, then
+`tools/port.sh`; re-stamp after changing any served file; run one browser check
+at a time (they share Chrome's port 9333).
 
 **Not done from Ship 2: read aloud while a long document is still opening.** It
 needs `Document` in the desktop's shared `document.py` to build page by page
