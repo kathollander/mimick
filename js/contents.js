@@ -22,6 +22,7 @@
   "use strict";
 
   const OPEN_ALL_UP_TO = 60;   // entries; a short outline opens in full, whatever the file says
+  const MIN_PAGE_ROOM = 600;   // pixels the page keeps before the panel opens by itself
 
   function create(ctx) {
     const $ = (id) => document.getElementById(id);
@@ -30,12 +31,13 @@
     let current = -1;
     let loaded = false;         // a document is open, and its outline known
     let heldAt = null;          // the scroll a click left; its entry stays lit until the page moves
+    let crowded = false;        // opened in a window too narrow for it: tucked away until asked for
 
     const wanted = () => ctx.recall("mimick-contents-panel") !== "0";
     const has = () => entries.length > 0;
 
     function show() {
-      const on = loaded && has() && wanted();
+      const on = loaded && has() && wanted() && !crowded;
       const changed = panel.hidden === on;
       panel.hidden = !on;
       tab.hidden = !loaded || on;
@@ -48,6 +50,7 @@
     function setPanel(on) {
       if (!has()) { ctx.status("This document has no table of contents"); return; }
       ctx.remember("mimick-contents-panel", on ? "1" : "0");
+      crowded = false;
       show();
       ctx.status(on ? "Contents shown" : "Contents hidden");
       if (on) reveal(current, "nearest");
@@ -66,6 +69,10 @@
         stack.push(entry);
       }
       if (entries.length <= OPEN_ALL_UP_TO) for (const entry of entries) entry.open = true;
+      // Beside the notes panel in a small window it would leave the page too little
+      // room; it waits behind its tab instead, and the choice kept is not changed.
+      const others = document.getElementById("notes").hidden ? 0 : document.getElementById("notes").offsetWidth;
+      crowded = window.innerWidth - others - (parseFloat(getComputedStyle(panel).width) || 260) < MIN_PAGE_ROOM;
       render();
       show();
     }

@@ -79,7 +79,9 @@ heading; right-click for *Start reading from here* (`reader.first_sentence_from`
 The entry lit is the last heading above a third of the way down the view,
 except that a clicked entry stays lit until the view moves (several short
 sections can share a screen). A short outline (60 entries or fewer) opens in
-full; a longer one follows the file's own open/closed flags. **Toggle: `F9`,
+full; a longer one follows the file's own open/closed flags. In a window where
+the page would keep less than 600px beside the notes panel, it opens tucked
+behind its tab (`crowded`), without changing the kept choice. **Toggle: `F9`,
 Display ▾, the panel's ‹, and a "Contents" tab on the page's left edge** --
 Kat left the placement to us; the tab is on the page itself so it is found
 without the menus, and stays (greyed, with a tooltip) for a PDF with no

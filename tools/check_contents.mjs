@@ -131,7 +131,16 @@ await r.key(" "); await sleep(900);
 check("Space goes there, and gives the keys back to the page", (await state()).page === "3" && (await ev(`document.activeElement.id`)) === "view",
       [(await state()).page, await ev(`document.activeElement.id`)]);
 
-// 8. No bookmarks, no panel.
+// 8. A small window: the panel waits behind its tab, and comes out when asked.
+await r.t.send("Emulation.setDeviceMetricsOverride", { width: 1000, height: 800, deviceScaleFactor: 1, mobile: false });
+await r.openPdf(PAPER); await sleep(500);
+s = await state();
+check("in a small window beside the notes, it opens tucked away behind its tab", !s.panel && s.tab && !s.tabDisabled, s);
+await r.click(await r.centre("#contents-tab")); await sleep(500);
+check("…and the tab still brings it out", (await state()).panel);
+await r.t.send("Emulation.clearDeviceMetricsOverride");
+
+// 9. No bookmarks, no panel.
 await r.openPdf(POEM);
 s = await state();
 check("a PDF without bookmarks shows no panel", !s.panel && s.rows.length === 0, s);
