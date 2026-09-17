@@ -1,8 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated late that night, after highlights, notes and the Display switches
-went in.
+last updated in the early hours of 17 September, after Ship 1 and most of Ship 2.
 
 ## Releasing
 
@@ -14,19 +13,58 @@ readings/`, and Kat makes the GitHub repository.
 ## Start here: the night of 17 September
 
 Kat asked for the launch work to be done overnight, from
-[`ROADMAP.md`](ROADMAP.md), Ship 1. **Done and committed, every check passing
-(all 13 in *Running it*):**
+[`ROADMAP.md`](ROADMAP.md). Two sessions worked on it, one after the other.
+**Everything is committed and every check in *Running it* passes.**
 
-- Item 0, the review fixes -- below.
+**Ship 1 is done**, all of it:
+
+- Item 0, the review fixes -- *The 17 September review*, below.
 - Item 1, **Find** (`Ctrl`+`F`): `js/find.js`; `find` and `found_on` in `reader.py`.
 - Item 2, **offline and install**: `sw.js`, `js/offline.js`, `manifest.json`,
   `icons/` -- see *Offline*. **Re-stamp after every change:**
   `python3 tools/stamp_offline.py`.
 - Items 3 and 4, **How to use, Browsers, Privacy**, in `README.md` and About.
 - Item 5, **`.txt` files**: laid out as a PDF by `reader.text_to_pdf`.
+- Item 6, **a PDF with no text** says so.
+- Item 7, **Save a copy (PDF)** and **Export notes** (Markdown), in File ▾.
+- Item 8, **media keys** and the browser's media controls.
+- Item 9, **voice credits** in About.
 
-**Then, the second session that night (Kat asked for it directly): the contents
-panel.** The PDF's bookmarks on the left, `js/contents.js`. The outline comes
+**And from Ship 2**, in the second session:
+
+- **The contents panel** (the PDF's bookmarks, `F9`), with a tab on the page's
+  edge to bring it back, and the same for the notes panel -- asked for by Kat.
+- **Word, OpenDocument and EPUB** files, laid out as PDFs.
+- **Each document's place and zoom kept**, and **Forget this document**.
+- **Open Recent**.
+- **Accessibility, first pass**: a light theme following the system (Display ▾ →
+  Theme), less motion, names on every control, the contents tree's keys.
+- **How to say words**: a pronunciation list.
+
+**Not done from Ship 2: read aloud while a long document is still opening.** It
+needs `Document` in the desktop's shared `document.py` to build page by page
+with word indices identical to a full build (desktop trap 9), then a port. Too
+risky to change unattended in code both apps share; it is the next big item,
+best started with Kat.
+
+**For Kat before going public:**
+
+1. The git history (review item 4 below: author email, a book title in old
+   diffs, the old journal article) -- rewrite, or start the public repo from one
+   fresh commit.
+2. Delete `sample readings/`.
+3. Open it in Firefox and Safari once, by hand; neither has ever been tried.
+4. Work through the new sections at the top of `TESTING.md` -- every one of
+   tonight's features is checked by a script, which says it works, not that it
+   feels right.
+5. The highlight colours and colour blindness: measured, left as they are (they
+   are the desktop's too). Numbers in `PARITY.md`, *For the desktop*.
+6. Several features are browser-only now and listed in `PARITY.md`, *For the
+   desktop*: whether the desktop wants them.
+
+### How tonight's pieces work
+
+**The contents panel** (Kat asked for it directly). The PDF's bookmarks on the left, `js/contents.js`. The outline comes
 from the *page* workers (`pages.outline`, in the `open` reply), so it shows as
 soon as the pages do, not after the sentences. Click an entry to go to its
 heading; right-click for *Start reading from here* (`reader.first_sentence_from`).
@@ -134,17 +172,6 @@ to the timing, and "foo-koh's" maps back to "Foucault" + "s". A change calls
 `voice.remake()`, which drops every clip but the one playing. Dialog
 `#say-dialog`; Display ▾ → How to say words…, and right-click on a one-word
 selection. `tools/check_say.mjs` (shares `check_convert`'s voice).
-
-**Ship 1 is done.** What is left before the link goes out is Kat's: the git
-history decision above, a look at Firefox and Safari, the new sections at the
-top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
-**Save a copy (PDF)** and **Export notes**; media keys; voice credits in About
-(`voices/README.md` is ready for it). Then Kat's decisions below, and she makes
-the repository public.
-
-**For Kat to decide before going public:** the git history (review item 4
-below: author email, a book title in old diffs, the old journal article); and
-Firefox and Safari have never been opened by hand.
 
 ## The 17 September review: done
 
