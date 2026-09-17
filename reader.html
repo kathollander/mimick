@@ -226,6 +226,11 @@
   .long table { border-collapse: collapse; }
   .long td { padding: 3px 14px 3px 0; vertical-align: top; }
   .long table.credits { width: 100%; font-size: 12px; }
+  .say-list { display: grid; gap: 4px; max-height: 40vh; overflow-y: auto; margin-bottom: 8px; }
+  .say-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; }
+  .say-row .word { font-weight: 600; overflow-wrap: anywhere; }
+  .say-row .as { font-style: italic; overflow-wrap: anywhere; }
+  .say-list:empty::before { content: "No words yet."; color: var(--dim); }
   .long .credits th { padding: 3px 14px 3px 0; text-align: left; color: var(--dim); font-weight: 600; }
   .long .credits td:first-child { white-space: nowrap; color: var(--text); }
   .long td:first-child { white-space: nowrap; font-weight: 600; }
@@ -448,6 +453,23 @@
   </form>
 </dialog>
 
+<dialog id="say-dialog" aria-label="Pronunciations">
+  <form method="dialog">
+    <h2 style="font-size:15px; margin:0 0 6px">How to say words</h2>
+    <p class="dim" style="max-width:460px; margin:0 0 10px">When the voice gets a name or a term wrong, write it the way it sounds.
+      "Foucault" as <i>foo koh</i>, "SQL" as <i>sequel</i>. Every document, every voice; kept in this browser.</p>
+    <div id="say-list" class="say-list"></div>
+    <div class="say-row say-new">
+      <input id="say-word" type="text" placeholder="Word, as printed" aria-label="Word, as printed" autocomplete="off" spellcheck="false">
+      <span class="dim" aria-hidden="true">→</span>
+      <input id="say-as" type="text" placeholder="Say it as" aria-label="Say it as" autocomplete="off" spellcheck="false">
+      <button id="say-add" type="button">Add</button>
+    </div>
+    <p id="say-note" class="dim" style="margin:8px 0 0; min-height:1.4em"></p>
+    <div class="buttons"><button class="primary" value="close">Done</button></div>
+  </form>
+</dialog>
+
 <dialog id="keys-dialog" class="long" aria-label="Keyboard shortcuts">
   <form method="dialog">
     <div class="scroll">
@@ -468,6 +490,7 @@
         <tr><td>Ctrl+C</td><td>Copy the selected text, or the highlight you have clicked</td></tr>
         <tr><td>Esc</td><td>Clear the selection</td></tr>
         <tr><td>Ctrl+R</td><td>Show what gets read, in order; click a region to read or skip it</td></tr>
+        <tr><td>Right-click a selected word</td><td>Teach the voice how to say it (Display → How to say words)</td></tr>
       </table>
       <h2>Moving the cursor — while reading is paused</h2>
       <table>
@@ -638,5 +661,6 @@
 <script src="js/find.js"></script>
 <script src="js/contents.js"></script>
 <script src="js/recent.js"></script>
+<script src="js/pronounce.js"></script>
 <script src="js/reader.js"></script>
 </html>

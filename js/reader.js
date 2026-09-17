@@ -728,6 +728,7 @@
   const voice = MimickReadAloud.create({
     askDocument: (message) => reading.ask(message),
     voice: Voices.byKey[savedVoice] ? savedVoice : Voices.DEFAULT,
+    pronunciations: () => MimickPronounce.list(),
     voiceName: voiceLabel,
     onSentence(index, made) {
       showReadingTime();
@@ -1252,6 +1253,8 @@
       "-",
       ...(selection ? [
         { label: "Copy", keys: "Ctrl+C", run: copySelection },
+        ...(selectionText?.for === selection && !/\s/.test(selectionText.text.trim()) && selectionText.text.trim()
+          ? [{ label: `How to say “${selectionText.text.trim()}”…`, run: () => openSay(selectionText.text.trim()) }] : []),
         ...(notes.ready ? [{ label: "Highlight", keys: "Ctrl+H", run: () => notes.highlight(false) },
                            { label: "Highlight and write a note…", keys: "Ctrl+M", run: () => notes.highlight(true) }] : []),
       ] : hit ? notes.menuItems(hit)
@@ -1448,6 +1451,56 @@
   matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", showTheme);
   showTheme();
 
+  // --- pronunciations -------------------------------------------------------------
+  // js/pronounce.js. A word as printed and how to say it, for every document and
+  // voice; right-click a selected word to start with it.
+
+  const sayDialog = $("say-dialog");
+  function showSayList() {
+    const rows = MimickPronounce.list().map(([word, as]) => {
+      const row = document.createElement("div");
+      row.className = "say-row";
+      const remove = Object.assign(document.createElement("button"), { type: "button", className: "square", textContent: "✕",
+        title: `Say ${word} as the voice would`, ariaLabel: `Remove ${word}` });
+      remove.onclick = () => {
+        MimickPronounce.save(MimickPronounce.list().filter(([w]) => w !== word));
+        voice.remake();
+        showSayList();
+        $("say-note").textContent = `${word} is said as the voice would again.`;
+      };
+      row.append(Object.assign(document.createElement("span"), { className: "word", textContent: word }),
+                 Object.assign(document.createElement("span"), { className: "dim", textContent: "→" }),
+                 Object.assign(document.createElement("span"), { className: "as", textContent: as }), remove);
+      return row;
+    });
+    $("say-list").replaceChildren(...rows);
+  }
+  function openSay(word = "") {
+    showSayList();
+    $("say-word").value = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+    $("say-as").value = "";
+    $("say-note").textContent = "";
+    sayDialog.showModal();
+    (word ? $("say-as") : $("say-word")).focus();
+  }
+  function addSay() {
+    const word = $("say-word").value.trim(), as = $("say-as").value.trim();
+    if (!word || !as) { $("say-note").textContent = "Write the word, and how it sounds."; return; }
+    if (/\s/.test(word)) { $("say-note").textContent = "One word at a time — a name of two words is two entries."; return; }
+    const list = MimickPronounce.list().filter(([w]) => w.toLowerCase() !== word.toLowerCase());
+    MimickPronounce.save([...list, [word, as]]);
+    voice.remake();
+    showSayList();
+    $("say-word").value = $("say-as").value = "";
+    $("say-note").textContent = `${word} will be said as “${as}”, from the next sentence the voice makes.`;
+    $("say-word").focus();
+  }
+  $("say-add").onclick = addSay;
+  for (const id of ["say-word", "say-as"]) {
+    $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addSay(); } });
+  }
+  sayDialog.addEventListener("close", () => view.focus());
+
   function displayMenu() {
     return [
       { label: "Show reading order", keys: "Ctrl+R", checked: order.on, run: order.toggle },
@@ -1460,6 +1513,7 @@
       { label: "Clean up text for reading", checked: switchOn("clean_text"),
         run: () => setSwitch("clean_text", !switchOn("clean_text")) },
       { label: "Reset reading order", enabled: built() && order.changed, run: order.reset },
+      { label: "How to say words…", run: () => openSay() },
       "-",
       { label: "Theme", enabled: false },
       ...[["system", "Match the system"], ["dark", "Dark"], ["light", "Light"]].map(([theme, label]) =>
@@ -1494,6 +1548,7 @@
     voice: () => voice.voice,
     rate: () => voice.rate,
     cleanText: () => switchOn("clean_text"),
+    pronunciations: () => MimickPronounce.list(),
   });
   const recentItems = () => {
     const files = MimickRecent.list().slice(0, 5);

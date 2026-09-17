@@ -245,7 +245,8 @@
         voiceWorker.ask({ type: "load", voice: settings.voice, threads }).catch((err) => loaded.reject(err));
         await voiceReady;
         const t0 = performance.now();
-        const speak = (i) => voiceWorker.ask({ type: "speak", text: all[i], rate });
+        const say = ctx.pronunciations?.() ?? [];
+        const speak = (i) => voiceWorker.ask({ type: "speak", text: all[i], rate, say });
         let started = false, next = total ? speak(0) : null;
         for (let i = 0; i < total; i++) {
           let made = null;

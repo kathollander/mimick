@@ -36,7 +36,10 @@ internet connection, and Chrome can install it as an app.
    there. The **‹** at the top of that panel, and the **›** on the notes
    panel, put them away; a tab on the edge of the page brings each back (`F9`
    for contents).
-9. **Help ▾ → Keyboard shortcuts** (or `?`) lists everything else.
+9. **A name said wrong?** Select the word, right-click, **How to say…**, and
+   write it the way it sounds ("Foucault" as *foo koh*). The list is under
+   **Display ▾ → How to say words…**.
+10. **Help ▾ → Keyboard shortcuts** (or `?`) lists everything else.
 
 Mimick skips page numbers, running headers and the reference list by itself.
 **Display ▾ → Show reading order** (`Ctrl`+`R`) shows what it will read and in

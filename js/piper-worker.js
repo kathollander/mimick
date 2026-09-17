@@ -3,6 +3,7 @@
  * Messages in:
  *   { type: "load", voice, threads }   fetch (or reuse) the voice and start it
  *   { type: "speak", id, text, rate }  one sentence, sped up to `rate` at the same pitch
+ *                                     say: [[word, sayAs]], js/pronounce.js
  *   { type: "cancel", ids }            speak requests no longer wanted; each is
  *                                      answered with an error saying "cancelled"
  * Messages out:
@@ -19,7 +20,8 @@ importScripts("../vendor/piper/piper_phonemize.js",
               "../vendor/onnxruntime/ort.wasm.min.js",
               "timing.js",
               "piper-core.js",
-              "voices.js");
+              "voices.js",
+              "pronounce.js");
 
 // Pinned to one revision of rhasspy/piper-voices and checked by hash, so the
 // file cannot change underneath us or arrive altered. See "Security and
@@ -77,10 +79,13 @@ async function load({ voice: key, threads }) {
                      cached: model.cached, loadMs: performance.now() - t0 });
 }
 
-async function speak({ id, text, rate }) {
+async function speak({ id, text, rate, say = [] }) {
   if (cancelled.delete(id)) throw new Error("cancelled");
   if (!voice) throw new Error("no voice loaded");
-  const r = await voice.speak(text, { rate });
+  // The reader's own pronunciations, swapped in, and their timings put back under the printed words.
+  const swapped = MimickPronounce.apply(text, say);
+  const r = await voice.speak(swapped.text, { rate });
+  r.marks = MimickPronounce.unswap(r.marks, swapped.back);
   // At 1× the two are one array, which cannot be transferred twice.
   const natural = r.natural === r.samples ? null : r.natural;
   self.postMessage({ type: "spoken", id, samples: r.samples, natural, sampleRate: voice.sampleRate,

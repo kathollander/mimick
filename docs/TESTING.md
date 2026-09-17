@@ -51,6 +51,17 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 - [x] Resizing the window keeps your place
 - [x] Nothing is missing that you'd want before reading aloud goes on top
 
+## How to say words
+
+Added 17 September. Needs a voice.
+
+- [ ] Select one word the voice gets wrong, right-click → **How to say "…"…**; write how it sounds, press Enter
+- [ ] Reading that sentence again, the voice says it your way, and the word is still lit as it is said
+- [ ] Try a two-part sound-alike ("nee cha" for Nietzsche) -- it sounds right, not like two separate words
+- [ ] The word with an ending ("Foucault's") is said your way too
+- [ ] **Display ▾ → How to say words…** lists them; ✕ removes one; the list is still there after a reload
+- [ ] Convert to MP3 uses the list
+
 ## Light theme, and accessibility
 
 Added 17 September.

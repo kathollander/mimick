@@ -126,7 +126,10 @@ Then Kat makes the repository public and sends the link.
   keyboard and screen reader; check the four highlight colours are
   distinguishable to colour-blind readers. Ask a classmate who uses these to
   try it.
-- **A pronunciation list**, per user: a word and how to say it, applied
+- ✅ **A pronunciation list**. Done 17 September: Display ▾ → How to say
+  words…, or right-click a selected word; `js/pronounce.js`, applied in the
+  voice worker, so Convert to MP3 uses it too. `tools/check_say.mjs`. *The plan:*
+  **A pronunciation list**, per user: a word and how to say it, applied
   before the phonemizer. Names and jargon are where voices stumble.
 
 ## Ship 3 -- later

@@ -124,6 +124,17 @@ now has an `aria-label`. **The highlight colours were measured for colour
 blindness, not changed** (they are shared with the desktop): the numbers are in
 `PARITY.md`, *For the desktop*. `tools/check_access.mjs`.
 
+**Ship 2: How to say words, done.** `js/pronounce.js`: a list of `[word,
+sayAs]` in `localStorage` (`mimick-pronunciations`). The page sends it with
+every `speak` (`read-aloud.js` via its `pronunciations` option, `convert.js`
+via `ctx`); `piper-worker.js` swaps whole words (Unicode-aware, any capitals)
+before phonemizing and `unswap`s the marks, so `align_marks` still finds the
+printed word -- a sound-alike of several words is hyphenated to stay one word
+to the timing, and "foo-koh's" maps back to "Foucault" + "s". A change calls
+`voice.remake()`, which drops every clip but the one playing. Dialog
+`#say-dialog`; Display ▾ → How to say words…, and right-click on a one-word
+selection. `tools/check_say.mjs` (shares `check_convert`'s voice).
+
 **Ship 1 is done.** What is left before the link goes out is Kat's: the git
 history decision above, a look at Firefox and Safari, the new sections at the
 top of `TESTING.md`, and deleting `sample readings/`. -- a PDF with no text says so; File ▾
@@ -257,6 +268,7 @@ the reason down rather than stopping to ask.
 | `js/reader.js` | Opening, pages, zoom, the reading controls, selecting and the cursor, the right-click and Display menus, every key. |
 | `js/read-aloud.js` | The player: prefetch, Web Audio, speed, which word is lit. No DOM. |
 | `js/notes.js` | Highlights on the page, the notes panel, note editor, undo, the movable strip, the Notes menu. |
+| `js/pronounce.js` | How to say words: the pronunciation list, swapped in by the voice worker. |
 | `js/recent.js` | Open Recent: file handles kept in IndexedDB. |
 | `js/contents.js` | The table of contents panel (the PDF's bookmarks), its edge tab and `F9`. |
 | `js/notes-store.js`, `js/page-store.js` | IndexedDB: notes (never evicted), drawn scan pages (evicted). |
@@ -288,6 +300,7 @@ node tools/check_documents.mjs       # the same
 node tools/check_forget.mjs          # the same
 node tools/check_recent.mjs          # the same
 node tools/check_access.mjs          # the same
+node tools/check_say.mjs             # the same; reuses the voice check_convert downloaded
 node tools/check_offline.mjs         # needs no serve.py: serves a scratch copy on 8732
 python3 tools/stamp_offline.py       # after changing any file the app serves -- see Offline
 node tools/check_convert.mjs         # the same; downloads a voice on its first run

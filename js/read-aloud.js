@@ -21,6 +21,7 @@
  *   reader.pause() / toggle() / skip(±1) / setRate(r) / stop()
  *   reader.setVoice(key)         another voice from js/voices.js; a reading carries on
  *                                in it from the sentence it was on
+ *   reader.remake()              the pronunciation list changed: make the sentences ahead again
  *
  * States: "stopped", "loading" (the voice), "buffering", "playing", "paused".
  */
@@ -34,7 +35,8 @@
   // playhead, or this far past the prefetch, is not worth keeping.
   const KEEP_BEHIND = 1, KEEP_AHEAD = PREFETCH + 2;
 
-  function create({ askDocument, onSentence, onWord, onState, onStatus, voice: firstVoice = DEFAULT_VOICE, voiceName = (k) => k }) {
+  function create({ askDocument, onSentence, onWord, onState, onStatus, voice: firstVoice = DEFAULT_VOICE, voiceName = (k) => k,
+                    pronunciations = () => [] }) {
     let voiceKey = firstVoice;
     let count = 0;                 // sentences in the document
     let rate = 1;
@@ -102,7 +104,7 @@
       const asked = rate;
       const promise = new Promise((resolve, reject) => {
         pending.set(id, { resolve, reject });
-        worker.postMessage({ type: "speak", id, text, rate: asked });
+        worker.postMessage({ type: "speak", id, text, rate: asked, say: pronunciations() });
       }).then((made) => ({ ...made, rate: asked }));
       return { id, promise };
     }
@@ -339,6 +341,14 @@
         if (playing && node) sound(heardNow());
       },
       stop() { stop(); },
+      /* The pronunciations changed: sentences made ahead are made again. */
+      remake() {
+        const keep = playing ? playing.i : -1;
+        const stale = [...clips].filter(([i]) => i !== keep);
+        cancel(stale.map(([, c]) => c));
+        for (const [i] of stale) clips.delete(i);
+        if (state === "playing" || state === "buffering") prefetch(index);
+      },
     };
 
     function stop() {

@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "01967fbacf882ea8";
+const VERSION = "1b7d747175b740a1";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -49,6 +49,7 @@ const FILES = [
   "js/piper-core.js",
   "js/piper-worker.js",
   "js/pixels.js",
+  "js/pronounce.js",
   "js/python.js",
   "js/read-aloud.js",
   "js/reader.js",
