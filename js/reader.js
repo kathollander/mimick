@@ -1751,9 +1751,20 @@
     nexttrack: () => voice.skip(1),
     stop: () => voice.stop(),
   };
+  // One press can arrive twice -- as the media session's action and as a keydown
+  // on the focused page -- which would pause and resume at once. The second is dropped.
+  let lastMedia = { action: null, at: 0 };
+  function media(action) {
+    const now = performance.now();
+    const kind = (a) => (/play|pause/.test(a ?? "") ? "toggle" : a);
+    const same = kind(action) === kind(lastMedia.action);
+    if (same && now - lastMedia.at < 400) return;
+    lastMedia = { action, at: now };
+    mediaKeys[action]();
+  }
   if ("mediaSession" in navigator) {
     for (const action of ["play", "pause", "previoustrack", "nexttrack", "stop"]) {
-      try { navigator.mediaSession.setActionHandler(action, mediaKeys[action]); } catch { /* not offered here */ }
+      try { navigator.mediaSession.setActionHandler(action, () => media(action)); } catch { /* not offered here */ }
     }
   }
 
@@ -1774,9 +1785,9 @@
     if (ctrl && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") { e.preventDefault(); find.open(); return; }
     if (e.key === "F3" || (ctrl && !e.altKey && e.key.toLowerCase() === "g")) { e.preventDefault(); find.step(e.shiftKey ? -1 : 1); return; }
     if (e.key === "F9" && !ctrl && !e.altKey) { e.preventDefault(); contents.toggle(); return; }
-    const media = { MediaPlayPause: "playpause", MediaPlay: "play", MediaPause: "pause", MediaTrackNext: "nexttrack",
+    const mediaKey = { MediaPlayPause: "playpause", MediaPlay: "play", MediaPause: "pause", MediaTrackNext: "nexttrack",
                     MediaTrackPrevious: "previoustrack", MediaStop: "stop" }[e.key];
-    if (media && doc) { e.preventDefault(); mediaKeys[media](); return; }
+    if (mediaKey && doc) { e.preventDefault(); media(mediaKey); return; }
     if (typing || !doc) return;
     const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
     // A focused button acts on Space and Enter itself.
