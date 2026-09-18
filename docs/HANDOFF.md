@@ -32,6 +32,11 @@ Kat asked for the launch work to be done overnight, from
 - Item 8, **media keys** and the browser's media controls.
 - Item 9, **voice credits** in About.
 
+**Since then, 17 September evening: the guided tour** -- **Show me around** on
+the front page, **Help ▾ → Take the tour** afterwards. Fourteen steps on the
+sample poem, done with the reader's own keys. `js/tour.js`,
+`tools/check_tour.mjs`, and *The tour* below.
+
 **And from Ship 2**, in the second session:
 
 - **The contents panel** (the PDF's bookmarks, `F9`), with a tab on the page's

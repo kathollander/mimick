@@ -436,8 +436,6 @@
     return {
       start, stop,
       get running() { return at >= 0; },
-      /* Whether the reader has ever been through it, for the front page. */
-      get taken() { return ctx.recall("mimick-tour") === "done"; },
     };
   }
 

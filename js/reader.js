@@ -2047,7 +2047,7 @@
   // clicks -- so this is all getters, and the two ways of opening a document.
 
   const tour = MimickTour.create({
-    status, remember, recall, openSample, chooseFile,
+    status, remember, openSample, chooseFile,
     focusPage: () => view.focus(),
     hasDocument: () => !!doc,
     ready: () => !!doc?.sentences,
