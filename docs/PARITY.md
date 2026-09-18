@@ -87,3 +87,19 @@ Features the browser has that the desktop app does not. Add them there too.
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`
 - ⬜ **The loose Highlight/Add note strip kept inside the window** while dragged and when the window shrinks — check whether the desktop's floating markup bar can be lost the same way
+
+These landed in the browser after this list was last gone through (17 September,
+10:08), so they were never checked against the desktop until 18 September. All
+four are missing there.
+
+- ⬜ **A guided tour**: **Show me around** on the front page and **Help ▾ → Take the tour**; fourteen steps on the sample poem, each finished by the reader doing it with the app's own keys and clicks, with Skip and a way out at every step. Browser: `js/tour.js`
+- ⬜ **Reading ▾ → Read from this page**, and **Back 10 seconds**. Browser: `04dd461`
+- ⬜ **`Ctrl`+`Y` as a second redo**, beside `Ctrl`+`Shift`+`Z`
+- ⬜ **A progress bar while a document opens**, so a long book does not look hung. The desktop's only progress bar is the voice downloader's, and it is a busy stripe (`voices_dialog.py:215`, "since size is not reported")
+
+The three items above that said *check the desktop* have now been checked, all
+on 18 September, and the answer was no to each:
+
+- **Media keys**: none — no MPRIS anywhere in `mimick/`
+- **Voice credits**: `about_dialog.py` carries the AGPL blurb only, nothing per voice
+- **MP3 in licence-clean voices only**: `export_dialog.py:72-77` still offers every voice. Half done — the desktop's uncommitted `piper.py` withholds Lessac from the catalogue, but nothing restricts the export list
