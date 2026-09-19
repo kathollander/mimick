@@ -2,11 +2,13 @@
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
 last updated the evening of 19 September, after the launch, the first Firefox
-report from someone else's computer, and the guided tour. Each session that
-worked on it ended cleanly: tree committed, the checks it touched passing,
-scratch files removed. **Nothing is pushed since the launch** -- see *Still for
-Kat*, item 1: the history rewrite is waiting on her, and everything committed
-goes public in one go when she runs it.
+report from someone else's computer, the guided tour, and the stalled first
+download. Each session that worked on it ended cleanly: tree committed, the
+checks it touched passing, scratch files removed. **Pushed and live on 19
+September** (`2e8fd82`, at Kat's word, because the stalled download was
+hurting new readers): every commit since the launch went out with it. The
+history rewrite (*Still for Kat*, item 1) is still hers to run and still works
+-- `../mimick-squash-and-push.sh` rebuilds from `master`'s tip whenever it runs.
 
 Three Claude sessions worked in this folder on 17--19 September, sometimes at
 once. Before stamping `sw.js` or committing, check what is already modified in
@@ -32,7 +34,50 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Start here: the first report from outside (17 September)
+## Start here: the first download stalled (19 September)
+
+Kat, on **Windows, in Firefox and in Edge**: the start-up bar ("Getting Mimick
+ready…") stopped partway through the first visit's download, and a refresh
+made it leap ahead. Two causes, both fixed in `2e8fd82` and deployed:
+
+- **The bar never measured the download.** It moved only when a worker finished
+  a step (runtime 40%, PDF library 90%) and crept at most 20% past it, so on a
+  slow line it sat near 60% through the whole 18 MB PyMuPDF wheel. A refresh
+  "gained progress" because the finished files came back from the cache. Now
+  **each Python worker counts the bytes it reads**: `js/download-count.js` wraps
+  the worker's `fetch` until Python is up and posts `{ type: "downloaded",
+  bytes, open }`; `showLoading` in `js/reader.js` shows the furthest worker's
+  count against `DOWNLOAD_BYTES` (29.7 MB, the files' own sizes -- the count is
+  after gzip) as 85% of the bar, then the steps. It says "Downloading Mimick…
+  14 of 30 MB" only while a fetch is open (Python boots between the runtime and
+  the wheel, and a warm start reads the cache in a blink), and after 20 seconds
+  with no bytes says so. **If the vendored Pyodide or wheel changes, update
+  `DOWNLOAD_BYTES`** -- off only scales the bar, and it never passes full.
+- **Firefox downloaded the wheel four times**, once per Python worker, all at
+  once: the service worker missed its cache for each and Firefox's HTTP cache
+  did not merge them (Chrome's does). 72 MB instead of 18, and 137 s to Ready
+  at 5 Mbit/s against Chrome's 50; once, a worker then failed `import pymupdf`.
+  At 20 Mbit/s they happened not to overlap, which is why it hid. `sw.js` now
+  keeps `fetching` (path → promise): the first miss fetches and caches, the
+  others await it and answer from the cache. A reload mid-download keeps it
+  going, since the service worker's `waitUntil` outlives the page.
+
+Measured with fresh profiles against a copy served like GitHub Pages (gzip,
+`max-age=600`) on a throttled link, logging every request: at 5 Mbit/s,
+**Firefox 54 s and Chrome 49 s to Ready, every file fetched once**, the bar
+rising with the megabytes. `check_offline`, `check_firefox` and
+`check_documents` pass. **No check covers the bar itself**; to see it, throttle
+the link (a small Python server that sleeps between chunks does it) and open
+`reader.html?release` in a new profile -- `?release` matters, since on
+localhost the service worker otherwise fetches fresh and skips the path above.
+
+**Not done:** Edge on Windows was not tried here (Chromium, so it should behave
+as Chrome). Right after Ready, Mimick still downloads Norman (58 MB, no
+progress shown -- `keepDefault` in `js/voice-picker.js`) and the rest of the
+offline copy; on a slow line that competes with opening the first document.
+`TESTING.md` has a section for Kat's Windows machine.
+
+## Before that: the first report from outside (17 September)
 
 Someone tried the live site **in Firefox, on their own computer**. Four things
 came back, and the fixes are in and deployed:
@@ -42,11 +87,9 @@ came back, and the fixes are in and deployed:
   take about 9 seconds on a 12-core machine. Four Pythons load ~30 MB each
   before the reader is ready. **There is now a progress bar** (`#loading` in
   `reader.html`, `showLoading` in `js/reader.js`): it is in the HTML from the
-  first paint, moves on the steps each worker reports (`onStep` in
-  `js/python.js` → `{ type: "loading", step }`, weighted 0.4 for the runtime,
-  0.9 for the PDF library), creeps between them, and comes back while a
-  document opens until the pages on screen are drawn. After 8 seconds it says
-  the first visit is a one-time download.
+  first paint, and comes back while a document opens until the pages on screen
+  are drawn. (It first moved only on the steps each worker reported; since 19
+  September it counts the bytes -- see *Start here*.)
 - **"Pages first load entirely blank; zoom out and they show."** **Not
   reproduced** -- Firefox 154, headless and in a real window, at 1×, 1.33× and
   1.5×, small window, and opening a file before the reader was ready. Two

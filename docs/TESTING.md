@@ -12,6 +12,19 @@ python3 serve.py
 Tick what works, and write down anything that doesn't -- what you did, what you
 expected, what happened.
 
+## The first download, 19 September — https://kathollander.github.io/mimick/reader.html
+
+On the Windows machine where the bar stalled, in **Firefox** and in **Edge**.
+Clear Mimick's site data first (it deletes notes and voices kept for Mimick in
+that browser), or use a private window, so it is a real first visit.
+
+- [ ] The bar says **Downloading Mimick…** with "N of 30 MB" underneath, and the number keeps rising
+- [ ] The bar moves with it, and never sits still for long while the number climbs
+- [ ] Near the end it says **Starting Python in the browser**, then goes, and the status line says Ready
+- [ ] How long it took, from opening the page to Ready: ____ (Firefox) ____ (Edge)
+- [ ] Refresh halfway through: it carries on from about where it was, rather than starting again
+- [ ] If it ever stops: what the text under the bar said, and the MB number it stopped at
+
 ## The tour, 17 September — http://localhost:8731/reader.html
 
 Open Mimick with nothing loaded and click **Show me around**. It opens the
