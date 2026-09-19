@@ -78,7 +78,9 @@ check("a query that is not there says so", (await state()).count === "No matches
 // 5. What is typed finds what is printed.
 const found = (query) => r.inWorker("document-worker.js", `python.then((py) => { py.globals.set("q", ${JSON.stringify(query)});
   return py.runPython("import reader, json; json.dumps(reader.find(q)['matches'])"); })`).then(JSON.parse);
-const folded = await r.inWorker("document-worker.js", `python.then((py) => py.runPython("import reader; reader._fold('‘Tis “so” — ﬁne', False)"))`);
+// _fold is in the desktop's document.py now, not in reader.py: one copy of the
+// search, in the file both versions share, so they cannot drift apart.
+const folded = await r.inWorker("document-worker.js", `python.then((py) => py.runPython("from mimick import document; document._fold('‘Tis “so” — ﬁne', False)"))`);
 check("curly quotes, dashes and ligatures are folded to plain ones", folded === `'tis "so" - fine`
       && (await found("what they did not want to hear: page numbers")).length === 1, folded);
 check("spaces in a query match any spacing, across a line break", (await found("The  words   stay")).length === 1);

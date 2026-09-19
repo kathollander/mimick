@@ -23,7 +23,7 @@
     const $ = (id) => document.getElementById(id);
     const bar = $("find-bar"), input = $("find-input"), count = $("find-count");
     let matches = [];          // [[first, last, page]]
-    let more = false;          // stopped at reader.FIND_LIMIT
+    let more = false;          // stopped at document.FIND_LIMIT
     let current = -1;
     let asked = 0;             // bumped by every search, so only the latest lands
     let timer = null;

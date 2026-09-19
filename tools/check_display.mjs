@@ -78,7 +78,8 @@ await r.click(await r.centre("#view")); await r.key("?"); await sleep(300);
 check("? opens the keyboard shortcuts", await ev(`document.getElementById("keys-dialog").open`));
 await r.key("Escape"); await sleep(200);
 await r.click(await r.centre("#help-menu")); await sleep(200);
-check("Help offers shortcuts, About and the source", JSON.stringify(await r.menuLabels()) === JSON.stringify(["Keyboard shortcuts", "About Mimick", "Source code"]),
+check("Help offers the tour, shortcuts, About and the source",
+      JSON.stringify(await r.menuLabels()) === JSON.stringify(["Take the tour", "Keyboard shortcuts", "About Mimick", "Source code"]),
       await r.menuLabels());
 await r.menu("About Mimick");
 check("About opens", await ev(`document.getElementById("about-dialog").open && /Arranged by/.test(document.getElementById("about-dialog").textContent)`));

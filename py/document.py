@@ -8,6 +8,7 @@ highlight along with the voice.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -48,6 +49,7 @@ class Word:
     readable: bool = True      # part of the body text, rather than furniture
     region: int = -1           # which layout region it came from
     joins_next: bool = False   # hyphenated across a line break
+    keeps_hyphen: bool = False # ...and that hyphen is the word's own, not the typesetter's
     spoken: bool = True        # read aloud, or passed over as a citation
 
     @property
@@ -85,18 +87,40 @@ class Sentence:
         return _merge_rects([word.rect for word in chosen])
 
 
+def _bare(text: str) -> str:
+    """A word with its surrounding punctuation and case taken off.
+
+    Quotes, brackets and the full stop go; an internal hyphen stays, because
+    that hyphen is the whole point of looking.
+    """
+    return text.strip("‘’“”\"'()[]{}.,;:!?—–").casefold()
+
+
 def _join_words(words: list[Word]) -> str:
     """Words as one string, with a word broken across a line put back together.
 
-    A break before a lower-case letter is the typesetter's -- "creat- ing" is
-    "creating". A break before a capital is a real hyphen that fell at the end
+    Whether the hyphen survives depends on whose it was. Three things are asked,
+    in order:
+
+    The document's own usage, decided in ``_mark_hyphenation`` and carried on
+    ``keeps_hyphen``: if it writes "non-status" anywhere it did not have to
+    break, the hyphen is the word's own and stays here too.
+
+    Failing that, a break before a capital is a real hyphen that fell at the end
     of a line -- "Piatek- Jimenez" is "Piatek-Jimenez" -- so the hyphen stays
     and only the space goes, or the voice pauses in the middle of a name.
+
+    Otherwise it was the typesetter's: "creat- ing" is "creating".
+
+    The first test earns its keep. Compound words are overwhelmingly
+    lower-lower, so the capital rule alone closed up every one that happened to
+    land at a line end, and the voice said "nonstatus" and "secondgeneration".
     """
     parts: list[str] = []
     for word, following in zip(words, words[1:] + [None]):
         if word.joins_next and word.text.endswith("-"):
-            real = following is not None and following.text[:1].isupper()
+            real = word.keeps_hyphen or (
+                following is not None and following.text[:1].isupper())
             parts.append(word.text if real else word.text[:-1])
         else:
             parts.append(word.text + " ")
@@ -139,6 +163,32 @@ def align_marks(sentence: Sentence, marks: list[tuple[float, str]]) -> list[tupl
         aligned.append((when, spoken[found][0]))
         cursor = found + 1
     return aligned
+
+
+# Characters folded together before searching, so what is typed on a keyboard
+# finds what a typesetter put on the page: curly quotes and primes become
+# straight ones, the several dashes become a hyphen, a soft hyphen disappears
+# and a non-breaking space becomes a space. NFKC first, which is what turns the
+# "fi" and "fl" ligatures into their letters.
+_FOLD = str.maketrans({
+    "‘": "'", "’": "'", "‚": "'", "‛": "'", "′": "'",
+    "“": '"', "”": '"', "„": '"', "″": '"',
+    "‐": "-", "‑": "-", "‒": "-", "–": "-", "—": "-",
+    "−": "-", "­": None, " ": " ",
+})
+
+# A search stops after this many matches. A one-letter query on a long book
+# otherwise builds a list nobody can use, and stepping through it is hopeless
+# anyway; the find bar says the count was cut short.
+FIND_LIMIT = 20000
+
+
+def _fold(text: str, match_case: bool) -> str:
+    """Text as it should be compared: ligatures, quotes and dashes regularised."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFKC", text).translate(_FOLD)
+    return text if match_case else text.casefold()
 
 
 def _merge_rects(rects: list[tuple[float, float, float, float]]) -> list[tuple[float, float, float, float]]:
@@ -302,6 +352,11 @@ class Document:
         sidebar no longer interleaves line by line with the article, and running
         headers are marked unreadable rather than spoken on every page.
         """
+        # Every build renumbers the words, so anything keyed off word indices --
+        # the search index below, and the window's list of matches -- is stale
+        # from here on. Counting builds is what tells them apart: a rebuild can
+        # easily end with the same number of words it started with.
+        self._build_id = getattr(self, "_build_id", 0) + 1
         for page_number in range(self.doc.page_count):
             page = self.doc.load_page(page_number)
             # sort=True gives words in reading order rather than PDF draw order.
@@ -377,7 +432,17 @@ class Document:
         self._emit_run(run)
 
     def _mark_hyphenation(self) -> None:
-        """Flag words broken by a hyphen at the end of a line."""
+        """Flag words broken by a hyphen at the end of a line.
+
+        Also work out, for each break, whether the hyphen belongs to the word or
+        to the typesetter -- see ``_join_words`` for why that matters and what
+        is done with the answer.
+        """
+        # How often the document writes each word, punctuation and case aside.
+        # A compound it sets with a hyphen somewhere it did not have to break --
+        # "non-status" in the middle of a line -- is the document telling us, in
+        # its own words, that the hyphen is real.
+        written = Counter(_bare(word.text) for word in self.words)
         for word, following in zip(self.words, self.words[1:]):
             if not word.text.endswith("-") or len(word.text) < 2:
                 continue
@@ -387,6 +452,31 @@ class Document:
             # and start with a letter; _join_words decides what the hyphen was.
             if following.rect[1] > word.rect[1] + 1.0 and following.text[:1].isalpha():
                 word.joins_next = True
+                # The two candidate spellings of this one broken word.
+                hyphenated = _bare(word.text) + _bare(following.text)
+                closed = _bare(word.text)[:-1] + _bare(following.text)
+                # Whichever the document writes more often wins, and a tie goes
+                # to the hyphen, since the break in front of us is one vote for
+                # it already. Counting rather than merely looking matters: a
+                # document that says "Indigenous" forty times and "In-digenous"
+                # once, where a line broke and the extraction ran the halves
+                # together, should not have that one accident outvote the forty.
+                word.keeps_hyphen = (
+                    written[hyphenated] >= max(1, written[closed])
+                    # A hyphen after a figure is the word's own -- "113-year",
+                    # "20-minute". A typesetter never breaks there, and the
+                    # document rarely repeats the phrase to prove it.
+                    or word.text[-2:-1].isdigit()
+                    # "self-" is the one prefix safe to assume, for a document
+                    # that never writes the compound anywhere else to prove it:
+                    # English closes up only "selfish", "selfless" and
+                    # "selfhood", none of which a typesetter would break after
+                    # "self". The other candidates are not safe -- "non-" would
+                    # wreck a broken "nonsense", "anti-" a broken "anticipate",
+                    # "inter-" a broken "interpretation" -- so they are left to
+                    # the counting above.
+                    or _bare(word.text) == "self-"
+                )
 
     def _emit_run(self, run: list[Word]) -> None:
         # A labelled block -- "Funding: ...", an address ending in an email --
@@ -513,6 +603,74 @@ class Document:
         if first > last:
             return ""
         return _join_words(self.words[first : last + 1])
+
+    # -- searching ---------------------------------------------------------
+    #
+    # Find works over the words as they are written, not the text the voice is
+    # given: a reader searching for a name wants it found inside a citation the
+    # voice passes over, and wants what is printed on the page, not the cleaned
+    # up version. A match is a run of whole words -- (first, last, page) -- so
+    # it can be lit, selected and read exactly like a selection dragged out by
+    # hand.
+
+    def _searchable(self, match_case: bool) -> tuple[str, "array.array"]:
+        """The document's words as one string, and where each word starts in it.
+
+        Built once per case setting and kept, because a reader types a query one
+        letter at a time and every letter searches the whole document again.
+        """
+        from array import array
+
+        key = (self._build_id, match_case)
+        if getattr(self, "_find_key", None) != key:
+            parts: list[str] = []
+            starts = array("l")
+            at = 0
+            words = self.words
+            for word, following in zip(words, words[1:] + [None]):
+                text = _fold(word.text, match_case)
+                # The same rule as _join_words, and it has to stay the same rule:
+                # what is searched must be what is read and what is copied, or a
+                # word is findable in one and not the others.
+                if word.joins_next and text.endswith("-"):
+                    real = word.keeps_hyphen or (
+                        following is not None and following.text[:1].isupper())
+                    piece = text if real else text[:-1]
+                else:
+                    piece = text + " "
+                starts.append(at)
+                parts.append(piece)
+                at += len(piece)
+            self._find_key = key
+            self._find_text = "".join(parts)
+            self._find_starts = starts
+        return self._find_text, self._find_starts
+
+    def find(self, query: str, match_case: bool = False,
+             limit: int = FIND_LIMIT) -> tuple[list[tuple[int, int, int]], bool]:
+        """Every place ``query`` is written, in document order.
+
+        Returns the matches as ``(first word, last word, page)``, and whether
+        ``limit`` cut the list short. Spaces in the query match any spacing on
+        the page, so a phrase broken across two lines is still found.
+        """
+        from bisect import bisect_right
+
+        needle = " ".join(_fold(query or "", match_case).split())
+        if not needle:
+            return [], False
+        text, starts = self._searchable(match_case)
+        words = self.words
+        found: list[tuple[int, int, int]] = []
+        at = text.find(needle)
+        while at >= 0:
+            first = bisect_right(starts, at) - 1
+            last = bisect_right(starts, at + len(needle) - 1) - 1
+            found.append((first, last, words[first].page))
+            if len(found) >= limit:
+                return found, text.find(needle, at + 1) >= 0
+            at = text.find(needle, at + 1)
+        return found, False
 
     # -- moving a cursor through the text ----------------------------------
     #
