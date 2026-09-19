@@ -1,18 +1,74 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated the morning of 17 September, after Ship 1, Ship 2 bar one item,
-and part of Ship 3. The session that did it ended cleanly: tree committed, all
-24 checks passing, scratch files removed.
+last updated 18 September, after the launch and the first Firefox report from
+someone else's computer. The session that did it ended cleanly: tree committed,
+the checks it touched passing, scratch files removed.
 
-## Releasing
+## It is public
 
-Kat means to release in a fresh session. **Start with the desktop repo's
-`docs/HANDOFF.md`, section Releasing**, which covers both versions. For this
-one, in short: check the voice licences (**Next**, item 0), delete `sample
-readings/`, and Kat makes the GitHub repository.
+Since 17 September the browser version **is** Mimick:
 
-## Start here: the night of 17 September
+- **Repository:** `github.com/kathollander/mimick` (public, AGPL-3.0). The
+  branch is `master`.
+- **Live:** <https://kathollander.github.io/mimick/reader.html>, GitHub Pages
+  from `master`, root. **Every push to `master` deploys**, within a minute or
+  two. There is no staging: push means published.
+- **Release:** `v1.0.0`.
+- **The desktop app moved to `github.com/kathollander/mimick-linux`**, locally
+  `../Mimick-linux`. Its name in this repo's paths and docs is `Mimick-linux`
+  now (`tools/port.sh ../Mimick-linux`).
+- **This folder was renamed** from `mimick-web` to `Mimick` on 17 September.
+
+Pages serves the bundled voice gzipped, so a download's `content-length` is not
+its real size; `js/voices.js` allows for that.
+
+## Start here: 18 September, the first report from outside
+
+Someone tried the live site **in Firefox, on their own computer**. Four things
+came back, and the fixes are in and deployed:
+
+- **"Slow to load, almost didn't."** In a real Firefox window here, one first
+  visit sat on "Getting ready…" for 85 seconds with nothing moving; warm visits
+  take about 9 seconds on a 12-core machine. Four Pythons load ~30 MB each
+  before the reader is ready. **There is now a progress bar** (`#loading` in
+  `reader.html`, `showLoading` in `js/reader.js`): it is in the HTML from the
+  first paint, moves on the steps each worker reports (`onStep` in
+  `js/python.js` → `{ type: "loading", step }`, weighted 0.4 for the runtime,
+  0.9 for the PDF library), creeps between them, and comes back while a
+  document opens until the pages on screen are drawn. After 8 seconds it says
+  the first visit is a one-time download.
+- **"Pages first load entirely blank; zoom out and they show."** **Not
+  reproduced** -- Firefox 154, headless and in a real window, at 1×, 1.33× and
+  1.5×, small window, and opening a file before the reader was ready. Two
+  guards went in instead: a page that is not drawn yet says **"Drawing this
+  page…"** under the canvas (`.page::before`), and **a failed draw is tried
+  twice more** rather than never again at that zoom (`retries` in
+  `js/reader.js`; it used to be one failure and blank until the zoom changed).
+  **If it comes back, the question to ask is whether that text is showing**:
+  showing means the drawing never finished, missing means Firefox is not
+  putting the canvas on screen (then get the Firefox version and the screen
+  scaling).
+- **"Highlights aren't in the column; a new note shows and disappears."**
+  Reproduced and fixed. The column listed only the page a third of the way down
+  the view, so a note one page up vanished as soon as the view moved.
+  `renderCards` now takes `ctx.pagesShown()` -- every page with any of it on
+  screen -- and sorts by page, then position.
+- **Undo.** `Ctrl`+`Z` already went back 50 steps; **`Ctrl`+`Y` now redoes**,
+  and the menu and the keys dialog say so. `Ctrl`+`Shift`+`Z` still works.
+  Nothing in the code has ever used `Ctrl`+`Alt`+`Z`. Undo covers highlights
+  and notes only.
+
+Also: **Show reading order** was already off unless turned on
+(`mimick-show-order`), and `check_notes` grew two cases (`Ctrl`+`Y`, and two
+pages on screen). `check_notes` had been looking for the desktop's venv at
+`../Mimick`, which is this folder now; it is `../Mimick-linux`.
+
+**What to do next:** `docs/TESTING.md` has a new section at the top for the
+computer that saw the blank pages. Until that comes back, the blank pages are
+the one open bug.
+
+## Before that: the night of 17 September
 
 Kat asked for the launch work to be done overnight, from
 [`ROADMAP.md`](ROADMAP.md). Two sessions worked on it, one after the other.
@@ -85,11 +141,19 @@ best started with Kat. **A worked-out plan, with measurements, is in
 `ROADMAP.md`**, Ship 2. (The desktop repo had uncommitted changes from another
 session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone.)
 
-**For Kat before going public:**
+**Still for Kat (written before the launch; item 1 is the only one left open):**
 
 1. The git history (review item 4 below: author email, a book title in old
-   diffs, the old journal article) -- rewrite, or start the public repo from one
-   fresh commit.
+   diffs, the old journal article). **Kat chose one fresh commit.** The repo
+   went public with its whole history on 17 September, so this is a rewrite
+   after the fact: build a parentless commit from `master`'s tip
+   (`git checkout --orphan`, or `git commit-tree "$(git rev-parse master^{tree})"`),
+   then force-push it over `master` and remake the `v1.0.0` tag and release on
+   it. Rebuild it from the tip at the moment of the push, not earlier, or the
+   commits made since are dropped. The old history is kept locally, on branch
+   `history-before-launch` and in `../mimick-history-before-launch.bundle`
+   (101 MB, outside the repo). GitHub can still serve the old commits to
+   anyone holding their exact hashes for a while afterwards.
 2. `sample readings/` is already gone from this folder (checked 17 September).
 3. Try it in Firefox and Safari by hand. **Firefox 154 was driven by script on
    17 September** (`firefox.geckodriver` is on this machine: start it on a port,
@@ -99,7 +163,9 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
    the word lit. **`tools/check_firefox.mjs`** now does that and more
    (highlight kept over a reload, Save a copy and Export notes as downloads, a
    Word file; `--voice` to read aloud) -- all pass. Not tried there: Convert to
-   MP3, media keys. Safari: nothing.
+   MP3, media keys. Safari: nothing. **A person did try Firefox on their own
+   computer on 18 September** -- what came back, and what was done about it, is
+   in *Start here*.
 4. Work through the new sections at the top of `TESTING.md` -- every one of
    tonight's features is checked by a script, which says it works, not that it
    feels right.

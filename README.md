@@ -18,6 +18,11 @@ it works with no internet connection, and Chrome can install it as an app.
 
 ## How to use it
 
+The first visit downloads about 30 MB -- the reader, its Python and the Norman
+voice -- so it can take a minute on a slow connection. A bar at the top shows
+how far along it is. After that it starts in a few seconds, and works with no
+network at all.
+
 **New here?** Click **Show me around** on the front page: a short tour on a
 sample poem that teaches the keys as you press them. Skip any step, leave any
 time, and it is under **Help ▾** afterwards.
@@ -63,8 +68,8 @@ Built and tested in **Google Chrome** on a Linux desktop; it is meant for
 laptops and desktops on any system Chrome runs on. **Brave, Microsoft Edge and other Chromium browsers** run the same
 engine and should work the same, but have not been tried.
 
-**Firefox** (154, on Linux) passes a scripted check, though no one has used it by
-hand yet: it opens PDFs and Word files, reads aloud with each word lit, finds
+**Firefox** (154, on Linux) passes a scripted check, and one person has used it
+by hand: it opens PDFs and Word files, reads aloud with each word lit, finds
 text, shows the table of contents, keeps highlights, saves copies and exported
 notes as downloads, and keeps itself for offline use. **Safari is untested.**
 Where they differ from Chrome: saving a copy or an MP3 downloads it when it is

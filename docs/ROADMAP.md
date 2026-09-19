@@ -5,6 +5,11 @@ September 2026, after the code review of that day. `PARITY.md` is the list of
 desktop features; this is the list of what a free read-aloud reader needs
 whether or not the desktop app has it.
 
+**It shipped on 17 September**: <https://kathollander.github.io/mimick/reader.html>,
+release `v1.0.0`. Ship 1 is done and out; what is below still says what comes
+next, and the first report from someone else's computer is in `HANDOFF.md`,
+*Start here*.
+
 **The goal is to ship fast.** Kat's classmates include neurodivergent readers
 who could use this for their readings now. Ship 1 is the smallest thing that
 is safe to hand them; everything else waits. Do not start a Ship 2 item while
