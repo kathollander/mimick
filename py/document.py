@@ -87,6 +87,21 @@ class Sentence:
         return _merge_rects([word.rect for word in chosen])
 
 
+_HEADING_NUMBER = re.compile(r"^\s*\d+(?:\.\d+)*[.)]?\s+")
+
+
+def _heading_key(text: str) -> str:
+    """A heading reduced to what two spellings of it would have in common.
+
+    A bookmark and the heading printed on the page rarely match character for
+    character: one says "2. What Students Chose to Hear" and the other "What
+    Students Chose to Hear", and either may carry trailing punctuation or
+    stray spacing.
+    """
+    text = _HEADING_NUMBER.sub("", " ".join(str(text).split()))
+    return text.casefold().strip(" .:;–—-")
+
+
 def _bare(text: str) -> str:
     """A word with its surrounding punctuation and case taken off.
 
@@ -783,6 +798,94 @@ class Document:
             if sentence.page >= page:
                 return sentence.index
         return max(len(self.sentences) - 1, 0)
+
+    def outline(self) -> list[tuple[int, str, int, bool]]:
+        """The PDF's own table of contents, if it has one.
+
+        Each entry is ``(level, title, page, open)``. ``page`` counts from zero,
+        or is -1 where the entry goes nowhere in this file -- a web link, or a
+        bookmark left pointing at a page that is not here. ``open`` is whether
+        the file asks for the entry's children to be shown.
+
+        Deliberately no y. A bookmark's destination carries one, but it cannot
+        be trusted: the PDF specification puts it in user space, measured from
+        the bottom of the page, and real files disagree. *Big Ideas from Atleo
+        and Boron* stores it that way, and sample/test-paper.pdf stores it
+        measured from the top, so no single reading of it is right for both. A
+        heading is found by its own title instead -- see
+        ``first_sentence_from`` -- which needs no coordinates and cannot be
+        wrong in that particular way.
+
+        A damaged outline gives none rather than stopping the document opening:
+        a table of contents is a convenience, and nobody should be unable to
+        open a paper because its bookmarks are malformed.
+        """
+        try:
+            toc = self.doc.get_toc(simple=False)
+        except Exception:
+            return []
+        entries = []
+        for level, title, number, destination in toc:
+            page = number - 1 if 0 < number <= self.doc.page_count else -1
+            shown = not (isinstance(destination, dict) and destination.get("collapse"))
+            entries.append((int(level), " ".join(str(title).split()), page, shown))
+        return entries
+
+    def first_sentence_from(self, page: int, title: str = "") -> int:
+        """The sentence a contents entry means, found by its own heading.
+
+        Looks for the heading's words on the page the bookmark names, so that
+        several sections on one page each go to the right place. Falls back to
+        the top of that page when the heading cannot be found there, which is
+        the worst this can do and is still the right page.
+        """
+        if not self.sentences:
+            return 0
+        at = self.word_of_heading(page, title)
+        if at is not None:
+            # Matched against the words on the page rather than the sentences,
+            # because a heading is not always a sentence: "References" heads a
+            # list the cleanup does not read, so there is no sentence to match,
+            # and matching sentences alone sent it backwards to whatever else
+            # began that page.
+            for sentence in self.sentences:
+                if sentence.words and sentence.words[0].index >= at:
+                    return sentence.index
+            return len(self.sentences) - 1
+        return self.first_sentence_on_page(page)
+
+    def word_of_heading(self, page: int, title: str) -> int | None:
+        """Where a contents entry's heading is printed, as a word index.
+
+        Only the named page and the one after it: a bookmark is sometimes a
+        page out, but the same words matched much further off are a different
+        occurrence -- a running header, or the phrase turning up in the body.
+        """
+        wanted = _heading_key(title)
+        if not wanted:
+            return None
+        here = [word for word in self.words if page <= word.page <= page + 1]
+        for start in range(len(here)):
+            if here[start].page > page + 1:
+                break
+            # Grow a run of words from this one until it is as long as the
+            # heading, then see whether it says the same thing.
+            grown = ""
+            for offset, word in enumerate(here[start:start + 24]):
+                grown = f"{grown} {word.text}".strip()
+                key = _heading_key(grown)
+                if key == wanted:
+                    # The first word with a letter in it, not the run's first
+                    # word: _heading_key drops leading numbering, so a run can
+                    # legitimately start on a bare "1" -- a section number, or
+                    # the page number ending the running header above it.
+                    for candidate in here[start:start + offset + 1]:
+                        if any(character.isalpha() for character in candidate.text):
+                            return candidate.index
+                    return here[start].index
+                if len(key) >= len(wanted):
+                    break
+        return None
 
     def word_at_point(self, page: int, x: float, y: float, pad: float = 1.5) -> Word | None:
         """The word actually under a point, or None if the point is off the text.
