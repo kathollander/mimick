@@ -1,9 +1,18 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 19 September, after the launch and the first Firefox report from
-someone else's computer. The session that did it ended cleanly: tree committed,
-the checks it touched passing, scratch files removed.
+last updated the evening of 19 September, after the launch, the first Firefox
+report from someone else's computer, and the guided tour. Each session that
+worked on it ended cleanly: tree committed, the checks it touched passing,
+scratch files removed. **Nothing is pushed since the launch** -- see *Still for
+Kat*, item 1: the history rewrite is waiting on her, and everything committed
+goes public in one go when she runs it.
+
+Three Claude sessions worked in this folder on 17--19 September, sometimes at
+once. Before stamping `sw.js` or committing, check what is already modified in
+the tree and whose it is: on 19 September two commits (the `document.py` port
+and the contents-panel fix) came from a session neither of the other two knew
+about.
 
 ## It is public
 
@@ -154,6 +163,14 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
    `history-before-launch` and in `../mimick-history-before-launch.bundle`
    (101 MB, outside the repo). GitHub can still serve the old commits to
    anyone holding their exact hashes for a while afterwards.
+   **It is ready to run: `../mimick-squash-and-push.sh`** (19 September), with
+   `../mimick-launch-message.txt` as the commit message and
+   `../mimick-release-notes.md` for the release. It rebuilds the commit from
+   `master`'s tip at the moment it runs, warns and lists anything uncommitted
+   first, force-pushes with a lease, moves local `master` with `reset --soft`,
+   remakes the tag, and prints the two `gh` commands for the release.
+   **Kat runs it herself** -- a session's permission classifier blocks the
+   force-push, and no session should try to work around that.
 2. `sample readings/` is already gone from this folder (checked 17 September).
 3. Try it in Firefox and Safari by hand. **Firefox 154 was driven by script on
    17 September** (`firefox.geckodriver` is on this machine: start it on a port,
@@ -452,6 +469,16 @@ How it works:
   `firstSentenceOn` and `sentences` messages instead; and
   `classList.toggle(name, false || undefined)` *flips* rather than removes --
   `undefined` is not `false` to `toggle`.
+
+Since it was built: **checked again on 19 September against `7acfab8`** (the
+`document.py` port and the contents-panel fix) -- `tools/check_tour.mjs` passes
+whole, so the port did not disturb the sentence spotlight, which goes through
+the worker's `firstSentenceOn` and `sentences` messages. **Kat has it open in
+her own Chrome** and has not given her verdict yet; the questions for her are
+the section at the top of `TESTING.md`, still unticked. One thing that came up
+there and is *not* a bug: her **Show reading order** was on, which is a setting
+kept per browser (`mimick-show-order`), so the numbered region boxes were drawn
+over the tour.
 
 Left undone, for whoever picks it up: no step for the reading order
 (`Ctrl`+`R`), the pronunciation list or OCR -- fourteen steps is already at the

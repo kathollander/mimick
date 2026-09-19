@@ -15,7 +15,10 @@ expected, what happened.
 ## The tour, 17 September — http://localhost:8731/reader.html
 
 Open Mimick with nothing loaded and click **Show me around**. It opens the
-sample poem by itself, so you should not have to pick a file.
+sample poem by itself, so you should not have to pick a file. If numbered blue
+boxes are drawn over the poem, that is **Reading ▾ → Show reading order** left
+on from before -- `Ctrl`+`R` turns it off; it is kept per browser, not per
+document.
 
 - [ ] The card says **Step 1 of 14**, and waits ("Opening the sample…") until the poem is there
 - [ ] A red pointer, a ring and a dimmed page point at whatever the step is about
