@@ -17,7 +17,11 @@
   // Pinned to the PyMuPDF the desktop app uses; see "PyMuPDF versions must
   // match" in the desktop handoff. Pyodide's own 1.26.3 reads text differently.
   const PYMUPDF_WHEEL = "pymupdf-1.28.2-cp313-abi3-pyemscripten_2025_0_wasm32.whl";
-  const PACKAGE = ["document.py", "layout.py", "citations.py", "speech.py", "annotations.py"];
+  // Every file tools/port.sh brings over. A file added there and forgotten
+  // here leaves the workers unable to import it, and the page never gets past
+  // "Starting Mimick".
+  const PACKAGE = ["document.py", "layout.py", "citations.py", "speech.py",
+                   "annotations.py", "convert.py"];
   const HOME = "/home/pyodide";
 
   /* `loadPyodide` from vendor/pyodide; `readText(path)` gives the text of a

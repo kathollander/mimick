@@ -6,12 +6,12 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 ## Opening and moving around
 
 - ✅ Open a PDF: button, `Ctrl`+`O`, drag and drop
-- ✅ Open `.txt`, `.docx`, `.odt`, `.epub` the same ways, laid out as PDFs — *the desktop has none*
+- ✅ Open `.txt`, `.docx`, `.odt`, `.epub` the same ways, laid out as PDFs — *the desktop has these too since 18 September*
 - ✅ Open Recent (File ▾, the last five; Chromium only — other browsers give a page no file handles)
 - ✅ Continuous scroll, page box, ‹ ›, `Page Up`/`Down`, `Ctrl`+`↑`/`↓`/`Home`/`End`
 - ✅ Zoom: − +, slider, % box, `Ctrl`+`+`/`−`/`0`, `Ctrl`+wheel
 - ✅ Keep scroll and zoom per document across a reload (`mimick-view:<key>`)
-- ✅ **Contents panel** (the PDF's bookmarks) on the left: nested, click to go, right-click to read from there, the section on screen lit; `F9`, **Display ▾**, or the tab on the page's edge — *the desktop has none*, see **For the desktop**
+- ✅ **Contents panel** (the PDF's bookmarks) on the left: nested, click to go, right-click to read from there, the section on screen lit; `F9`, **Display ▾**, or the tab on the page's edge — *the desktop has one too since 18 September*
 - 🟡 Remember the reading position per document (sentence only)
 
 ## Reading aloud
@@ -79,11 +79,17 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 Features the browser has that the desktop app does not. Add them there too.
 
-- ⬜ **Open Word, OpenDocument and EPUB files** (`.docx`, `.odt`, `.epub`): laid out as PDFs, then read as them. Browser: `document_to_pdf` in `reader.py`
-- ⬜ **Open a plain text file** (`.txt`): laid out as a PDF, then read as one, notes and all. Browser: `text_to_pdf` in `reader.py`
-- ⬜ **Contents panel** (`F9`): the PDF's own bookmarks on the left, nested, the section on screen lit, click to go and right-click to read from there; hidden by its ‹ and brought back by a tab on the page's edge (the notes panel got the same › and tab). Browser: `js/contents.js`, `pages.outline`, `reader.first_sentence_from`
+The three that changed what the desktop app can do are done, all on 18
+September, and each left the browser better for it: two of them turned up bugs
+in *this* version that its own checks had been passing over. The hyphen fix in
+`ed8c125` is the third -- both apps said "nonstatus" for "non-status" until the
+desktop found it.
+
+- ✅ **Open Word, OpenDocument and EPUB files** (`.docx`, `.odt`, `.epub`) — done on the desktop 18 September. The conversion moved out of `reader.py` into the shared `convert.py`, so there is one copy and both lay a document out identically
+- ✅ **Open a plain text file** (`.txt`) — done on the desktop 18 September, with the above. The desktop also gained drag and drop, which it had never had for any file type
+- ✅ **Contents panel** (`F9`) — done on the desktop 18 September. Building it found that **this version was sending people to the wrong section**: a bookmark's destination point is measured from the bottom of the page, `pages.outline` read it as from the top, and `sample/test-paper.pdf` happens to store it from the top so nothing caught it. On a real journal PDF six of twelve entries were wrong. Fixed in `7acfab8`; `tools/check_outline.py` is the guard
 - ⬜ **Export notes** as Markdown. Browser: `notesText` in `js/notes.js`
-- ⬜ **Find in document** (`Ctrl`+`F`): every match lit, Enter / Shift+Enter / F3 between them, Match case, Esc leaves the match selected. Browser: `js/find.js`, and `find` / `found_on` in `reader.py`, which fold curly quotes, dashes and ligatures and rejoin words hyphenated across a line
+- ✅ **Find in document** (`Ctrl`+`F`) — done on the desktop 18 September. The search moved into the shared `document.py` as `Document.find`, and this version's `reader.py` now calls it instead of keeping a second copy that had already drifted
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`
 - ⬜ **The loose Highlight/Add note strip kept inside the window** while dragged and when the window shrinks — check whether the desktop's floating markup bar can be lost the same way

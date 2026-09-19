@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "01e6911bee33c730";
+const VERSION = "e5e7903418ef9160";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -38,6 +38,7 @@ const FILES = [
   "js/contents.js",
   "js/convert.js",
   "js/document-worker.js",
+  "js/download-count.js",
   "js/find.js",
   "js/mp3-worker.js",
   "js/notes-store.js",
@@ -63,6 +64,7 @@ const FILES = [
   "pages.py",
   "py/annotations.py",
   "py/citations.py",
+  "py/convert.py",
   "py/document.py",
   "py/layout.py",
   "py/speech.py",
