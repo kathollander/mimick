@@ -41,6 +41,7 @@
     const self = {
       busy: false, dead: false, openedFor: 0,
       step: null,          // how far Python has got: "python", "pdf", "ready", or "failed"
+      bytes: 0, fetching: 0,   // how much of Python it has downloaded, and files still coming (js/download-count.js)
       ask(message, transfer = []) {
         if (self.dead) return Promise.reject(new Error("the worker has stopped"));
         const id = nextId++;
@@ -52,6 +53,12 @@
     };
     worker.onmessage = ({ data }) => {
       if (data.type === "loading") { self.step = data.step; showLoading(); return; }
+      if (data.type === "downloaded") {
+        self.bytes = data.bytes;
+        self.fetching = data.open;
+        downloadedMore(data.bytes);
+        return;
+      }
       if (data.type === "ready") { self.step = "ready"; onReady(data); showLoading(); return; }
       const waiting = pending.get(data.id);
       if (data.type === "error" && !waiting) {
@@ -165,14 +172,29 @@
   // --- the progress bar -----------------------------------------------------------
   // In reader.html from the first paint, so a first visit is never a blank wait:
   // up while Python starts, and again while a document opens, until its
-  // sentences are built and the pages first on screen are drawn. Python's start
-  // gives no byte counts, so the bar moves by the steps each worker reports,
-  // weighted by what they download (the runtime ~11 MB, the PDF library ~18 MB),
-  // and creeps towards the next step between them so it never looks stuck.
+  // sentences are built and the pages first on screen are drawn. While Python
+  // starts, the bar is mostly the bytes downloaded -- the workers count them --
+  // and then the steps each worker reports once it has them. It creeps a little
+  // between, so it never looks stuck, but not so far that it looks done when
+  // the download is not: that was the first visit's bar on a slow connection.
 
-  const STEP_SHARE = { python: 0.4, pdf: 0.9, ready: 1 };
+  // What each Python worker downloads: the runtime, its standard library, the
+  // PDF library, the package list and our .py files (vendor/pyodide/, py/).
+  // Counted after gzip, so these are the files' own sizes; if they change, the
+  // bar is only a little off, and never past full.
+  const DOWNLOAD_BYTES = 29.7e6;
+  const STEP_SHARE = { python: 0.3, pdf: 0.9, ready: 1 };
+  const DOWNLOAD_SHARE = 0.85;   // of the bar, the bytes; the rest is Python starting
   let loading = null;          // { name, preparing, drawing } while a document opens
-  let barPhase = "", barShown = 0, barTarget = 0, barSince = performance.now(), barTimer = 0;
+  let barPhase = "", barShown = 0, barTarget = 0, barCreep = 0, barSince = performance.now(), barTimer = 0;
+  let mostBytes = 0, bytesSince = performance.now();
+
+  /* The workers share the browser's cache, so each one's count is how far the
+   * one download has got; the furthest along is the one to show. */
+  function downloadedMore(bytes) {
+    if (bytes > mostBytes) { mostBytes = bytes; bytesSince = performance.now(); }
+    showLoading();
+  }
 
   function showLoading() {
     const share = (w) => (w.dead ? 0 : STEP_SHARE[w.step] ?? 0);
@@ -184,13 +206,28 @@
     }
     if (loading && !loading.preparing && !loading.drawing) loading = null;
 
-    let phase = "", label = "", target = 0, detail = "";
+    let phase = "", label = "", target = 0, detail = "", creep = 0.2;
     if (starting) {
       phase = "start";
       label = loading ? `Getting ready, then opening ${loading.name}…` : "Getting Mimick ready…";
-      target = (share(reading) + Math.max(...pool.map(share))) / 2;
-      if (performance.now() - barSince > 8000) {
-        detail = "The first visit downloads about 30 MB, once. After that, Mimick starts faster.";
+      const got = Math.min(1, mostBytes / DOWNLOAD_BYTES);
+      target = Math.max(DOWNLOAD_SHARE * got, (share(reading) + Math.max(...pool.map(share))) / 2);
+      creep = 0.04;
+      const now = performance.now();
+      // Between its downloads Python is starting, not downloading; and from the
+      // cache a download is over in a moment. Only a real one is worth naming.
+      const fetching = [reading, ...pool].some((w) => !w.dead && w.fetching > 0);
+      if (fetching && got < 1 && now - barSince > 1500) {
+        if (!loading) label = "Downloading Mimick…";
+        detail = `${Math.round(mostBytes / 1e6)} of ${Math.round(DOWNLOAD_BYTES / 1e6)} MB. `
+          + "The first visit downloads this once; after that, Mimick starts in seconds.";
+        if (now - bytesSince > 20000) {
+          detail = `Nothing has arrived for ${Math.round((now - bytesSince) / 1000)} seconds, at `
+            + `${Math.round(mostBytes / 1e6)} of ${Math.round(DOWNLOAD_BYTES / 1e6)} MB. `
+            + "Check the connection; reloading the page keeps the files that finished.";
+        }
+      } else if (now - barSince > 8000) {
+        detail = "Starting Python in the browser. The first time takes longest.";
       }
     } else if (loading) {
       phase = "open:" + generation;
@@ -208,6 +245,7 @@
     bar.hidden = !phase;
     if (!phase) { clearInterval(barTimer); barTimer = 0; return; }
     barTarget = target;
+    barCreep = creep;
     barShown = Math.max(barShown, target);
     $("loading-label").textContent = label;
     $("loading-detail").textContent = detail;
@@ -215,7 +253,7 @@
     if (!barTimer) {
       barTimer = setInterval(() => {
         // Creep a little beyond the last step, slower the further it gets.
-        const cap = Math.min(0.95, barTarget + 0.2);
+        const cap = Math.min(0.95, barTarget + barCreep);
         if (barShown < cap) barShown += (cap - barShown) * 0.06;
         showLoading();
       }, 500);

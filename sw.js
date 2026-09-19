@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "e5e7903418ef9160";
+const VERSION = "373f6a036e340e92";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -161,6 +161,10 @@ self.addEventListener("message", (event) => {
   }
 });
 
+// Files being fetched into the cache right now, by path: a promise that
+// settles once each is kept (or could not be).
+const fetching = new Map();
+
 /* The headers that make the page cross-origin isolated. */
 function isolated(response) {
   if (response.status === 0) return response;      // opaque: nothing can be added
@@ -198,10 +202,22 @@ self.addEventListener("fetch", (event) => {
     }
     const kept = await cache.match(key);
     if (kept) return isolated(kept);
-    const response = await fetch(url.href);
     // A file of this version not cached yet (the second stage still going):
-    // keep it as it passes.
-    if (response.ok) event.waitUntil(cache.put(key, response.clone()));
-    return isolated(response);
+    // keep it as it passes. On a first visit every Python worker asks for the
+    // same 18 MB at once, and Firefox would download it once for each -- four
+    // times, on a slow line taking minutes. So only the first ask goes out;
+    // the others wait for it to be kept and are answered from the cache.
+    let keeping = fetching.get(key);
+    if (!keeping) {
+      const response = fetch(url.href);
+      // Cloned before the page reads the body: this callback runs before the await below.
+      keeping = response.then((r) => (r.ok ? cache.put(key, r.clone()) : null))
+        .catch(() => null).finally(() => fetching.delete(key));
+      fetching.set(key, keeping);
+      event.waitUntil(keeping);
+      return isolated(await response);
+    }
+    await keeping;
+    return isolated((await cache.match(key)) ?? await fetch(url.href));
   })());
 });

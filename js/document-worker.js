@@ -14,6 +14,8 @@
  *                                          and the text cursor
  * Messages out:
  *   { type: "loading", step }   "python", then "pdf", while Python starts
+ *   { type: "downloaded", bytes, open }   how much of Python it has downloaded so far,
+ *       and how many of its files are still coming in
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, textless, openMs }
  *       textless: the pages that are a picture with no words (reader.pages_without_text)
@@ -30,10 +32,11 @@
  * a time, in order -- the voice worker taught that (HANDOFF.md, trap 7) -- so a
  * question asked while a document opens simply waits for it.
  */
-importScripts("../vendor/pyodide/pyodide.js", "python.js");
+importScripts("download-count.js", "../vendor/pyodide/pyodide.js", "python.js");
 
 const base = new URL("../", self.location.href).href;
 const started = performance.now();
+const counted = countDownloads((bytes, open) => self.postMessage({ type: "downloaded", bytes, open }));
 const python = MimickPython.loadReadingPython({
   loadPyodide,
   readText: async (p) => {
@@ -43,7 +46,7 @@ const python = MimickPython.loadReadingPython({
   },
   pyodideDir: base + "vendor/pyodide/",
   onStep: (step) => self.postMessage({ type: "loading", step }),
-}).then((py) => {
+}).finally(counted).then((py) => {
   py.runPython("import reader");
   self.postMessage({ type: "ready", loadMs: performance.now() - started });
   return py;
