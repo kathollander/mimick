@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 18 September, after the launch and the first Firefox report from
+last updated 19 September, after the launch and the first Firefox report from
 someone else's computer. The session that did it ended cleanly: tree committed,
 the checks it touched passing, scratch files removed.
 
@@ -23,7 +23,7 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Start here: 18 September, the first report from outside
+## Start here: the first report from outside (17 September)
 
 Someone tried the live site **in Firefox, on their own computer**. Four things
 came back, and the fixes are in and deployed:
@@ -164,7 +164,7 @@ session that night -- `docs/HANDOFF.md`, `mimick/engines/piper.py` -- left alone
    (highlight kept over a reload, Save a copy and Export notes as downloads, a
    Word file; `--voice` to read aloud) -- all pass. Not tried there: Convert to
    MP3, media keys. Safari: nothing. **A person did try Firefox on their own
-   computer on 18 September** -- what came back, and what was done about it, is
+   computer on 17 September** -- what came back, and what was done about it, is
    in *Start here*.
 4. Work through the new sections at the top of `TESTING.md` -- every one of
    tonight's features is checked by a script, which says it works, not that it
