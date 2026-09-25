@@ -52,8 +52,13 @@ its real size; `js/voices.js` allows for that.
   refine it herself; don't rework it.
 - **The desktop recognises scans** (`Mimick-linux` `c9c83d6`) -- see
   `PARITY.md`.
+- **The desktop's history, squashed the same way: ready, for Kat to run.**
+  `../mimick-linux-squash-and-push.sh` (the session was not permitted to
+  force-push). Until it runs, don't push `Mimick-linux`: one local commit there
+  carries Kat's personal email. Pull requests #1 and #2 keep their old commits
+  on GitHub whatever happens; only GitHub Support can remove those.
 - **Still Kat's:** the four tab questions (`TABS.md`); the desktop's
-  LibreOffice decisions; whether the desktop repo is squashed too.
+  LibreOffice decisions.
 
 ## Earlier: Kat's list of 23 September, most of it built (24 September)
 
