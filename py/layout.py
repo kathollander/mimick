@@ -29,7 +29,7 @@ MIN_GAP_X = 10.0
 MIN_GAP_Y = 5.0
 MAX_DEPTH = 8
 # A designed three-column page sets its gutters tighter still -- 9.8pt in the
-# OESC governance guide. A gap that narrow only counts as a column break with a
+# governance guide it was found in. A gap that narrow only counts as a column break with a
 # real column on each side of it: a numbered list's numbers stand about as far
 # from their entries, and cutting there would read "1. 2. 3." and then the items.
 MIN_GUTTER_X = 6.0
