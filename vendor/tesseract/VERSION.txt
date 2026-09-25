@@ -1,0 +1,7 @@
+Text recognition (OCR) for scanned PDFs, all Apache-2.0, unmodified:
+  tesseract.js 7.0.0        dist/tesseract.min.js, dist/worker.min.js   https://github.com/naptha/tesseract.js
+  tesseract.js-core 7.0.0   tesseract-core-simd-lstm.wasm.js (Tesseract, compiled; the wasm is inside)
+  @tesseract.js-data/eng 1.0.0   4.0.0_best_int/eng.traineddata.gz (tessdata_best, integer), https://github.com/tesseract-ocr/tessdata_best
+LICENSE is Tesseract's Apache 2.0 licence, which covers all three. The bundles
+also carry MIT and BSD notices of their own (regenerator-runtime, buffer,
+ieee754, zlib.js), kept inside the minified files.

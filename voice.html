@@ -1,0 +1,289 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mimick spike — Piper in a tab</title>
+<!-- The reader's service worker, for the isolation headers threads need. -->
+<script src="js/offline.js"></script>
+<style>
+  :root { color-scheme: light dark; --ink:#14161a; --dim:#5d6470; --line:#d9dde3; --bg:#fbfbfc; --panel:#fff;
+          --good:#1f7a3f; --bad:#b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink:#e7e9ee; --dim:#98a0ad; --line:#2c313a; --bg:#15171b; --panel:#1c1f25;
+            --good:#6fcf8d; --bad:#f2837b; }
+  }
+  body { margin:0; padding:2rem 1rem 4rem; background:var(--bg); color:var(--ink);
+         font:14px/1.55 system-ui, sans-serif; }
+  main { max-width:52rem; margin:0 auto; }
+  h1 { font-size:1.3rem; margin:0 0 .3rem; }
+  h2 { font-size:1rem; margin:1.8rem 0 .5rem; }
+  p.lede { color:var(--dim); margin:0 0 1.2rem; max-width:44rem; }
+  .row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin:.6rem 0; }
+  button, select { font:inherit; padding:.5rem 1rem; border:1px solid var(--line);
+           border-radius:7px; background:var(--panel); color:var(--ink); cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  #state { font-family:ui-monospace, monospace; font-size:12.5px; color:var(--dim); }
+  .log { margin:.6rem 0; padding:.9rem 1rem; background:var(--panel); border:1px solid var(--line);
+         border-radius:8px; font-family:ui-monospace, monospace; font-size:12.5px;
+         white-space:pre-wrap; min-height:2.5rem; }
+  blockquote { margin:.6rem 0; padding:.2rem 1rem; border-left:3px solid var(--line); color:var(--dim); }
+  .good { color:var(--good); } .bad { color:var(--bad); }
+  :root { --mark:#ffe28a; --mark-ink:#14161a; }
+  @media (prefers-color-scheme: dark) { :root { --mark:#6b5a1e; --mark-ink:#fff6d8; } }
+  #passage span.now { background:var(--mark); color:var(--mark-ink); border-radius:3px; }
+  #passage span.said { color:var(--ink); }
+</style>
+
+<main>
+  <h1>Mimick spike: Piper in a tab</h1>
+  <p class="lede">
+    Step 2. A Piper voice runs in a Web Worker, entirely in this browser. The
+    question is whether it makes speech fast enough to read aloud at 4×, and
+    whether each word can be highlighted as it is spoken.
+  </p>
+  <p id="state">…</p>
+
+  <h2>1. Load the voice</h2>
+  <div class="row">
+    <label>Threads <select id="threads"></select></label>
+    <button id="load">Load en_US-norman-medium</button>
+  </div>
+  <div class="log" id="loadLog">Not loaded. The first load downloads 63 MB and keeps it in this browser.</div>
+
+  <h2>2. Measure</h2>
+  <p class="lede">Makes the passage below one sentence at a time at 4×, as the reader will: the voice,
+    then the speed-up that keeps its pitch. Speech made per second of work has to stay above 4.</p>
+  <blockquote id="passage"></blockquote>
+  <div class="row"><button id="measure" disabled>Measure</button></div>
+  <div class="log" id="measureLog">—</div>
+
+  <h2>3. Listen</h2>
+  <p class="lede">Reads the passage aloud, making each sentence just ahead of when it is needed, and
+    highlights each word in the passage above as it is spoken. A stall is a moment the voice had to
+    wait for the next sentence.</p>
+  <div class="row">
+    <button class="read" data-rate="1" disabled>Read at 1×</button>
+    <button class="read" data-rate="2" disabled>2×</button>
+    <button class="read" data-rate="3" disabled>3×</button>
+    <button class="read" data-rate="4" disabled>4×</button>
+    <button id="stop" disabled>Stop</button>
+  </div>
+  <div class="log" id="readLog">—</div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// Invented, and awkward on purpose: numbers, abbreviations, a quotation.
+const PASSAGE = [
+  "The survey reached 1,204 households across three river valleys in the spring of 1998.",
+  "Most of them had never been asked, in any formal way, how the land around them should be used.",
+  "Dr. Osei's team recorded each conversation, then returned a year later to read the notes back aloud.",
+  "“That is not what we said,” one elder told them, “that is what you heard.”",
+  "The second round took longer, but 42% of the answers changed in ways the first had missed.",
+  "Nothing about the method is new; what is new is taking the correction as the result.",
+  "Section 5.2 sets out the numbers, and the appendix gives every question as it was asked.",
+  "The short version is simple enough: listen twice, and write down the second answer.",
+];
+// One span per word, split the way the voice's marks are: on whitespace.
+const wordSpans = PASSAGE.map((sentence, s) => sentence.split(/\s+/).map((word) => {
+  const span = document.createElement("span");
+  span.textContent = word;
+  return span;
+}));
+wordSpans.forEach((spans, s) => spans.forEach((span, w) => {
+  $("passage").append(span, " ");
+}));
+
+const cores = navigator.hardwareConcurrency || 1;
+for (const n of [...new Set([1, 2, 4, cores])].filter((n) => n <= cores).sort((a, b) => a - b)) {
+  const o = new Option(n === cores ? `${n} (all cores)` : String(n), n);
+  $("threads").append(o);
+}
+$("threads").value = Math.min(4, cores);
+
+const isolated = window.crossOriginIsolated === true;
+$("state").innerHTML =
+  `Cross-origin isolated: <b class="${isolated ? "good" : "bad"}">${isolated ? "yes" : "no"}</b>` +
+  (isolated ? " — threads available. <a href='?coi=0'>Try without the service worker</a>"
+            : " — one thread only. <a href='?'>Try with the service worker</a>") +
+  ` · ${cores} cores`;
+
+let worker = null, pending = new Map(), nextId = 0;
+const speak = (text, rate = 1) => new Promise((resolve, reject) => {
+  const id = nextId++;
+  pending.set(id, { resolve, reject });
+  worker.postMessage({ type: "speak", id, text, rate });
+});
+
+// Web Audio, not <audio>: Chrome will not start an <audio> element in a tab
+// that has never been in front, and a reader gets left playing behind other
+// tabs. The context is made on a click, which is what lets it make sound.
+let context = null;
+
+$("load").onclick = () => {
+  context ??= new AudioContext();
+  context.resume();
+  if (worker) worker.terminate();
+  pending.forEach((p) => p.reject(new Error("voice reloaded")));
+  pending = new Map();
+  setReady(false);
+  const threads = Number($("threads").value);
+  $("loadLog").textContent = `Loading with ${threads} thread${threads > 1 ? "s" : ""} …`;
+  worker = new Worker("js/piper-worker.js");
+  worker.onmessage = ({ data }) => {
+    if (data.type === "progress") {
+      const mb = (n) => (n / 1048576).toFixed(0);
+      $("loadLog").textContent = `Downloading the voice: ${mb(data.loaded)} of ${mb(data.total)} MB`;
+    } else if (data.type === "ready") {
+      $("loadLog").textContent =
+        `Ready in ${(data.loadMs / 1000).toFixed(1)}s — ${data.cached ? "from this browser's cache" : "downloaded and verified"}, ` +
+        `running on ${data.threads} thread${data.threads > 1 ? "s" : ""}` +
+        (data.threads < threads ? ` (asked for ${threads}; not cross-origin isolated)` : "");
+      setReady(true);
+    } else if (data.type === "spoken") {
+      pending.get(data.id)?.resolve(data);
+      pending.delete(data.id);
+    } else if (data.type === "error") {
+      if (data.id !== undefined && pending.has(data.id)) {
+        pending.get(data.id).reject(new Error(data.message));
+        pending.delete(data.id);
+      } else {
+        $("loadLog").textContent = "FAILED: " + data.message;
+      }
+    }
+  };
+  worker.onerror = (e) => { $("loadLog").textContent = "FAILED: " + (e.message || "the worker did not start"); };
+  worker.postMessage({ type: "load", voice: "en_US-norman-medium", threads });
+};
+
+function setReady(ready) {
+  $("measure").disabled = !ready;
+  document.querySelectorAll(".read").forEach((b) => (b.disabled = !ready));
+}
+
+$("measure").onclick = async () => {
+  const log = $("measureLog");
+  $("measure").disabled = true;
+  const lines = [];
+  const say = (s) => { lines.push(s); log.textContent = lines.join("\n"); };
+  try {
+    // The first sentence after loading is slower while the runtime warms up;
+    // it is shown but kept out of the total, which is what reading sustains.
+    let audio = 0, work = 0;
+    for (let i = 0; i < PASSAGE.length; i++) {
+      const r = await speak(PASSAGE[i], 4);
+      const spent = r.phonemizeMs + r.inferMs + r.timingMs + r.stretchMs;
+      if (i > 0) { audio += r.audioMs; work += spent; }
+      say(`${String(i + 1).padStart(2)}  ${(r.audioMs / 1000).toFixed(1).padStart(4)}s of speech in ` +
+          `${(spent / 1000).toFixed(2)}s  (phonemes ${r.phonemizeMs.toFixed(0)} ms, word timing ${r.timingMs.toFixed(0)} ms` +
+          `${r.exactTiming ? "" : " ESTIMATED"}, speed-up ${r.stretchMs.toFixed(0)} ms)  ` +
+          `${(r.audioMs / spent).toFixed(1)}×${i === 0 ? "  warm-up" : ""}`);
+    }
+    const ratio = audio / work;
+    say("");
+    say(`Sustained: ${ratio.toFixed(1)}× real time. ` +
+        (ratio >= 4 ? "4× holds, with " + ((ratio / 4 - 1) * 100).toFixed(0) + "% to spare."
+                    : `4× does not hold here; ${ratio.toFixed(1)}× is the ceiling.`));
+  } catch (err) {
+    say("FAILED: " + err.message);
+  } finally {
+    $("measure").disabled = false;
+  }
+};
+
+let reading = null;
+document.querySelectorAll(".read").forEach((b) => (b.onclick = () => read(Number(b.dataset.rate))));
+$("stop").onclick = () => reading?.stop();
+
+async function read(rate) {
+  reading?.stop();
+  const log = $("readLog");
+  const lines = [];
+  const say = (s) => { lines.push(s); log.textContent = lines.join("\n"); };
+  let stopped = false, source = null, finish = null;
+  const session = reading = { stop() { stopped = true; try { source?.stop(); } catch {} finish?.(); } };
+  $("stop").disabled = false;
+
+  // Ask for every sentence up front. The worker makes them in order, one at a
+  // time, as far ahead as it can get; the reader plays whatever is ready and
+  // waits when nothing is. Stopping does not cancel what is already queued.
+  const made = PASSAGE.map((text) => speak(text, rate));
+
+  // What an ear would notice, checked without one: every sentence carries
+  // sound, and each plays for as long as its sped-up audio lasts. A muted
+  // machine still plays, so this holds whether or not anyone can hear it.
+  let stalls = 0, stalledMs = 0, quiet = 0, expectedMs = 0, playedMs = 0;
+  // The highlight, and a record of it: how many words it reached, whether it
+  // ever went backwards, and how many sentences had exact timings.
+  let lit = 0, words = 0, backwards = 0, exactSentences = 0, worstLateMs = 0;
+  // A hidden tab gets no animation frames; fall back to a timer, which the
+  // browser slows right down -- the lateness figure below will show it.
+  const nextFrame = (fn) => (document.hidden ? setTimeout(fn, 10) : requestAnimationFrame(fn));
+  const cancelFrame = (id) => { cancelAnimationFrame(id); clearTimeout(id); };
+  document.querySelectorAll("#passage span").forEach((s) => s.classList.remove("now", "said"));
+  const started = performance.now();
+  try {
+    for (let i = 0; i < PASSAGE.length && !stopped; i++) {
+      const t = performance.now();
+      const r = await made[i];
+      const waited = performance.now() - t;
+      // Anything more than a blink is audible as a gap, except before the first.
+      if (i > 0 && waited > 50) { stalls++; stalledMs += waited; say(`  stalled ${waited.toFixed(0)} ms before sentence ${i + 1}`); }
+      if (stopped) break;
+      let peak = 0;
+      for (const s of r.samples) peak = Math.max(peak, Math.abs(s));
+      if (peak < 0.05) { quiet++; say(`  sentence ${i + 1} is silent (peak ${peak.toFixed(3)})`); }
+      const buffer = context.createBuffer(1, r.samples.length, r.sampleRate);
+      buffer.copyToChannel(r.samples, 0);
+      source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      const playStart = performance.now();
+      words += r.marks.length;
+      if (r.exactTiming) exactSentences++;
+      const spans = wordSpans[i];
+      let shown = -1, frame = 0;
+      const startedAt = context.currentTime + 0.02;
+      // Follow the audio clock, not the page's: it is what the ear hears.
+      const follow = () => {
+        const heardMs = (context.currentTime - startedAt) * 1000;
+        let k = shown;
+        while (k + 1 < r.marks.length && r.marks[k + 1].heardAtMs <= heardMs) k++;
+        if (k < shown) backwards++;
+        if (k !== shown) {
+          worstLateMs = Math.max(worstLateMs, heardMs - r.marks[shown + 1].heardAtMs);
+          if (shown >= 0) spans[r.marks[shown].index]?.classList.replace("now", "said");
+          spans[r.marks[k].index]?.classList.add("now");
+          lit += k - shown;
+          shown = k;
+        }
+        frame = nextFrame(follow);
+      };
+      await new Promise((resolve) => {
+        finish = resolve;
+        source.onended = resolve;
+        source.start(startedAt);
+        frame = nextFrame(follow);
+      });
+      cancelFrame(frame);
+      if (shown >= 0) spans[r.marks[shown].index]?.classList.replace("now", "said");
+      if (!stopped) { playedMs += performance.now() - playStart; expectedMs += r.heardMs; }
+    }
+    say(`${stopped ? "Stopped" : "Finished"} at ${rate}× after ${((performance.now() - started) / 1000).toFixed(1)}s — ` +
+        (stalls ? `${stalls} stall${stalls > 1 ? "s" : ""}, ${(stalledMs / 1000).toFixed(1)}s in all` : "no stalls"));
+    if (!stopped) {
+      const off = playedMs / expectedMs;
+      say(`Highlighted ${lit} of ${words} words${backwards ? `, going back ${backwards} times` : ", never going back"}; ` +
+          `at worst ${worstLateMs.toFixed(0)} ms after the voice reached a word; ` +
+          `timings exact in ${exactSentences} of ${PASSAGE.length} sentences.`);
+      say(`Sound in ${PASSAGE.length - quiet} of ${PASSAGE.length} sentences. Played for ${(playedMs / 1000).toFixed(1)}s ` +
+          `against ${(expectedMs / 1000).toFixed(1)}s expected at ${rate}× — ` +
+          (Math.abs(off - 1) < 0.1 ? "the rate is honoured." : `off by ${((off - 1) * 100).toFixed(0)}%.`));
+    }
+  } catch (err) {
+    say("FAILED: " + err.message);
+  } finally {
+    if (reading === session) { reading = null; $("stop").disabled = true; }
+  }
+}
+</script>

@@ -1,0 +1,219 @@
+# Roadmap
+
+What the browser version needs, in the order it should happen. Written 17
+September 2026, after the code review of that day. `PARITY.md` is the list of
+desktop features; this is the list of what a free read-aloud reader needs
+whether or not the desktop app has it.
+
+**It shipped on 17 September**: <https://kathollander.github.io/mimick/reader.html>,
+release `v1.0.0`. Ship 1 is done and out; what is below still says what comes
+next, and the first report from someone else's computer is in `HANDOFF.md`,
+*Start here*.
+
+**The goal is to ship fast.** Kat's classmates include neurodivergent readers
+who could use this for their readings now. Ship 1 is the smallest thing that
+is safe to hand them; everything else waits. Do not start a Ship 2 item while
+a Ship 1 item is open.
+
+Work through each item, tick it here, and note in `HANDOFF.md` anything the
+next session needs to know. Where an item says *your call*, decide, do it, and
+write the reason down -- do not stop to ask.
+
+## Ship 1 -- to classmates
+
+**0. ✅ The review fixes** in `HANDOFF.md`, *To do first*. Broken sample path,
+`voice.html`, the default voice, the personal-information sweep, the licence
+table. Nothing below until these are done and every check passes.
+
+**1. ✅ Find in document, `Ctrl`+`F`.** Done 17 September: `js/find.js`, `reader.find` / `found_on`, `tools/check_find.mjs`. Non-negotiable. A box in the top bar (or
+a strip under it, as Chrome's own); typing highlights every match on the
+page, `Enter` / `Shift`+`Enter` move between them, the page scrolls to the
+current one, a count ("3 of 41"), `Esc` closes. Match case off by default.
+The worker already holds every sentence's words and rectangles
+(`reader.py`), so the search is over that text and the highlights reuse the
+selection drawing in `js/reader.js`. Right-click a match → *Start reading
+from here* should work, since a match is a place on the page.
+
+**2. ✅ Works offline, installs as an app.** Done 17 September: `sw.js` (one worker, isolation headers and the cache), `js/offline.js`, `manifest.json`, `icons/`, `tools/stamp_offline.py`, `tools/check_offline.mjs`; see `HANDOFF.md`, *Offline*. Today nothing is cached:
+`coi-serviceworker.js` only sets the isolation headers, and the 62 MB in
+`vendor/` is fetched again whenever Chrome's cache lets go of it. Voice
+models are already kept in IndexedDB. Needed: a service worker that
+precaches `reader.html`, `js/`, `vendor/`, `voices/*.mp3` and `py/` on
+first load, with a version stamp so an update replaces them all at once and
+never mixes old and new scripts (trap 10); a `manifest.json` with a name and
+icon so Chrome offers **Install**; and a line in the bottom bar or About
+saying "Ready to work offline" once the cache is full. Keep the isolation
+headers -- the two can be one worker or two, *your call*. Test by loading
+once, stopping `serve.py`, reloading.
+
+**3. ✅ Browser support, and a How to use.** Done 17 September, in `README.md` and About; Firefox and Safari still untried by hand. In `README.md` and in About: built
+and tested on Chrome; Brave, Edge and other Chromium browsers work the same.
+Firefox and Safari are untested -- `showSaveFilePicker` does not exist there
+(the code already falls back to a download) and the page needs
+`SharedArrayBuffer`, which needs the isolation headers; note what a user
+would see. Then a **How to use** section, short: open a file, press Space,
+change the voice and speed, click a sentence, highlight, notes, download a
+copy, and that the first voice is a one-time 60 MB download. Screenshots are
+fine if they show the sample PDF, not a real reading.
+
+**4. ✅ Privacy, in About and the README.** Done 17 September. One paragraph: every document stays
+on this computer; nothing is uploaded; the only network use is downloading a
+voice from Hugging Face once, and the page itself. Notes and positions are
+kept in this browser's storage and nowhere else. (Item 2 makes this stronger:
+after first load, no network at all.)
+
+**5. ✅ Plain text, `.txt`.** Done 17 September: `reader.text_to_pdf` (a PyMuPDF `Story`, line breaks kept), `openText` in `js/reader.js`, known by a hash of the text so notes come back; `tools/check_text.mjs`. Open it the same way as a PDF (button, `Ctrl`+`O`,
+drop). Turn it into pages so the rest of the reader needs no change: PyMuPDF
+can lay text out as a PDF in the worker (`fitz.Story` or
+`Page.insert_htmlbox`), and then it *is* a PDF as far as `document.py` is
+concerned, highlights and notes included. Same pipeline for item 8 later.
+
+**6. ✅ A PDF with no text.** Done 17 September: the status line and Read aloud's tooltip say so; a PDF with words but nothing set to be read says how to choose (and the reading order now works on it); `tools/check_scan.mjs`. A scanned PDF without a text layer opens with zero
+sentences and a greyed-out Read aloud, and says nothing. Detect it after open
+and say "This PDF has no text to read -- it may be a scan without OCR."
+OCR itself is Ship 3.
+
+**7. ✅ Save, in File ▾.** Done 17 September: **Save a copy (PDF)…** and **Export notes…** (Markdown), in File ▾ and Notes ▾; PDF only for the document, reason in `PARITY.md`. Chrome's save window where it exists, a download elsewhere (`saveFile` in `js/notes.js`). Today `Ctrl`+`S` is *Download a copy*, a PDF with the
+highlights and notes as annotations. Make File ▾ say what it does: **Save a
+copy (PDF)**. Other output formats -- `.docx`, `.odt`, `.txt` -- are *your
+call*, with this guidance: notes and highlights are PDF annotations tied to
+rectangles on a page, and there is no faithful way to carry them into a
+flowing document; a `.docx` "copy" of a PDF is also a poor copy of the
+original. The likely right answer is PDF only for the document, plus
+**Export notes** as Markdown or plain text (the passage, the note, the page)
+for people who want their notes elsewhere. If you go another way, write the
+reason in `PARITY.md`.
+
+**8. ✅ Media keys.** Done 17 September: `mediaState` and `mediaKeys` in `js/reader.js`, `tools/check_media.mjs`. The Media Session API: play/pause/next/previous from a
+keyboard's media keys and the browser's own media controls. About ten lines
+in `js/reader.js` beside the existing key handling; the "next" and
+"previous" actions are the existing ↶ ↷.
+
+**9. ✅ Voice credits in About.** Done 17 September, from each voice's `MODEL_CARD` at the pinned revision., as the licences ask (CC BY, BY-SA, BY-NC-SA):
+voice name, dataset, licence, link. `voices/README.md` is the source once
+item 0 has fixed its table.
+
+Then Kat makes the repository public and sends the link.
+
+## Ship 2 -- the next month
+
+- ✅ **Word, OpenDocument and EPUB, read-only.** Done 17 September, without
+  `mammoth.js`: MuPDF 1.28 opens `.docx` and `.epub` itself (laid out on A4,
+  then `convert_to_pdf`), and `.odt` is turned into HTML in `reader.py` and set
+  with a `Story`. Headings become the contents panel. Lists lose their bullets
+  in Word files and tables lose their borders. `tools/check_documents.mjs`.
+  *The original plan, kept for the record:*
+  **Word and OpenDocument, `.docx` and `.odt`, read-only.** Same path as
+  `.txt`: convert to a PDF in the worker, then it is a PDF. `.docx` is a zip
+  of XML; `mammoth.js` turns it into clean HTML, which `insert_htmlbox` can
+  lay out; `.odt` is the same shape with different XML and no ready library.
+  Images, tables and footnotes will be rough at first; say so in the README.
+  Not editable, ever -- this is a reader.
+- **Read aloud while a long document is still opening** -- *a plan, 17 September,
+  not started (it changes the desktop's shared `document.py`, which had another
+  session's uncommitted work in it that night).* Measured on a 400-page, 145,600-word
+  PDF in the desktop's Python: `layout.analyse` over every page took 0.74 s,
+  building words and sentences 3.28 s -- the analysis is the cheap fifth. So:
+  (1) `Document(..., build=False)` runs `layout.analyse` for every page as now,
+  so regions -- and with them every word's order and `readable` flag -- are
+  final from the start; (2) `build_pages(upto)` adds the words of the next
+  pages exactly as `_build_sentences` does (indices carry on from
+  `len(self.words)`, so they match a full build) and emits every *finished*
+  readable run, holding back the last one, which may carry on to the next page
+  (`carries_on`); (3) `_mark_hyphenation` checks only the new words and the pair
+  across the join; (4) the constructor with `build=True` calls `build_pages` for
+  all pages, so the desktop is unchanged unless it opts in. A run is chunked
+  only once complete, so sentence indices match too. In the browser, the
+  document worker answers `open` after the first ~20 pages with a `partial`
+  flag and keeps building between messages; Read aloud works on what exists
+  (the player already asks for sentences in chunks), while highlights, Find,
+  Convert and the reading order wait for `complete`. Check it with
+  `check_reading.mjs`: the sentences after a paged build must equal a full
+  build's, word for word and index for index.
+  *The original note:* **Read aloud while a long document is still opening** (`HANDOFF.md`,
+  *Next*, item 2). 45 s of a greyed-out button on a big book is the first
+  thing a new user with a big file hits. Needs a change in the desktop's
+  `document.py`, then a port.
+- ✅ **The PDF's outline** (table of contents) in a side panel. Done 17 September,
+  ahead of its turn because Kat asked for it: `js/contents.js`, `F9`, a tab on
+  the page's left edge.
+- ✅ **Open Recent** in File ▾. Done 17 September: `js/recent.js`, `tools/check_recent.mjs`.
+- ✅ **Keep scroll and zoom per document**, and **Forget this document**. Done 17 September; `tools/check_forget.mjs`.
+- **Export notes** as Markdown, if item 7 did not already do it.
+- 🟡 **The page's own accessibility.** Done 17 September: light theme
+  (Night by default since 17 September; Display ▾ → Theme or the quick switches), reduced motion, a name in
+  words on every control (`tools/check_access.mjs`). Colour-blind check of the
+  highlights: measured, not changed -- see `HANDOFF.md`. Still to do: a real
+  keyboard-only and screen-reader pass with a classmate who uses them, and the
+  panels' own keyboard navigation (arrow keys in the contents tree).
+  *The plan:* A light theme following
+  `prefers-color-scheme`; honour `prefers-reduced-motion`; visible focus
+  rings and `aria-label`s on every control so the page can be driven by
+  keyboard and screen reader; check the four highlight colours are
+  distinguishable to colour-blind readers. Ask a classmate who uses these to
+  try it.
+- ✅ **A pronunciation list**. Done 17 September: Reading ▾ → How to say
+  words…, or right-click a selected word; `js/pronounce.js`, applied in the
+  voice worker, so Convert to MP3 uses it too. `tools/check_say.mjs`. *The plan:*
+  **A pronunciation list**, per user: a word and how to say it, applied
+  before the phonemizer. Names and jargon are where voices stumble.
+
+- ✅ **A guided tour**, done 17 September, asked for by Kat: **Show me around**
+  on the front page and **Help ▾ → Take the tour**. Fourteen steps on the
+  sample poem, each done with the reader's own keys and clicks, with Skip and a
+  way out at every step. `js/tour.js`, `tools/check_tour.mjs`; `HANDOFF.md`,
+  *The tour*.
+
+## Ship 3 -- later
+
+- ✅ **OCR for scanned PDFs** -- done 17 September: Reading ▾ → Recognise text in
+  this scan (it moved out of File ▾ the same night; this line said File ▾ until
+  23 September, and cost a session). `js/ocr.js`, `vendor/tesseract` (6.8 MB, Apache-2.0),
+  `reader.add_text_layer`; kept per document, so it happens once.
+  `tools/check_ocr.mjs`. Not yet: running ahead of the reading page by page,
+  as planned below -- it reads every page first (about 2 s a page here). *Was:*
+  **OCR for scanned PDFs** in the browser (`tesseract.js`), producing a text
+  layer the reader can use. Slow; run it page by page ahead of the reading.
+- ✅ **EPUB** -- done with Word, above. *Was:* Reflowable; would need its own page maker, or the same
+  convert-to-PDF path at a fixed page size.
+- **Other languages.** Piper has many; the cleanup in `document.py` and the
+  reading-time constant are English-tuned.
+- ✅ **A sleep timer**: done 17 September -- Reading ▾ → Stop reading, after 15/30/60
+  minutes or at the end of this page or section; it pauses between sentences.
+  `tools/check_sleep.mjs`. **Skip back 10 seconds**: not done (← already goes back a sentence).
+- 🟡 **Firefox and Safari** properly, if people ask. Firefox passes `tools/check_firefox.mjs` (17 September); Safari untried.
+
+## ✅ Opening more kinds of file
+
+Asked for by Kat on 19 September: `.txt`, `.html`, `.md` and other simple
+files, and importing a PowerPoint or Impress presentation as a PDF that can be
+saved -- in this app *and* the desktop one. The conversion is shared code, so
+it was written in `../Mimick-linux` first, as always.
+
+**Done in this app on 21 September** (`ffc4db5`, from the shared side's
+`849d778` and `e43be34`). Mimick now opens, besides a PDF: `.docx`, `.odt`,
+`.rtf`, `.epub`, `.fb2`, `.md`, `.html`/`.htm`/`.xhtml`, `.txt`, and `.pptx` /
+`.ppsx` / `.odp` a page per slide. Each becomes a PDF, so reading, highlights,
+notes, Find, the contents panel and **Save a copy** all follow -- which is what
+answers "converts the thing into a PDF that we can save".
+
+Measured here, in the browser: Kat's 9.5 MB, 32-slide deck opens in 5.3 s and
+her 29 MB, 67-slide one in 9.2 s, both with a contents entry per slide and no
+errors on the page. `tools/check_documents.mjs` covers all seven document
+kinds and both deck kinds; six of the seven samples say exactly the same
+words, which is the point of them. `check_offline` passes with `py/slides.py`
+in the precache.
+
+The limitations to tell people about, and the three decisions still waiting on
+Kat -- LibreOffice or ours on the desktop, speaker notes, `.doc` -- are in
+`../Mimick-linux/docs/MORE-FILE-KINDS.md`. None of those three change this app:
+`.ppt` cannot be opened here at all, since it needs LibreOffice to read it.
+
+✅ **A bar from the moment a file is chosen** (`5e927d9`, Kat's ask after
+testing her deck). Before this, a deck showed nothing for its several seconds,
+since the bar only started once there was a PDF to open. A deck now counts its
+slides; the other kinds creep. What it does not do is make a deck any quicker
+-- nine seconds for 67 slides is still nine seconds, and a 50 MB deck on a
+phone is still a lot to hold in memory. Faster would be separate work: the
+slides are drawn one after another in one worker, and nothing has been tried
+to change that.

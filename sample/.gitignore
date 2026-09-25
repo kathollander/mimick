@@ -1,0 +1,24 @@
+# This repository is public, and this folder is where a Save a copy, or a file
+# dragged in while trying something out, naturally lands. On 21 September one of
+# Kat's lecture decks and a PDF saved from it ended up here and went into a
+# commit with a `git add -A`; a push would have published both.
+#
+# So nothing here is committed unless it is named below. Adding a sample means
+# adding its name here as well, which is the point -- it cannot happen by
+# accident, only on purpose.
+*
+!.gitignore
+!expected-native.json
+!expected-phonemes.json
+!expected-reading.json
+!sample.pdf
+!test-paper.pdf
+!test-document.docx
+!test-document.epub
+!test-document.fb2
+!test-document.html
+!test-document.md
+!test-document.odt
+!test-document.rtf
+!test-slides.odp
+!test-slides.pptx

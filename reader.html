@@ -1,0 +1,943 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mimick</title>
+<link rel="icon" type="image/png" href="icons/icon-64.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#191d24">
+<meta name="description" content="A PDF reader that reads aloud in natural voices, with each word lit as it is spoken. Everything stays on your computer.">
+<!-- Kept for offline use, and cross-origin isolated so the voice gets threads,
+     which GitHub Pages can only give through a service worker: sw.js. -->
+<script src="js/offline.js"></script>
+<!-- The theme chosen under Display, before anything is drawn, so it never flashes the other one. Night (dark) unless one is kept. -->
+<script>try { const t = localStorage.getItem("mimick-theme"); if (t === "light" || t === "system") document.documentElement.dataset.theme = t; } catch { /* night */ }</script>
+<style>
+  /* The desktop app's colours, from mimick/ui/theme.py, and a light set beside
+     them. Night (dark) unless Display ▾ → Theme or the switches strip picks Day
+     (data-theme="light") or the system's choice (data-theme="system"), set on
+     <html> by js/reader.js. The page itself stays white either way: it is the document. */
+  :root {
+    color-scheme: dark;
+    --backdrop: #101216; --panel: #191d24; --panel-hi: #222732; --border: #2b313d;
+    --text: #e7eaf0; --dim: #98a1b3; --accent: #5b9dff; --hover: #2b3140; --pressed: #333b4d;
+    --disabled: #5c6577; --hover-border: #3a4152; --disabled-bg: #1c2029; --on-accent: #0b1220;
+    --accent-hover: #6fa9ff; --scroll: #39404f; --scroll-hover: #495265; --side: #1a1d23; --strong: #ffffff;
+    --caret: #7fb4ff; --shadow: rgba(0, 0, 0, .4); --tour: #ff6b6b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root[data-theme="system"] {
+      color-scheme: light;
+    --backdrop: #d9dde3; --panel: #f7f8fa; --panel-hi: #eceef2; --border: #cfd4dc;
+    --text: #1b1f27; --dim: #586072; --accent: #1f66d6; --hover: #e2e6ec; --pressed: #d5dae2;
+    --disabled: #9aa2af; --hover-border: #b6bcc7; --disabled-bg: #eff1f4; --on-accent: #ffffff;
+    --accent-hover: #2f78e8; --scroll: #aeb5c0; --scroll-hover: #939baa; --side: #f1f3f6; --strong: #000000;
+    --caret: #1f66d6; --shadow: rgba(40, 48, 60, .22); --tour: #d93a3a;
+    }
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --backdrop: #d9dde3; --panel: #f7f8fa; --panel-hi: #eceef2; --border: #cfd4dc;
+    --text: #1b1f27; --dim: #586072; --accent: #1f66d6; --hover: #e2e6ec; --pressed: #d5dae2;
+    --disabled: #9aa2af; --hover-border: #b6bcc7; --disabled-bg: #eff1f4; --on-accent: #ffffff;
+    --accent-hover: #2f78e8; --scroll: #aeb5c0; --scroll-hover: #939baa; --side: #f1f3f6; --strong: #000000;
+    --caret: #1f66d6; --shadow: rgba(40, 48, 60, .22); --tour: #d93a3a;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .page .caret { animation: none !important; }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  /* A column: the bars and strips as tall as they need, the page area the rest. */
+  body { display: flex; flex-direction: column; background: var(--backdrop); color: var(--text);
+         font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+
+  .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+         padding: 8px 14px; background: var(--panel); }
+  header.bar { border-bottom: 1px solid var(--border); }
+  footer.bar { border-top: 1px solid var(--border); padding-bottom: 10px; }
+  .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .centre { display: flex; align-items: center; gap: 8px; }
+  .right { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 0; }
+  .brand { flex-shrink: 0; font-weight: 600; letter-spacing: .2px; padding-right: 10px; border-right: 1px solid var(--border); }
+  /* The quick switches: one row of small toggles under the top bar, opened by ⌄ at its right end. */
+  #switches { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 4px 14px;
+              background: var(--panel); border-bottom: 1px solid var(--border); }
+  #switches .sep { width: 1px; align-self: stretch; margin: 3px 6px; background: var(--border); }
+  #switches button { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; font-size: 12px;
+                     color: var(--dim); background: transparent; border-color: transparent; border-radius: 999px; }
+  #switches button:hover:not(:disabled) { color: var(--text); background: var(--hover); border-color: var(--hover-border); }
+  #switches button[aria-pressed="true"] { color: var(--text); background: var(--panel-hi); border-color: var(--border); }
+  #switches button[aria-pressed="true"] svg { color: var(--accent); }
+  #switches button:disabled { background: transparent; color: var(--disabled); }
+  /* Night or day is not on or off: always drawn plainly, never greyed. */
+  #switches #sw-theme { color: var(--text); }
+  /* Short of room, the icons alone; the words stay for screen readers and in each tooltip. */
+  @media (max-width: 1150px) {
+    #switches button span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    #switches button { padding: 4px 8px; }
+  }
+  #switches svg, #switches-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7;
+                                        stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  #switches-toggle { display: inline-grid; place-items: center; }
+  #switches-toggle svg { transition: transform .15s; }
+  #switches-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+  @media (prefers-reduced-motion: reduce) { #switches-toggle svg { transition: none; } }
+  .dim { color: var(--dim); }
+  /* The document's title, in the bottom bar beside the zoom. It takes whatever room is left, and
+     none if there is none: it is also the tab's name, so nothing is lost when it is squeezed out. */
+  #title { flex: 1 1 0; width: 0; min-width: 0; padding-right: 6px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.bar { grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); }
+  header.bar button { white-space: nowrap; }
+  /* The voice box shows the name and the start of how it reads; the list, when open, is as wide as it
+     needs to be to show all of it. Shorter still on a short bar. */
+  #voice { width: 13em; text-overflow: ellipsis; }
+  @media (max-width: 1150px) { header.bar label.dim { display: none; } #voice { width: 10em; } }
+  #status { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #status-file { flex-shrink: 0; white-space: nowrap; padding-left: 10px; }
+  #status-do { flex-shrink: 0; white-space: nowrap; margin-left: 10px; padding: 1px 10px; font-size: 12px; }
+  #reading-time { flex-shrink: 0; white-space: nowrap; padding-right: 10px; border-right: 1px solid var(--border); cursor: default; }
+
+  button, input, select { font: inherit; color: var(--text); background: var(--panel-hi);
+                  border: 1px solid var(--border); border-radius: 6px; }
+  button { padding: 5px 12px; cursor: pointer; }
+  button:hover { background: var(--hover); border-color: var(--hover-border); }
+  button:active { background: var(--pressed); }
+  button:disabled { color: var(--disabled); background: var(--disabled-bg); cursor: default; }
+  button.square { width: 32px; padding: 5px 0; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+  button.primary:hover { background: var(--accent-hover); }
+  button.primary:disabled { background: var(--disabled-bg); border-color: var(--border); color: var(--disabled); }
+  input[type=number] { width: 64px; padding: 5px 6px; text-align: right; }
+  input[type=range] { width: 120px; accent-color: var(--accent); }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  #main { position: relative; flex: 1 1 0; display: grid; grid-template-columns: auto 1fr auto; min-height: 0; }
+  /* Placed by hand: a hidden panel must not let the page slide into its column. */
+  #contents { grid-area: 1 / 1; } #view { grid-area: 1 / 2; } #notes { grid-area: 1 / 3; }
+  #view { position: relative; overflow: auto; outline: none; }
+  #view::-webkit-scrollbar { width: 12px; height: 12px; }
+  #view::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 6px; border: 2px solid var(--backdrop); }
+  #view::-webkit-scrollbar-thumb:hover { background: var(--scroll-hover); }
+  #view::-webkit-scrollbar-corner { background: var(--backdrop); }
+  #pages { position: relative; }
+  .page { position: absolute; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+  .page canvas { position: relative; width: 100%; height: 100%; display: block; }
+  /* Under the canvas, which covers it once the page is drawn: a page still being
+     drawn says so, rather than standing there blank. */
+  .page::before { content: "Drawing this page…"; position: absolute; inset: 0; display: grid; place-items: center;
+                  padding: 24px; text-align: center; color: #7c8290; font: 15px/1.4 system-ui, sans-serif; }
+  .page[data-failed]::before { content: "This page could not be drawn. Zoom in or out to try again."; color: #b3403c; }
+
+  /* The progress bar: over the page area, from the first paint until Python is up,
+     and while a document opens (js/reader.js, showLoading). */
+  #loading { grid-area: 1 / 2; position: absolute; z-index: 7; top: 16px; left: 50%; transform: translateX(-50%);
+             width: min(440px, calc(100% - 32px)); padding: 12px 14px; background: var(--panel);
+             border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 24px var(--shadow); }
+  #loading[hidden] { display: none; }
+  /* The voice's download, after Python: the reader works meanwhile, so out of the way. */
+  #loading.aside { top: auto; bottom: 16px; left: auto; right: 16px; transform: none; width: min(360px, calc(100% - 32px)); }
+  #loading-label { font-weight: 600; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #loading-track { height: 8px; border-radius: 4px; background: var(--panel-hi); overflow: hidden; }
+  #loading-fill { width: 3%; height: 100%; border-radius: 4px; transition: width .5s ease-out;
+                  background: var(--accent) linear-gradient(90deg, transparent, rgba(255, 255, 255, .45), transparent) no-repeat;
+                  background-size: 120px 100%; animation: loading-shine 1.6s linear infinite; }
+  @keyframes loading-shine { from { background-position: -120px 0; } to { background-position: 440px 0; } }
+  @media (prefers-reduced-motion: reduce) { #loading-fill { animation: none; transition: none; } }
+  #loading-detail { margin-top: 6px; color: var(--dim); font-size: 12px; }
+  #loading-detail:empty { display: none; }
+  /* The reading highlight, in the desktop's SENTENCE_TINT and WORD_TINT. */
+  .page .hl { position: absolute; pointer-events: none; }
+  .page .hl.sentence { background: rgba(91, 157, 255, .19); }
+  .page .hl.word { background: rgba(255, 190, 60, .51); border-radius: 2px; }
+  .page .hl.selection { background: rgba(120, 200, 255, .27); border-radius: 3px; }
+  /* Find: every match, and the one Enter is on. */
+  .page .hl.found { background: rgba(255, 225, 40, .42); border-radius: 2px; }
+  .page .hl.found.current { background: rgba(255, 140, 0, .55); box-shadow: 0 0 0 1.5px #d96c00; }
+
+  #find-bar { position: absolute; z-index: 6; top: 10px; right: 26px; display: flex; align-items: center; gap: 6px;
+              padding: 6px 8px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+              box-shadow: 0 4px 16px var(--shadow); }
+  #main:has(#notes:not([hidden])) #find-bar { right: 298px; }
+  #find-input { width: 220px; padding: 5px 8px; }
+  #find-input.none { border-color: #c4524f; }
+  #find-count { min-width: 76px; color: var(--dim); white-space: nowrap; text-align: right; }
+  #find-bar label { display: flex; align-items: center; gap: 4px; color: var(--dim); white-space: nowrap; }
+  /* The text cursor, in the desktop's CARET; it blinks unless the voice is reading. */
+  .page .caret { position: absolute; width: 2px; margin-left: -1px; background: var(--caret); pointer-events: none;
+                 animation: blink 1s steps(1) infinite; }
+  #pages.reading .caret { animation: none; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #pages { user-select: none; -webkit-user-select: none; }
+
+  /* Highlights, in their own colour, under everything else that is lit. */
+  .page .hl.annot { border-radius: 2px; }
+  /* The reading order: outlined and numbered where read, washed over where not. */
+  #pages.planning .page { cursor: pointer; }
+  .page .plan { position: absolute; pointer-events: none; border-radius: 4px; }
+  .page .plan.reads { border: 1.4px solid var(--accent); }
+  .page .plan.skipped { background: rgba(16, 18, 22, .59); border: 1px dashed var(--dim); }
+  .page .plan .tag { position: absolute; left: 3px; top: 3px; padding: 0 6px; border-radius: 4px; white-space: nowrap;
+                     font: 600 11px/16px system-ui, sans-serif; }
+  .page .plan.reads .tag { background: var(--accent); color: var(--on-accent); }
+  .page .plan.skipped .tag { background: var(--panel-hi); color: var(--dim); }
+  .page .remove, .note-card .remove { position: absolute; display: grid; place-items: center; padding: 0; line-height: 1;
+                                 border-radius: 50%; cursor: pointer; font-size: 14px; }
+  .page .remove { background: #fafafc; color: #5a606e; border: 1.2px solid #78808e; z-index: 2; }
+  .page .remove:hover { background: #fff; color: #000; }
+
+  /* The table of contents, on the left; js/contents.js. */
+  #contents { width: 260px; display: grid; grid-template-rows: auto 1fr; min-height: 0;
+              background: var(--side); border-right: 1px solid var(--border); }
+  .panel-title { display: flex; align-items: center; gap: 6px; }
+  .panel-title h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+  .contents-head { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  @media (max-width: 1200px) { #contents { width: 220px; } }
+  #contents-list { position: relative; overflow-y: auto; padding: 6px 4px 12px; }
+  .toc-row { display: flex; align-items: baseline; gap: 2px; padding-left: calc(var(--depth) * 14px); border-radius: 5px; }
+  .toc-row:hover { background: var(--hover); }
+  .toc-row.current { background: var(--panel-hi); box-shadow: inset 3px 0 0 var(--accent); }
+  .toc-row button { background: none; border: 0; border-radius: 4px; }
+  .toc-twisty { flex: none; width: 18px; padding: 3px 0; color: var(--dim); }
+  .toc-twisty:disabled { visibility: hidden; }
+  .toc-link { flex: 1; min-width: 0; padding: 3px 4px; text-align: left; overflow-wrap: anywhere; line-height: 1.3; }
+  .toc-link:hover { background: none; }
+  .toc-link:disabled { background: none; color: var(--dim); }
+  .toc-row.current .toc-link { color: var(--strong); font-weight: 600; }
+  .toc-page { flex: none; padding: 0 6px 0 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
+  /* The tabs on the page's edges that bring a hidden panel back. */
+  .edge-tab { position: absolute; z-index: 4; top: 64px; padding: 10px 4px; writing-mode: vertical-rl;
+              background: var(--panel); color: var(--dim); border: 1px solid var(--border); font-size: 12px;
+              box-shadow: 0 2px 8px var(--shadow); }
+  .edge-tab:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+  .edge-tab:disabled { background: var(--panel); opacity: .6; }
+  #contents-tab { left: 0; border-left: 0; border-radius: 0 7px 7px 0; }
+  #notes-tab { right: 12px; border-right: 0; border-radius: 7px 0 0 7px; }
+  .panel-hide { flex: none; }
+
+  /* The notes panel: the current page's notes, stacked, beside the page. */
+  #notes { width: 272px; display: grid; grid-template-rows: auto 1fr auto; min-height: 0;
+           background: var(--side); border-left: 1px solid var(--border); }
+  .notes-head, .notes-foot { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; }
+  .notes-foot { flex-direction: row; align-items: center; flex-wrap: wrap; padding-bottom: 10px; }
+  .notes-foot #note-count { flex: 1; }
+  #notes-kept { width: 100%; font-size: 11px; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row .grow { flex: 1; }
+  .chip { flex: 1; background: transparent; color: var(--dim); font-size: 12px; white-space: pre; }
+  .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  #cards { overflow-y: auto; padding: 8px 18px; display: flex; flex-direction: column; gap: 8px; line-height: 1.3; }
+  .note-card { position: relative; background: var(--panel); border-radius: 7px; padding: 10px 10px 10px 13px;
+          cursor: default; overflow-wrap: anywhere; white-space: pre-wrap; border: 1.4px solid transparent; }
+  .note-card::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 2px;
+                  background: var(--accent); }
+  .note-card.picked { background: var(--panel-hi); border-color: var(--accent); padding-right: 30px; }
+  .note-card .heading { font-weight: 700; margin-bottom: 2px; }
+  /* All notes: every card, in the reader's own order, dragged to change it. */
+  #cards.all .note-card { cursor: grab; }
+  #cards.all .note-card .where { font-size: 85%; color: var(--dim); margin-bottom: 2px; }
+  #cards.all .note-card.dragging { opacity: .4; }
+  #cards.all .note-card.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+  #cards.all .note-card.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
+  .notes-head .row .grow { flex: 1; }
+  .note-card .quote { color: var(--dim); font-style: italic; }
+  .note-card .remove { top: 6px; right: 6px; width: 18px; height: 18px; background: none; border: 0; color: var(--dim); }
+  .note-card .remove:hover { color: var(--text); background: var(--hover); }
+  #connectors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+  #connectors line { stroke-width: 1.2; }
+
+  /* Highlight and Add note: one strip, in one of four places. */
+  .strip { display: flex; padding: 4px 14px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  #markup-bottom { border-bottom: 0; border-top: 1px solid var(--border); }
+  #markup { display: flex; align-items: center; gap: 6px; }
+  #markup[data-home="panel"] { flex-direction: column; align-items: stretch; }
+  #markup[data-home="float"] { position: absolute; z-index: 5; padding: 6px 8px; background: var(--panel);
+                               border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
+  #markup.dragging { opacity: .9; }
+  #markup.dragging[data-aim="panel"], #markup.dragging[data-aim="top"], #markup.dragging[data-aim="bottom"] {
+    outline: 2px dashed var(--accent); }
+  #markup-grip { color: var(--dim); font-size: 15px; cursor: grab; user-select: none; padding: 0 4px; text-align: center;
+                 touch-action: none; }
+  #markup[data-home="panel"] #markup-grip { line-height: .6; }
+  #markup.dragging #markup-grip { cursor: grabbing; }
+  .pair { display: flex; gap: 4px; }
+  .pair #markup-highlight { flex: 1; }
+  #markup-colour, .swatch { width: 44px; }
+  #markup-colour::after, .swatch::after { content: ""; display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+                                          background: var(--swatch); vertical-align: middle; }
+  .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  dialog { color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+           padding: 18px 20px 16px; width: min(460px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog form { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+  dialog input[type=text], dialog textarea, dialog input[type=number] { width: 100%; padding: 6px 8px; text-align: left; }
+  dialog textarea { min-height: 110px; resize: vertical; font: inherit; color: var(--text); background: var(--panel-hi);
+                    border: 1px solid var(--border); border-radius: 6px; }
+  dialog label { display: grid; gap: 4px; }
+  dialog .buttons { display: flex; gap: 8px; justify-content: flex-end; }
+  /* The note editor moves: drag its grip, and it stays where it was put. */
+  #note-grip { display: flex; align-items: center; gap: 6px; margin: -10px -12px -4px; padding: 4px 8px; border-radius: 6px;
+               cursor: grab; user-select: none; touch-action: none; font-size: 12px; font-weight: 600; }
+  #note-grip:hover { background: var(--hover); }
+  #note-grip svg { width: 14px; height: 14px; fill: var(--dim); }
+  #note-grip .grow { flex: 1; }
+  #note-grip .dim { font-weight: normal; }
+  #note-dialog.moved { margin: 0; position: fixed; }
+  #note-dialog.dragging #note-grip { cursor: grabbing; }
+  #repeats-list { display: grid; gap: 4px; overflow-y: auto; max-height: calc(100vh - 220px); }
+  #repeats-list h3 { font-size: 12px; margin: 8px 0 2px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+  #repeats-list button { display: flex; gap: 10px; align-items: baseline; text-align: left; padding: 5px 8px; }
+  #repeats-list button b { font-weight: 600; }
+  #repeats-list button span { color: var(--dim); font-size: 12px; }
+  #export-dialog .kinds { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+  #export-dialog .kinds label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .long { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+  .long .scroll { overflow-y: auto; max-height: calc(100vh - 160px); padding-right: 6px; }
+  .long h2 { font-size: 13px; margin: 14px 0 4px; }
+  .long h2:first-child { margin-top: 0; }
+  .long table { border-collapse: collapse; }
+  .long td { padding: 3px 14px 3px 0; vertical-align: top; }
+  .long table.credits { width: 100%; font-size: 12px; }
+  .say-list { display: grid; gap: 4px; max-height: 40vh; overflow-y: auto; margin-bottom: 8px; }
+  .say-row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; }
+  .say-row .word { font-weight: 600; overflow-wrap: anywhere; }
+  .say-row .as { font-style: italic; overflow-wrap: anywhere; }
+  .say-list:empty::before { content: "No words yet."; color: var(--dim); }
+  .long .credits th { padding: 3px 14px 3px 0; text-align: left; color: var(--dim); font-weight: 600; }
+  .long .credits td:first-child { white-space: nowrap; color: var(--text); }
+  .long td:first-child { white-space: nowrap; font-weight: 600; }
+  .long td:last-child, .long p { color: var(--dim); }
+  .long p { margin: 0 0 12px; }
+  .long p b { color: var(--text); }
+  #style-sample { background: var(--side); padding: 10px; border-radius: 7px; }
+  #style-sample .note-card { cursor: default; }
+
+  #convert-dialog { width: min(540px, calc(100vw - 32px)); }
+  #convert-dialog h2 { font-size: 15px; margin: 0; }
+  #convert-dialog .form { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; align-items: center; }
+  #convert-dialog .form > span:nth-child(odd) { color: var(--dim); text-align: right; }
+  #convert-dialog .suffix { display: flex; align-items: center; gap: 6px; }
+  #convert-range { display: flex; align-items: center; gap: 8px; }
+  #convert-voice-note { font-size: 12px; }
+  #convert-voice-note:empty { display: none; }
+
+  /* The voice picker; js/voice-picker.js. */
+  #voices-dialog { width: min(640px, calc(100vw - 32px)); }
+  #voices-dialog h2 { font-size: 15px; margin: 0; }
+  #voices-dialog p { margin: 0; }
+  #voices-dialog blockquote { margin: 0; padding: 8px 10px; background: var(--panel-hi); border-radius: 6px; color: var(--dim); font-style: italic; }
+  #voices-list { display: grid; gap: 2px; max-height: 50vh; overflow-y: auto; }
+  .voice-row { display: grid; grid-template-columns: 1.6em auto 1fr auto 5.5em; gap: 10px; align-items: center;
+               padding: 4px 6px; border-radius: 6px; }
+  .voice-row:hover { background: var(--panel-hi); }
+  .voice-row label.voice-name { display: block; cursor: pointer; }
+  .voice-row.kept label.voice-name { cursor: default; }
+  .voice-kept { color: var(--accent); text-align: center; }
+  .voice-size { text-align: right; }
+  .voice-remove { justify-self: end; }
+  .voice-mp3 { font-size: 11px; padding: 1px 6px; border-radius: 9px; border: 1px solid var(--accent); color: var(--accent); white-space: nowrap; }
+  .voice-mp3.no { border-color: var(--border); color: var(--dim); }
+  #voices-progress { width: 100%; }
+  #voices-status { min-height: 1.4em; }
+  #convert-range[hidden] { display: none; }
+  #convert-range input { width: 84px; }
+  #convert-estimate { background: var(--panel-hi); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: grid; gap: 4px; }
+  #convert-progress { position: fixed; left: 16px; bottom: 64px; z-index: 8; width: min(360px, calc(100vw - 32px));
+                      background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+                      box-shadow: 0 6px 20px var(--shadow); display: grid; gap: 8px; }
+  #convert-progress progress { width: 100%; accent-color: var(--accent); }
+  #convert-progress-heading { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #convert-progress .buttons { display: flex; justify-content: flex-end; }
+
+  #menu { position: fixed; z-index: 10; min-width: 220px; padding: 4px; background: var(--panel);
+          border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px var(--shadow); }
+  #menu button { display: flex; justify-content: space-between; gap: 24px; width: 100%; text-align: left;
+                 background: none; border: 0; border-radius: 5px; padding: 6px 10px; }
+  #menu button:hover:not(:disabled), #menu button:focus-visible { background: var(--hover); outline: none; }
+  #menu button:disabled { background: none; }
+  #menu .keys { color: var(--dim); }
+  #menu .check { width: 14px; display: inline-block; color: var(--accent); }
+  #menu .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: -1px; }
+  #menu .label { flex: 1; }
+  #menu .label.indent { padding-left: 18px; }
+  #menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+  #play { min-width: 130px; }
+  select { padding: 4px 6px; }
+
+  #empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; }
+  #empty .card { max-width: 420px; }
+  #empty h1 { font-size: 20px; margin: 0 0 8px; }
+  #empty p { margin: 0 0 16px; color: var(--dim); }
+  #empty .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  #view.dragging { box-shadow: inset 0 0 0 3px var(--accent); }
+  /* The guided tour (js/tour.js): shades around what it points at, a ring on it,
+     a ghost pointer, and the card. Below #menu, so a menu it points at opens
+     over it; the shades let every click through, so the page stays the page. */
+  #tour { position: fixed; inset: 0; z-index: 9; pointer-events: none; }
+  #tour .tour-shade { position: fixed; background: rgba(9, 11, 16, .55); }
+  #tour-ring { position: fixed; border: 2px solid var(--tour); border-radius: 8px;
+               box-shadow: 0 0 0 4px rgba(255, 90, 90, .18), 0 0 18px rgba(255, 90, 90, .35); }
+  #tour-ghost { position: fixed; left: 0; top: 0; width: 0; height: 0; color: var(--tour);
+                transition: transform .55s cubic-bezier(.33, 0, .2, 1); }
+  #tour-ghost svg { position: absolute; left: -3px; top: -2px; width: 26px; height: 26px;
+                    fill: var(--tour); stroke: #fff; stroke-width: 1.1;
+                    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .5)); transition: transform .12s ease-out; }
+  #tour-ghost.pressing svg { transform: scale(.82); }
+  /* The tap: a ring that opens out of the pointer's tip, twice a second and a half. */
+  #tour-ghost .tour-pulse { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px;
+                            border: 2px solid var(--tour); border-radius: 50%; opacity: 0; }
+  #tour-ghost.tapping .tour-pulse { animation: tour-tap 1.5s ease-out infinite; }
+  @keyframes tour-tap {
+    0% { transform: scale(.3); opacity: .9; } 60% { transform: scale(1.5); opacity: 0; } 100% { opacity: 0; }
+  }
+  #tour-card { position: fixed; left: 0; top: 0; width: min(390px, calc(100vw - 24px)); padding: 12px 14px 12px;
+               background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+               box-shadow: 0 10px 34px var(--shadow);
+               transition: transform .3s cubic-bezier(.33, 0, .2, 1), opacity .2s ease-out; }
+  /* Only the buttons take the mouse: a step that asks for a drag across the page
+     must work even where the card sits over the words, and it fades while it does. */
+  #tour-card { pointer-events: none; }
+  #tour-card button { pointer-events: auto; }
+  #tour-card.faded { opacity: .2; }
+  #tour-card.done { border-color: var(--accent); }
+  .tour-top { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .tour-top button { padding: 2px 8px; font-size: 12px; }
+  #tour-bar { height: 3px; margin: 8px 0 10px; border-radius: 2px; background: var(--panel-hi); overflow: hidden; }
+  #tour-bar-fill { height: 100%; width: 0; border-radius: 2px; background: var(--accent); transition: width .3s ease-out; }
+  #tour-title { margin: 0 0 6px; font-size: 16px; }
+  #tour-text { margin: 0; color: var(--dim); line-height: 1.45; }
+  #tour-keys { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 10px; }
+  .tour-cap { min-width: 26px; padding: 3px 8px; text-align: center; font: 600 12px/1.3 system-ui, sans-serif;
+              background: var(--panel-hi); border: 1px solid var(--border); border-bottom-width: 2px;
+              border-radius: 5px; animation: tour-press 1.6s ease-in-out infinite; }
+  .tour-plus, .tour-or { color: var(--dim); font-size: 12px; }
+  .tour-or { padding: 0 4px; }
+  @keyframes tour-press { 0%, 62%, 100% { transform: translateY(0); } 70% { transform: translateY(2px); } }
+  #tour-note { margin: 10px 0 0; font-size: 12px; }
+  #tour-praise { margin: 10px 0 0; color: var(--accent); font-weight: 600; }
+  #tour-praise:empty { display: none; }
+  .tour-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  /* Skip in the bottom right corner, Exit in the top right, whatever is beside them. */
+  .tour-top .grow, .tour-foot .grow { flex: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    #tour-ghost, #tour-card, #tour-bar-fill { transition: none; }
+    #tour-ghost .tour-pulse, .tour-cap { animation: none; }
+  }
+  [hidden] { display: none !important; }
+</style>
+
+<header class="bar">
+  <div class="left">
+    <button id="file-menu" title="Open a PDF or document, find text, save, or turn it into an audio file">File ▾</button>
+    <button id="notes-menu" title="Highlights and notes">Notes ▾</button>
+    <button id="reading-menu" title="What is read aloud, how words are said, and when reading stops">Reading ▾</button>
+    <button id="display-menu" title="What is shown, and where">Display ▾</button>
+    <input id="file" type="file" accept="application/pdf,.pdf,.docx,.odt,.rtf,.epub,.fb2,.pptx,.ppsx,.odp,.md,.html,.htm,.xhtml,text/plain,.txt" hidden>
+    <label class="dim" for="speed">Speed</label>
+    <select id="speed" title="How fast the voice reads" aria-label="Speed"></select>
+  </div>
+  <div class="centre">
+    <button id="back" class="square" aria-label="Previous sentence" title="Previous sentence  (←)" disabled>↶</button>
+    <button id="play" class="primary" title="Start or pause reading  (Space)" disabled>Read aloud</button>
+    <button id="forward" class="square" aria-label="Next sentence" title="Next sentence  (→)" disabled>↷</button>
+  </div>
+  <div class="right">
+    <label class="dim" for="voice">Voice</label>
+    <select id="voice" title="Who reads to you" aria-label="Voice"></select>
+    <button id="help-menu" title="Keyboard shortcuts, and about Mimick">Help ▾</button>
+    <button id="switches-toggle" class="square" aria-controls="switches" aria-expanded="false"
+            aria-label="Quick switches" title="Show the quick switches: night or day, what is read, the timer, the panels">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+  </div>
+</header>
+
+<!-- The quick switches; js/reader.js fills in which are on. Each is also in Reading ▾ or Display ▾. -->
+<div id="switches" role="toolbar" aria-label="Quick switches" hidden>
+  <button id="sw-theme" aria-label="Night" title="Night or day">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg><span>Night</span></button>
+  <span class="sep"></span>
+  <button id="sw-clean_text" aria-pressed="false" title="Tidy the text before it is read: running headers, page numbers, hyphens">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2l1.3 3.2L12.5 6.5 9.3 7.8 8 11 6.7 7.8 3.5 6.5l3.2-1.3z"/><path d="M12.5 11v3M11 12.5h3"/></svg><span>Clean up text</span></button>
+  <button id="sw-skip_citations" aria-pressed="false" title="Pass over citations like (Smith, 2020) or [12] while reading">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3H3v10h2M11 3h2v10h-2M6 10.5l4-5"/></svg><span>Skip citations</span></button>
+  <button id="sw-read_footnotes" aria-pressed="false" title="Read the footnotes aloud where they are">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 13h8M2.5 10h11M11.5 2.5v4M10.5 3.5l1-1"/></svg><span>Read footnotes</span></button>
+  <button id="sw-click_read" aria-pressed="false" title="Click a sentence to start reading from it">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5l8 5.2-3.6.8 2.1 4.2-1.6.8-2.1-4.2L4 11.8z"/></svg><span>Click to read</span></button>
+  <span class="sep"></span>
+  <button id="sw-sleep" aria-pressed="false" aria-haspopup="menu" title="Stop reading after a while, or at the end of the page or section">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8.5" r="5.5"/><path d="M8 5.5v3l2 1.5M6.5 1.5h3"/></svg><span>Timer off</span></button>
+  <span class="sep"></span>
+  <button id="sw-contents" aria-pressed="false" title="The table of contents  (F9)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h1M6 4h7.5M2.5 8h1M6 8h7.5M2.5 12h1M6 12h7.5"/></svg><span>Contents</span></button>
+  <button id="sw-notes" aria-pressed="false" title="The notes panel  (Ctrl+B)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M10 2.5v11"/></svg><span>Notes</span></button>
+  <button id="sw-markup" aria-pressed="false" title="The Highlight and Add note buttons  (Ctrl+Shift+H)">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2.5l3.5 3.5-6 6H4v-3.5z"/><path d="M2.5 14h11"/></svg><span>Highlight buttons</span></button>
+</div>
+
+<div id="markup-top" class="strip" hidden></div>
+
+<div id="main">
+<aside id="contents" aria-label="Table of contents" hidden>
+  <div class="contents-head panel-title">
+    <h2>Contents</h2>
+    <button id="contents-hide" class="square panel-hide" title="Hide the contents  (F9)" aria-label="Hide the contents">‹</button>
+  </div>
+  <div id="contents-list" role="tree" aria-label="Table of contents"></div>
+</aside>
+<button id="contents-tab" class="edge-tab" hidden>Contents</button>
+<button id="notes-tab" class="edge-tab" title="Show the notes panel  (Ctrl+B)" hidden>Notes</button>
+<div id="view" tabindex="0">
+  <div id="pages"></div>
+  <div id="empty">
+    <div class="card">
+      <h1>Open a PDF or a document to begin</h1>
+      <p>It opens in this tab and stays on your computer. Nothing is uploaded.</p>
+      <div class="actions">
+        <button id="open-empty" class="primary">Open a file…</button>
+        <button id="tour-start" title="A guided tour on a sample poem — nothing of yours is opened">Show me around</button>
+      </div>
+      <p style="margin-top:14px">Or drop a file anywhere on this page: a PDF, a document (.docx, .odt, .rtf), a book (EPUB, .fb2), a presentation (.pptx, .odp), a web page, or a .md or .txt file.</p>
+    </div>
+  </div>
+</div>
+<div id="loading" role="status" aria-live="polite">
+  <div id="loading-label">Getting Mimick ready…</div>
+  <div id="loading-track"><div id="loading-fill"></div></div>
+  <div id="loading-detail"></div>
+</div>
+
+<aside id="notes" aria-label="Notes">
+  <div class="notes-head">
+    <div class="panel-title">
+      <h2>Notes</h2>
+      <button id="notes-hide" class="square panel-hide" title="Hide the notes panel  (Ctrl+B)" aria-label="Hide the notes panel">›</button>
+    </div>
+    <div class="row">
+      <button id="filter-quotes" class="chip" aria-pressed="true" title="Show passages you highlighted without writing anything">Highlights</button>
+      <button id="filter-notes" class="chip" aria-pressed="true" title="Show the ones you wrote a note on">Notes</button>
+      <span class="grow"></span>
+      <button id="notes-all" class="chip" aria-pressed="false" title="Every note in the document, in an order you can change by dragging — Export notes follows it">All notes</button>
+    </div>
+    <div id="markup-panel">
+      <div id="markup" data-home="panel">
+        <span id="markup-grip" title="Drag to move these buttons — the top or bottom of the page, the notes panel, or loose over the page">⋯</span>
+        <button id="markup-note" title="Highlight the selected text and write a note  (Ctrl+M)" disabled>+  Add note</button>
+        <div class="pair">
+          <button id="markup-highlight" title="Highlight the selected text  (Ctrl+H)" disabled>Highlight</button>
+          <button id="markup-colour" title="Highlight colour" aria-label="Highlight colour" disabled></button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="grow"></span>
+      <button id="prev-note" class="square" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
+      <button id="next-note" class="square" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
+      <button id="note-style" class="square" aria-label="Note appearance" title="How notes look — typeface and size">⚙</button>
+    </div>
+  </div>
+  <div id="cards"></div>
+  <div id="notes-foot" class="notes-foot" hidden>
+    <span id="note-count" class="dim"></span>
+    <button id="notes-download" title="Save a copy of this PDF with your highlights and notes in it  (Ctrl+S)">Save a copy</button>
+    <span id="notes-kept" class="dim"></span>
+  </div>
+</aside>
+<svg id="connectors" aria-hidden="true"></svg>
+<div id="find-bar" role="search" aria-label="Find in document" hidden>
+  <input id="find-input" type="text" placeholder="Find in document" aria-label="Find in document" autocomplete="off" spellcheck="false">
+  <span id="find-count" aria-live="polite"></span>
+  <label title="Only find text with the same capital letters"><input id="find-case" type="checkbox"> Match case</label>
+  <button id="find-prev" class="square" title="Previous match  (Shift+Enter)" aria-label="Previous match" disabled>↑</button>
+  <button id="find-next" class="square" title="Next match  (Enter)" aria-label="Next match" disabled>↓</button>
+  <button id="find-close" class="square" title="Close  (Esc)" aria-label="Close find">✕</button>
+</div>
+</div>
+
+<div id="markup-bottom" class="strip" hidden></div>
+
+<!-- The guided tour: js/tour.js places every piece of this and fills the card in. -->
+<div id="tour" hidden>
+  <div class="tour-shade" hidden></div><div class="tour-shade" hidden></div>
+  <div class="tour-shade" hidden></div><div class="tour-shade" hidden></div>
+  <div id="tour-ring" hidden></div>
+  <div id="tour-ghost" hidden aria-hidden="true">
+    <span class="tour-pulse"></span>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2.2 L4 19.4 L8.4 15.2 L11.2 21.4 L14.2 20 L11.4 14 L17.4 13.7 Z"/></svg>
+  </div>
+  <div id="tour-card" role="dialog" aria-label="Tutorial" aria-live="polite">
+    <div class="tour-top">
+      <span id="tour-count" class="dim"></span>
+      <span class="grow"></span>
+      <button id="tour-exit" title="Leave the tutorial  (Esc)">Exit tutorial</button>
+    </div>
+    <div id="tour-bar"><div id="tour-bar-fill"></div></div>
+    <h2 id="tour-title"></h2>
+    <p id="tour-text"></p>
+    <div id="tour-keys" hidden></div>
+    <p id="tour-note" class="dim" hidden></p>
+    <p id="tour-praise"></p>
+    <div class="tour-foot">
+      <button id="tour-back">Back</button>
+      <button id="tour-open" class="primary" hidden>Open a file…</button>
+      <span class="grow"></span>
+      <button id="tour-go" class="primary" title="Skip this step">Next</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="convert-dialog" aria-label="Convert to MP3">
+  <form method="dialog">
+    <h2 id="convert-heading">Convert to an audio file</h2>
+    <div class="form">
+      <span>File name</span><span class="suffix"><input id="convert-name" type="text" aria-label="File name"><span class="dim">.mp3</span></span>
+      <span>Voice</span><select id="convert-voice"></select>
+      <span></span><div id="convert-voice-note" class="dim"></div>
+      <span>Speed</span><select id="convert-speed" aria-label="Speed"></select>
+      <span>Convert</span><select id="convert-scope" aria-label="What to convert"></select>
+      <span></span><div id="convert-range" hidden>from <input id="convert-from" type="number" aria-label="From page"> to <input id="convert-to" type="number" aria-label="To page"></div>
+      <span>Text</span><label title="Leaves out the reference list, masthead and declarations. For this conversion only; Reading ▾ is left as it is."><input id="convert-clean" type="checkbox"> Clean up text for reading</label>
+    </div>
+    <div id="convert-estimate"><div id="convert-time"></div><div id="convert-length" class="dim"></div></div>
+    <div id="convert-where" class="dim"></div>
+    <div class="buttons">
+      <button id="convert-cancel" type="button">Cancel</button>
+      <button id="convert-go" class="primary" type="submit">Convert</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="convert-progress" role="status" hidden>
+  <div id="convert-progress-heading"></div>
+  <progress id="convert-bar" max="1"></progress>
+  <div id="convert-progress-detail" class="dim"></div>
+  <div class="buttons"><button id="convert-stop" type="button">Cancel</button></div>
+</div>
+
+<dialog id="voices-dialog" aria-label="Select a new voice">
+  <form method="dialog">
+    <h2>Select a new voice</h2>
+    <p class="dim">Listen first with ▶: every voice reads the same passage, and nothing downloads to hear it.
+      Tick the ones you like and download them, about 60–75 MB each, once. They then work offline. Norman comes with Mimick.</p>
+    <blockquote>“When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow.”</blockquote>
+    <div id="voices-list"></div>
+    <p class="dim"><span class="voice-mp3">MP3 ✓</span> voices have no licence questions, so Convert to MP3 can use them.
+      <span class="voice-mp3 no">Reading only</span> voices read aloud in Mimick, but their licences aren't clear enough
+      for making audio files to keep or share. About → Voices has the details.</p>
+    <progress id="voices-progress" hidden></progress>
+    <p id="voices-status" class="dim" role="status"></p>
+    <p id="voices-space" class="dim"></p>
+    <div class="buttons">
+      <button id="voices-close" type="button">Done</button>
+      <button id="voices-download" class="primary" type="button" disabled>Download</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="note-dialog" aria-label="Note">
+  <form id="note-form" method="dialog">
+    <div id="note-grip" title="Drag to move the note anywhere in the window — double-click to put it back in the middle">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v2H5zM9 3h2v2H9zM5 7h2v2H5zM9 7h2v2H9zM5 11h2v2H5zM9 11h2v2H9z"/></svg>
+      <span>Note</span><span class="grow"></span><span class="dim">drag to move</span></div>
+    <div id="note-quote" class="dim"></div>
+    <input id="note-title" type="text" placeholder="Heading (optional) — shown by other PDF readers">
+    <textarea id="note-text" placeholder="Write your note here…"></textarea>
+    <div class="row"><span>Colour</span><span id="note-colours" class="row"></span><span class="grow"></span>
+      <button id="note-delete" type="button" title="Remove this highlight and its note">Delete highlight</button></div>
+    <div class="buttons">
+      <button id="note-cancel" type="button">Cancel</button>
+      <button class="primary" type="submit" title="Save  (Ctrl+Enter)">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="style-dialog" aria-label="Note appearance">
+  <form id="style-form" method="dialog">
+    <div class="dim">How notes are written in the margin beside the page.</div>
+    <label>Typeface <input id="style-font" type="text" list="fonts" placeholder="The interface's own"></label>
+    <datalist id="fonts">
+      <option value="Georgia"><option value="Times New Roman"><option value="Palatino"><option value="Arial">
+      <option value="Verdana"><option value="Trebuchet MS"><option value="Courier New"><option value="serif">
+      <option value="sans-serif"><option value="monospace">
+    </datalist>
+    <label>Size, in points at 100% — notes grow and shrink with the page
+      <input id="style-size" type="number" min="6" max="24" step="0.5"></label>
+    <label>Your name — saved with each highlight; other PDF readers show it
+      <input id="style-author" type="text" placeholder="Your name"></label>
+    <div id="style-sample"><div class="note-card" style="--accent: rgb(255, 222, 89)">Foucault's point here is about normalisation, not repression.</div></div>
+    <div class="buttons">
+      <button id="style-cancel" type="button">Cancel</button>
+      <button class="primary" type="submit">Done</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="repeats-dialog" class="long" aria-label="What repeats">
+  <form method="dialog">
+    <h2 style="font-size:15px; margin:0">What repeats</h2>
+    <p class="dim" style="margin:0">What this document keeps coming back to, counted over what is read aloud.
+      Choose one to find every place it comes up.</p>
+    <div id="repeats-list"></div>
+    <div class="buttons"><button value="close" class="primary">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="export-dialog" aria-label="Export notes">
+  <form method="dialog">
+    <h2 style="font-size:15px; margin:0">Export notes</h2>
+    <p class="dim" style="margin:0; max-width:420px">Every highlight and note as a document of its own —
+      each passage in quotation marks with its page, and your notes under it. <span id="export-count"></span>.</p>
+    <fieldset class="kinds">
+      <label><input type="radio" name="export-kind" value="docx"> Word document <span class="dim">.docx</span></label>
+      <label><input type="radio" name="export-kind" value="odt"> OpenDocument text <span class="dim">.odt — LibreOffice</span></label>
+      <label><input type="radio" name="export-kind" value="pdf"> PDF <span class="dim">.pdf — to print or read anywhere</span></label>
+      <label><input type="radio" name="export-kind" value="md"> Markdown text <span class="dim">.md — plain text, for Obsidian or pasting</span></label>
+    </fieldset>
+    <div class="buttons">
+      <button value="cancel">Cancel</button>
+      <button id="export-go" class="primary" value="export">Export</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="forget-dialog" aria-label="Forget this document">
+  <form method="dialog">
+    <h2 style="font-size:15px; margin:0 0 10px">Forget this document?</h2>
+    <p style="max-width:420px">Mimick will remove everything this browser keeps about <b id="forget-title"></b>:
+      <span id="forget-what"></span>, and its place in Open recent. The file on your computer is not touched.</p>
+    <p id="forget-save" class="dim" style="max-width:420px">Your highlights and notes cannot be brought back. Save a copy first
+      (Ctrl+S) to keep them.</p>
+    <div class="buttons">
+      <button id="forget-cancel" value="cancel">Cancel</button>
+      <button id="forget-go" class="primary" value="forget">Forget it</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="say-dialog" aria-label="Pronunciations">
+  <form method="dialog">
+    <h2 style="font-size:15px; margin:0 0 6px">How to say words</h2>
+    <p class="dim" style="max-width:460px; margin:0 0 10px">When the voice gets a name or a term wrong, write it the way it sounds.
+      "Foucault" as <i>foo koh</i>, "SQL" as <i>sequel</i>. Every document, every voice; kept in this browser.</p>
+    <div id="say-list" class="say-list"></div>
+    <div class="say-row say-new">
+      <input id="say-word" type="text" placeholder="Word, as printed" aria-label="Word, as printed" autocomplete="off" spellcheck="false">
+      <span class="dim" aria-hidden="true">→</span>
+      <input id="say-as" type="text" placeholder="Say it as" aria-label="Say it as" autocomplete="off" spellcheck="false">
+      <button id="say-add" type="button">Add</button>
+    </div>
+    <p id="say-note" class="dim" style="margin:8px 0 0; min-height:1.4em"></p>
+    <div class="buttons"><button class="primary" value="close">Done</button></div>
+  </form>
+</dialog>
+
+<dialog id="keys-dialog" class="long" aria-label="Keyboard shortcuts">
+  <form method="dialog">
+    <div class="scroll">
+      <h2>Reading</h2>
+      <table>
+        <tr><td>Space</td><td>Start reading, or pause it</td></tr>
+        <tr><td>Enter</td><td>Read the selected text, then stop</td></tr>
+        <tr><td>←  →</td><td>Back or forward one sentence, while it is reading</td></tr>
+        <tr><td>Shift+←</td><td>Back 10 seconds, while it is reading</td></tr>
+        <tr><td>Media keys</td><td>Play/pause, next and previous on a keyboard or headset, and the browser's own media controls, do the same — even from another tab</td></tr>
+      </table>
+      <h2>Choosing what gets read</h2>
+      <table>
+        <tr><td>Click a sentence</td><td>Start reading from there, once Reading → Click to read is on. It starts off, so a click can select and highlight.</td></tr>
+        <tr><td>Drag across text</td><td>Select a passage</td></tr>
+        <tr><td>Double-click</td><td>Select the whole sentence</td></tr>
+        <tr><td>Right-click</td><td>Start reading from that point, whichever way Click to read is set</td></tr>
+        <tr><td>Ctrl+A</td><td>Select every word on the page</td></tr>
+        <tr><td>Ctrl+C</td><td>Copy the selected text, or the highlight you have clicked</td></tr>
+        <tr><td>Esc</td><td>Clear the selection</td></tr>
+        <tr><td>Ctrl+R</td><td>Show what gets read, in order; click a region to read or skip it</td></tr>
+        <tr><td>Right-click a selected word</td><td>Teach the voice how to say it (Reading → How to say words)</td></tr>
+      </table>
+      <h2>Moving the cursor — while reading is paused</h2>
+      <table>
+        <tr><td>←  →</td><td>Back or forward one word</td></tr>
+        <tr><td>↑  ↓</td><td>Up or down one line</td></tr>
+        <tr><td>Home / End</td><td>Start or end of the line</td></tr>
+        <tr><td>Ctrl+← / Ctrl+→</td><td>Start of the previous or next sentence</td></tr>
+        <tr><td>Shift+←  Shift+→</td><td>Select word by word, then Ctrl+H or Ctrl+M</td></tr>
+        <tr><td>Shift+↑  Shift+↓</td><td>Select line by line</td></tr>
+        <tr><td>Shift+Home / Shift+End</td><td>Select to the start or end of the line</td></tr>
+        <tr><td>Ctrl+Shift+← / Ctrl+Shift+→</td><td>Select to the next sentence</td></tr>
+      </table>
+      <h2>Finding text</h2>
+      <table>
+        <tr><td>Ctrl+F</td><td>Find in the document; every match is lit</td></tr>
+        <tr><td>Enter / Shift+Enter</td><td>Next or previous match (also F3 and Shift+F3)</td></tr>
+        <tr><td>Esc</td><td>Close, leaving the match selected — then Enter reads it, or Ctrl+H highlights it</td></tr>
+      </table>
+      <h2>Moving around</h2>
+      <table>
+        <tr><td>Page Up / Page Down</td><td>Turn the page</td></tr>
+        <tr><td>Ctrl+↑ / Ctrl+↓</td><td>Turn the page</td></tr>
+        <tr><td>Ctrl+Home / Ctrl+End</td><td>First or last page</td></tr>
+        <tr><td>Ctrl++ / Ctrl+−</td><td>Zoom in or out</td></tr>
+        <tr><td>Ctrl+0</td><td>Back to 125%</td></tr>
+      </table>
+      <h2>Highlights and notes</h2>
+      <table>
+        <tr><td>Ctrl+H</td><td>Highlight the selected text</td></tr>
+        <tr><td>Ctrl+M</td><td>Highlight it and write a note</td></tr>
+        <tr><td>Ctrl+J / Ctrl+K</td><td>Jump to the next or previous note</td></tr>
+        <tr><td>Ctrl+Z</td><td>Take back the last highlight or note</td></tr>
+        <tr><td>Ctrl+Y</td><td>Put it back again</td></tr>
+        <tr><td>Click a highlight</td><td>Select it, on the page or in the panel</td></tr>
+        <tr><td>Double-click it</td><td>Edit the note, its heading or its colour</td></tr>
+        <tr><td>Right-click it</td><td>Copy the passage, the note, or both</td></tr>
+      </table>
+      <h2>Files</h2>
+      <table>
+        <tr><td>Ctrl+O</td><td>Open a PDF, a document, a book, a presentation, a web page or a text file</td></tr>
+        <tr><td>Ctrl+S</td><td>Save a copy of the PDF with your notes in it — they are also kept in this browser as you work</td></tr>
+        <tr><td>File ▾ → Export notes</td><td>Your highlights and notes as a document of their own: Word, OpenDocument, PDF or Markdown</td></tr>
+      </table>
+      <h2>Showing and hiding</h2>
+      <table>
+        <tr><td>Ctrl+Shift+H</td><td>The Highlight and Add note buttons</td></tr>
+        <tr><td>Ctrl+B</td><td>The notes panel beside the page</td></tr>
+        <tr><td>F9</td><td>The table of contents, on the left</td></tr>
+        <tr><td>?</td><td>This list</td></tr>
+      </table>
+    </div>
+    <div class="buttons"><button class="primary" value="close">Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="about-dialog" class="long" aria-label="About Mimick">
+  <form method="dialog">
+    <div class="scroll">
+      <h2 style="font-size:20px">Mimick for the web</h2>
+      <p>Read any PDF out loud in a natural voice, slow or fast, with the words lit as they are spoken — in a browser tab,
+        with nothing installed. Your document is opened by your own browser and never leaves your computer.</p>
+      <h2>What this does</h2>
+      <p><b>Read aloud in a natural voice</b><br>A Piper voice, running in this tab. Norman comes with Mimick; more voices download once, when you choose them, and work offline after that.</p>
+      <p><b>Follow along</b><br>As Mimick reads, the sentence and the word being said are lit on the page.</p>
+      <p><b>More than PDFs</b><br>Word (.docx), OpenDocument (.odt), Rich Text (.rtf), EPUB and FictionBook books, PowerPoint (.pptx) and Impress (.odp) presentations, web pages, Markdown and plain text files open too, laid out as pages — a presentation becomes one page per slide. Save a copy (Ctrl+S) then keeps any of them as a PDF.
+        A scanned PDF with no text has its words recognised as it opens, here in the browser — a long one asks first, with a button in the bottom bar (or Reading ▾ → Recognise text).</p>
+      <p><b>Find your way</b><br>A document's table of contents sits beside it (F9), and Ctrl+F finds any text.</p>
+      <p><b>Say it right</b><br>Teach the voice how to say a name or a term: select it, right-click, How to say.</p>
+      <p><b>Read at your speed</b><br>From 0.75× to 4×, changed at any moment.</p>
+      <p><b>Highlight and annotate</b><br>Four colours, and notes beside the page. They are kept in this browser, and
+        Save a copy gives you the PDF with them in it, as regular PDF annotations other readers can see, and
+        Export notes gives you them as a document of their own — Word, OpenDocument, PDF or Markdown.</p>
+      <p><b>Take it with you</b><br>Convert a document, some pages of it or a passage to an MP3.</p>
+      <p><b>Keeps your place</b><br>Come back to a document and pick up where you left off, at the same page and zoom.
+        File ▾ lists the files you opened last, and Forget this document removes every trace of one.</p>
+      <p><b>Works offline</b><br><span id="about-offline">Once it has loaded fully, Mimick opens and reads with no internet connection.</span></p>
+      <h2>How to use it</h2>
+      <p><b>Open a PDF, a document (.docx, .odt, .rtf), a book (EPUB, .fb2), a presentation (.pptx, .odp), a web page, or a .md or .txt file</b> with File ▾, Ctrl+O, or by dropping it on the page. <b>Press Space</b> to read and pause —
+        Norman reads to start with; <b>Select a new voice…</b> in the voice box hears and downloads others (about 60–75 MB each, once). Change the <b>speed</b> in the top bar. Select text and press Enter to read just that, or right-click → <b>Start reading from here</b>. Turn on Reading ▾ → <b>Click to read</b> and a click on any sentence reads from there.
+        <b>Ctrl+F</b> finds text. <b>Ctrl+H</b> highlights, <b>Ctrl+M</b> adds a note, <b>Ctrl+S</b> saves a copy with
+        them in it. Every key is under Help ▾ → Keyboard shortcuts.</p>
+      <h2>Privacy</h2>
+      <p>Every document you open stays on this computer: your own browser reads it, and nothing is uploaded.
+        Mimick downloads only the page itself, with Norman, the first time, and each other voice you choose, once, from Hugging Face —
+        checked against a fixed hash. Your highlights, notes, reading positions and settings are kept in this
+        browser's storage and nowhere else. No accounts, no analytics, no tracking.</p>
+      <h2>Browsers</h2>
+      <p>Built and tested in Google Chrome, for laptops and desktops. Brave, Edge and other Chromium browsers should
+        work the same. Firefox has been tried and reads aloud; Safari is untested. In both, files download when they are
+        finished rather than asking where to save first, there is no Open recent, and Mimick cannot be installed as an app.</p>
+      <h2>Built on</h2>
+      <p><a href="https://mupdf.com/" target="_blank" rel="noopener">MuPDF</a> (pages, text and annotations) ·
+        <a href="https://pyodide.org/" target="_blank" rel="noopener">Pyodide</a> (Python in the browser) ·
+        <a href="https://github.com/OHF-Voice/piper1-gpl" target="_blank" rel="noopener">Piper</a> and
+        <a href="https://github.com/espeak-ng/espeak-ng" target="_blank" rel="noopener">espeak-ng</a> (the voice) ·
+        <a href="https://onnxruntime.ai/" target="_blank" rel="noopener">ONNX Runtime</a> (running it) ·
+        <a href="https://lame.sourceforge.io/" target="_blank" rel="noopener">LAME</a>, as lamejs (MP3 files) ·
+        <a href="https://github.com/tesseract-ocr/tesseract" target="_blank" rel="noopener">Tesseract</a>, as
+        <a href="https://github.com/naptha/tesseract.js" target="_blank" rel="noopener">tesseract.js</a> (reading scans)</p>
+      <h2>Voices</h2>
+      <p>Every voice is a <a href="https://huggingface.co/rhasspy/piper-voices" target="_blank" rel="noopener">Piper voice</a>,
+        trained on recordings people shared, and their licences ask for these credits. Kathleen and Southern English
+        are built on Ryan, whose licence is non-commercial: they may only be used free of charge, as Mimick is.</p>
+      <table class="credits">
+        <tr><th>Voice</th><th>Recordings</th><th>Trained on top of</th></tr>
+        <tr><td>Norman</td>
+          <td><a href="https://librivox.org" target="_blank" rel="noopener">LibriVox</a> readings, public domain; voice by
+            <a href="https://brycebeattie.com/files/tts/" target="_blank" rel="noopener">Bryce Beattie</a></td>
+          <td>—</td></tr>
+        <tr><td>Kathleen</td>
+          <td><a href="https://github.com/rhasspy/dataset-voice-kathleen" target="_blank" rel="noopener">Kathleen dataset</a>, CC0</td>
+          <td>Ryan: <a href="https://www.kaggle.com/datasets/roholazandie/ryanspeech" target="_blank" rel="noopener">RyanSpeech</a>,
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a></td></tr>
+        <tr><td>Southern English</td>
+          <td><a href="https://www.openslr.org/83/" target="_blank" rel="noopener">Crowdsourced UK and Ireland English Dialect
+            speech</a> (OpenSLR 83, Google),
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a></td>
+          <td>Ryan: RyanSpeech, CC BY-NC-SA 4.0</td></tr>
+        <tr><td>Joe</td>
+          <td><a href="https://github.com/OHF-Voice/voice-datasets" target="_blank" rel="noopener">OHF-Voice voice datasets</a>, CC0</td>
+          <td>Lessac (Blizzard Challenge 2013, Lessac Technologies)</td></tr>
+        <tr><td>Kusal</td>
+          <td><a href="https://github.com/MycroftAI/mimic2" target="_blank" rel="noopener">Mycroft AI Mimic 2</a> recordings</td>
+          <td>Lessac</td></tr>
+        <tr><td>VCTK</td>
+          <td><a href="https://datashare.ed.ac.uk/handle/10283/3443" target="_blank" rel="noopener">CSTR VCTK Corpus</a>,
+            University of Edinburgh, <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></td>
+          <td>Lessac</td></tr>
+        <tr><td>LibriTTS</td>
+          <td><a href="https://www.openslr.org/141/" target="_blank" rel="noopener">LibriTTS-R</a> (OpenSLR 141, Google),
+            <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a></td>
+          <td>Lessac</td></tr>
+      </table>
+      <h2>Written by</h2>
+      <p>Claude Code</p>
+      <h2>Arranged by</h2>
+      <p style="color:var(--text)">Kat Hollander · <a href="https://github.com/kathollander" target="_blank" rel="noopener">github.com/kathollander</a></p>
+      <h2>License</h2>
+      <p>Please remix, fix, and break as you please! We're built on open source software, so we're giving it back as open source software.</p>
+      <p><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">GNU Affero General Public License, version 3</a> ·
+        <a href="https://github.com/kathollander/mimick" target="_blank" rel="noopener">the source code</a></p>
+    </div>
+    <div class="buttons"><button class="primary" value="close">Close</button></div>
+  </form>
+</dialog>
+
+<div id="menu" role="menu" hidden></div>
+
+<footer class="bar">
+  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="status" class="dim">Getting ready…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
+  <div class="centre">
+    <button id="prev" class="square" aria-label="Previous page" title="Previous page  (Page Up)" disabled>‹</button>
+    <input id="page" type="number" aria-label="Page number" min="1" value="1" title="Jump to page" disabled>
+    <span id="total" class="dim">of —</span>
+    <button id="next" class="square" aria-label="Next page" title="Next page  (Page Down)" disabled>›</button>
+  </div>
+  <div class="right">
+    <span id="title" class="dim"></span>
+    <button id="zoom-out" class="square" aria-label="Zoom out" title="Zoom out  (Ctrl+−)">−</button>
+    <input id="zoom-slider" type="range" aria-label="Zoom" min="40" max="400" step="1" title="Zoom">
+    <button id="zoom-in" class="square" aria-label="Zoom in" title="Zoom in  (Ctrl++)">+</button>
+    <input id="zoom" type="number" aria-label="Zoom, in per cent" min="40" max="400" step="1" title="Zoom, in per cent">
+    <span class="dim">%</span>
+  </div>
+</footer>
+
+<script src="js/page-layout.js"></script>
+<script src="js/page-store.js"></script>
+<script src="js/piper-core.js"></script>
+<script src="js/voices.js"></script>
+<script src="js/voice-picker.js"></script>
+<script src="js/read-aloud.js"></script>
+<script src="js/notes-store.js"></script>
+<script src="js/notes.js"></script>
+<script src="js/convert.js"></script>
+<script src="js/find.js"></script>
+<script src="js/contents.js"></script>
+<script src="js/recent.js"></script>
+<script src="js/tour.js"></script>
+<script src="js/pronounce.js"></script>
+<script src="vendor/tesseract/tesseract.min.js"></script>
+<script src="js/ocr.js"></script>
+<script src="js/reader.js"></script>
+</html>

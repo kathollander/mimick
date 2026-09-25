@@ -1,0 +1,2 @@
+@breezystack/lamejs 1.2.7 (LGPL-3.0), dist/lamejs.iife.js, unmodified.
+A JavaScript port of LAME: https://lame.sourceforge.io/
