@@ -34,7 +34,28 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Latest: Kat's list of 23 September, most of it built (24 September)
+## Latest: pushed as one commit, and the desktop reads scans (25 September)
+
+- **Pushed, with the history squashed** (`55346ae`), at Kat's word:
+  `../mimick-squash-and-push.sh` replaced GitHub's history with one commit of
+  `master`'s files, and moved `v1.0.0` (the release follows the tag). This was
+  *Still for Kat*, item 1, below: it is done. Before it, one unpushed commit
+  carried Kat's personal email as author and another her course folder names;
+  both are gone from GitHub. The old history is kept locally on
+  `backup/master-before-squash-25-sept`, `history-before-launch` and in
+  `../mimick-history-before-launch.bundle`. Live within a minute.
+- **Nothing personal in a public repo.** Course names, folder paths and email
+  addresses stay in the local notes, never in these docs, a commit message or a
+  sample. Kat's three-column governance guide moved out of `sample/` to
+  `../Mimick test files/`.
+- **The tour says it is a work in progress** (first step and README). Kat will
+  refine it herself; don't rework it.
+- **The desktop recognises scans** (`Mimick-linux` `c9c83d6`) -- see
+  `PARITY.md`.
+- **Still Kat's:** the four tab questions (`TABS.md`); the desktop's
+  LibreOffice decisions; whether the desktop repo is squashed too.
+
+## Earlier: Kat's list of 23 September, most of it built (24 September)
 
 Kat's `../THINGS TO ADD TO MIMICK.txt` (23 September) had not reached these docs.
 A long session worked through it. **Nothing is pushed**; GitHub's `master` is

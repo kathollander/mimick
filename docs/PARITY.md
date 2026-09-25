@@ -73,7 +73,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 
 ## For the desktop
 
-- ⬜ **Recognise text in a scan (OCR)**: Tesseract reads each page, and the words go in as invisible text. Browser: `js/ocr.js`, `reader.add_text_layer`. The desktop could use Tesseract natively through PyMuPDF (`get_textpage_ocr`)
+- ✅ **Recognise text in a scan (OCR)**: Tesseract reads each page, and the words go in as invisible text. Browser: `js/ocr.js`, `reader.add_text_layer`. Desktop (25 September): `mimick/ocr.py`, MuPDF's built-in Tesseract, needing `tesseract-ocr-eng`
 - ⬜ **Sleep timer** (Display → Stop reading): minutes, end of page, end of section; pauses between sentences. Browser: `sleepDue` in `js/reader.js`
 - ⬜ **How to say words** (a pronunciation list): a word as printed and a sound-alike, applied before the phonemizer, with the timings put back under the printed word so highlighting is unchanged. Browser: `js/pronounce.js`
 - ⬜ **Light theme** following the system, and Display → Theme (Night, the default / Day / Match the system). Browser: the token sets at the top of `reader.html`
@@ -96,7 +96,7 @@ desktop found it.
 - ⬜ **All notes, in an order of your own** (dragged; Export notes follows it). Browser: `ordered()` and `draggable()` in `js/notes.js`, 24 September
 - ⬜ **A reminder to save to a file every 15 minutes**, which can be turned off. Browser: `remindIfDue` in `js/notes.js`
 - ⬜ **Click to read off by default**, and the note editor moved by dragging (the desktop's note dialog is a window of its own, so it moves already -- check whether it remembers where)
-- ⬜ **Auto-OCR as a scan opens** -- waits on the desktop having OCR at all
+- ✅ **Auto-OCR as a scan opens** -- both, 20 pages at once, more asks (desktop 25 September)
 - ✅ **Find in document** (`Ctrl`+`F`) — done on the desktop 18 September. The search moved into the shared `document.py` as `Document.find`, and this version's `reader.py` now calls it instead of keeping a second copy that had already drifted
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`
