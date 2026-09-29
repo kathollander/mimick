@@ -2277,6 +2277,7 @@
     redraw: () => doc && redrawMarks(),
     redrawPage: (page) => drawHighlight(page),
     focusPage: () => view.focus(),
+    showSticky: (xref) => notes.showSticky(xref),
     selectionText: () => (selection && selectionText?.for === selection ? selectionText.text : null),
     select(first, last) {
       anchor = null;

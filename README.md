@@ -53,6 +53,7 @@ progress.
    sets its text size, **bold**, *italic*, underline, ~~strikeout~~, a bullet
    list and its colour, and `Ctrl`+`B`, `I` and `U` work as usual while you type.
    Drag its top edge to move it, its corner to resize it, ▾ to fold it away.
+   `Ctrl`+`F` finds words in your sticky notes as well as in the document.
    A sticky is part of the PDF, as a text box is in Acrobat: a saved copy
    carries it, Firefox, Chrome, Okular and Acrobat show it, formatting and all,
    and opening that copy in Mimick again gives it back to edit. Programs that

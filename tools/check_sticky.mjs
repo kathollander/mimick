@@ -159,6 +159,17 @@ s = await state();
 check("after a reload, the sticky note is back, formatting and all",
       s.boxes.length === 1 && /<b>bold<\/b>/.test(s.boxes[0].html) && /calc\(18/.test(s.boxes[0].html), s.boxes);
 
+// 8b. Find looks in sticky notes too, and lights the note.
+await ev(`document.getElementById("view").focus()`);
+await r.key("f", CTRL); await sleep(300);
+await r.type("slanted"); await sleep(1500);
+check("Ctrl+F finds words in a sticky note", await ev(`document.getElementById("find-count").textContent`) === "1 of 1"
+      && await ev(`document.querySelector(".page .sticky").classList.contains("current")`),
+      await ev(`document.getElementById("find-count").textContent`));
+await r.key("Escape"); await sleep(400);
+check("…and Esc closes Find without selecting page text", !await ev(`document.querySelector(".page .sticky.found")`)
+      && !await ev(`document.querySelector(".page .hl.selection")`));
+
 // 9. Save a copy: a FreeText annotation with rich text, where it was put.
 await ev(`delete window.showSaveFilePicker; delete Window.prototype.showSaveFilePicker`);
 for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));

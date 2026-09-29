@@ -6,7 +6,8 @@
  * The search is reader.find, in the document worker, over every word as
  * written. A match is a run of whole words, lit where it sits, a page at a time
  * (reader.found_on) so a common word in a long book costs nothing until its
- * page is on screen.
+ * page is on screen. Sticky notes are searched too: a match in one is
+ * [-1, -1, page, xref], after its page's own, and lights the sticky itself.
  *
  *   const find = MimickFind.create(ctx)     ctx: see reader.js, "find"
  *   find.open() / find.close() / find.step(±1)
@@ -23,7 +24,7 @@
   function create(ctx) {
     const $ = (id) => document.getElementById(id);
     const bar = $("find-bar"), input = $("find-input"), count = $("find-count");
-    let matches = [];          // [[first, last, page]]
+    let matches = [];          // [[first, last, page]], or [-1, -1, page, xref] in a sticky
     let more = false;          // stopped at document.FIND_LIMIT
     let current = -1;
     let asked = 0;             // bumped by every search, so only the latest lands
@@ -72,7 +73,8 @@
     }
 
     function bringIntoView() {
-      const [first, , page] = matches[current];
+      const [first, , page, xref] = matches[current];
+      if (first < 0) { ctx.showSticky(xref); return; }
       // Where the match's own rectangle is, once its page has answered; until
       // then, the top of its page.
       ctx.call("selection_boxes", first, matches[current][1]).then((boxes) => {
@@ -118,7 +120,7 @@
       const on = current >= 0 ? matches[current] : null;
       matches = []; current = -1; pages.clear();
       ctx.redraw();
-      if (select && on) {
+      if (select && on && on[0] >= 0) {
         ctx.select(on[0], on[1]);
         ctx.status("The match is selected — Enter reads it, Ctrl+H highlights it, right-click reads on from there");
       }
@@ -126,7 +128,14 @@
     }
 
     function draw(page, el) {
+      for (const sticky of el.querySelectorAll(".sticky.found")) sticky.classList.remove("found", "current");
       if (!matches.length) return;
+      matches.forEach(([first, , on, xref], number) => {
+        if (first >= 0 || on !== page) return;
+        const sticky = el.querySelector(`.sticky[data-xref="${xref}"]`);
+        sticky?.classList.add("found");
+        if (number === current) sticky?.classList.add("current");
+      });
       const found = pages.get(page);
       if (!found) {
         const mine = asked;

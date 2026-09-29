@@ -435,10 +435,14 @@ _found: list[list[int]] = []
 
 def find(query: str, match_case: bool = False) -> dict:
     """Every place ``query`` is written: ``[first word, last word, page]``, in
-    document order. Spaces in the query match any spacing."""
+    document order. Spaces in the query match any spacing. A sticky note's
+    words are searched too: a match in one is ``[-1, -1, page, its xref]``,
+    after that page's own (``AnnotationStore.with_sticky_matches``)."""
     global _found
     matches, more = _open().find(query, bool(match_case))
-    _found = [list(match) for match in matches]
+    if _store is not None:
+        matches = _store.with_sticky_matches(matches, query, bool(match_case))
+    _found = [list(match[:3]) + ([match[3].xref] if match[0] < 0 else []) for match in matches]
     return {"matches": _found, "more": more}
 
 
@@ -446,10 +450,12 @@ def found_on(page: int) -> list[list]:
     """The last search's matches drawn on ``page``: ``[match number, [rects]]``."""
     words = _open().words
     out = []
-    for number, (first, last, starts_on) in enumerate(_found):
+    for number, (first, last, starts_on, *_sticky) in enumerate(_found):
         # Words run page by page, so matches do too.
         if starts_on > page:
             break
+        if first < 0:
+            continue            # in a sticky note, which the page lights itself
         if words[last].page < page:
             continue
         chosen = [w.rect for w in words[first:last + 1] if w.page == page]

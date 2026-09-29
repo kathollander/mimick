@@ -1194,6 +1194,14 @@
       COLOURS,
       open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download, exportNotes, exportAs, menuItems,
       pageShown, connect, refreshAll, displayMenu, sticky,
+      /* Find went to a match in a sticky: bring it on screen and pick it out. */
+      showSticky(xref) {
+        const item = sticky.list.find((s) => s.xref === xref);
+        if (!item) return;
+        ctx.scrollToPoint(item.page, item.top);
+        active = null;
+        pick(item);
+      },
       togglePanel: () => setPanel(!settings.panel),
       toggleSticky: () => setSticky(!settings.sticky),
       get stickyOn() { return settings.sticky; },

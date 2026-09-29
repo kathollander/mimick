@@ -311,6 +311,9 @@
                                      background: transparent; cursor: pointer; font: 12px system-ui; color: #000; }
   .page .sticky.folded .sticky-tab::before { content: "✎"; }
   .page .sticky.dragging { opacity: .85; }
+  /* Find, in a sticky note: the whole note lit, as a match is. */
+  .page .sticky.found { box-shadow: 0 0 0 3px rgba(255, 225, 40, .75); }
+  .page .sticky.found.current { box-shadow: 0 0 0 3px #ff8c00; }
   body.placing-sticky .page, body.placing-sticky .page canvas { cursor: crosshair; }
   .note-card.sticky-card .body.rich p { margin: 0; }
   .note-card.sticky-card .body.rich ul { margin: 2px 0; padding-left: 18px; }

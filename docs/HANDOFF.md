@@ -44,8 +44,7 @@ that strip when Display ▾ → Sticky notes is on. She said to go ahead with th
 recommended answer to every open question, so: pinned to the page; Ctrl+B is
 bold inside a sticky and the notes panel elsewhere; `Ctrl`+`Alt`+`M` adds one;
 text size per selection; Display off takes the buttons off the strip and leaves
-the notes on the page; one strip; extras colour, fold, bullet lists (Find over
-stickies was the fourth recommended extra and is **not done** -- see below).
+the notes on the page; one strip; extras colour, fold, bullet lists and Find.
 
 - **A PDF FreeText annotation with rich text** (`annotations.py`, shared,
   `Mimick-linux` `0a6ad4c` then `f4328b8`). Checked by rendering a saved one in
@@ -82,7 +81,12 @@ stickies was the fourth recommended extra and is **not done** -- see below).
   right-click menu now ends with *Add a sticky note here*). Passing after the
   change: sticky, notes, display, access, offline, forget, tour, selecting,
   reader, find, firefox (bar its known one-in-three `textContent` flake).
-- **Not done:** Find does not search sticky notes. **Nothing is pushed.**
+- **Find looks in sticky notes** (desktop `4f3ce5b`, shared
+  `with_sticky_matches`): a match in one is `[-1, -1, page, xref]`, after its
+  page's own matches -- not slotted in by height, which would reorder a
+  two-column page's matches -- and lights the whole note; Esc leaves no page
+  text selected.
+- **Nothing is pushed.** Both repos' commits are local.
 
 ## Earlier: pushed as one commit, and the desktop reads scans (25 September)
 

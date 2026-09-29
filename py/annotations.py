@@ -743,6 +743,32 @@ class AnnotationStore:
             self.stickies.remove(item)
         self.dirty = True
 
+    def with_sticky_matches(self, matches: list, query: str, match_case: bool = False) -> list:
+        """Find's matches in the document, with the ones in sticky notes put
+        after each page's own -- one ``(-1, -1, page, sticky)`` for each time
+        the words are in a sticky. A match in the document stays ``(first
+        word, last word, page)``, in the document's order: reading order, which
+        down a two-column page is not top to bottom, so a sticky is not slotted
+        in by its height. Spaces match any spacing, as Find's own do; a sticky
+        is searched as its plain words."""
+        from .document import _fold
+
+        needle = " ".join(_fold(query or "", match_case).split())
+        if not needle or not self.stickies:
+            return list(matches)
+        found = []
+        for item in self.stickies:
+            text = " ".join(_fold(item.text, match_case).split())
+            at = text.find(needle)
+            while at >= 0:
+                found.append((-1, -1, item.page, item))
+                at = text.find(needle, at + 1)
+        if not found:
+            return list(matches)
+        ordered = [(match[2], 0, number, match) for number, match in enumerate(matches)]
+        ordered += [(match[2], 1, match[3].top, match) for match in found]
+        return [match for *_key, match in sorted(ordered, key=lambda entry: entry[:3])]
+
     def _write_sticky(self, page, annot, item: Sticky) -> None:
         bounds = page.rect
         x0, y0, x1, y1 = item.rect
