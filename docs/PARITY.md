@@ -47,6 +47,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 - ✅ Highlight and write a note (`Ctrl`+`M`), heading, colour, author name
 - ✅ Notes panel beside the page (`Ctrl`+`B`), filters for highlights / notes, counts, lines to the highlights
 - ✅ Highlight/Note strip that can be dragged to the panel, top, bottom or loose (`Ctrl`+`Shift`+`H`)
+- ✅ **Sticky notes** — both apps, 29 September (Kat's ask): rich-text boxes anywhere on a page, saved as PDF FreeText annotations with rich text (Acrobat's text box), so other readers show them and a saved copy opened again gives them back to edit. + Add sticky and a formatting row (size, bold, italic, underline, strikeout, list, colour) on the strip; `Ctrl`+`Alt`+`M`; move, resize, fold, delete, undo; cards in the panel under a **Sticky** chip; Export notes and Save a copy carry them; Read this sticky note. Display ▾ → Sticky notes takes + Add sticky off the strip and leaves the notes on the page. Shared code: `annotations.py` (`Sticky`, `clean_rich`, `sticky_sentences`) and `notes_export.py`. Browser: `js/sticky.js`, `tools/check_sticky.mjs`; desktop: `mimick/ui/sticky_note.py`, `tools/check_sticky.py`, `tools/check_sticky_window.py`
 - ✅ Click a highlight to pick it out; × removes it; double-click edits
 - ✅ Right-click a highlight or card: copy passage / note / both, read, edit, delete
 - ✅ `Ctrl`+`C` on a picked-out highlight
@@ -95,6 +96,7 @@ desktop found it.
 - ✅ **A progress bar while a deck is laid out** — the desktop's is a `QProgressDialog` off the UI thread (24 September); a PDF itself still opens without one
 - ⬜ **All notes, in an order of your own** (dragged; Export notes follows it). Browser: `ordered()` and `draggable()` in `js/notes.js`, 24 September
 - ⬜ **A reminder to save to a file every 15 minutes**, which can be turned off. Browser: `remindIfDue` in `js/notes.js`
+- ✅ **The quick switches** under the top bar — on the desktop 29 September (`f4328b8`), Kat's ask: a strip shown and hidden by a toggle at the top bar's right end or Display → Quick switches, each switch the very QAction of its menu entry. It has Clean up text, Skip citations, Read footnotes, Click to read, Contents, Notes, Highlight buttons and Sticky notes; **not** Night/Day or the timer, which wait for the desktop's light theme and sleep timer (above)
 - ⬜ **Click to read off by default**, and the note editor moved by dragging (the desktop's note dialog is a window of its own, so it moves already -- check whether it remembers where)
 - ✅ **Auto-OCR as a scan opens** -- both, 20 pages at once, more asks (desktop 25 September)
 - ✅ **Find in document** (`Ctrl`+`F`) — done on the desktop 18 September. The search moved into the shared `document.py` as `Document.find`, and this version's `reader.py` now calls it instead of keeping a second copy that had already drifted

@@ -120,6 +120,7 @@ function align(py, { id, sentence, marks, source = "document" }) {
 const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "word_at", "sentence_span",
                        "page_span", "caret_step", "caret_place",
                        "annotations", "annotation_add", "annotation_set", "annotation_remove",
+                       "stickies", "sticky_add", "sticky_set", "sticky_remove", "read_sticky",
                        "snapshot", "restore", "notes_pdf", "notes_document", "repeats", "set_author", "set_reading",
                        "regions", "region_counts", "set_region_choices", "toggle_region", "reset_regions",
                        "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf", "document_to_pdf", "add_text_layer",

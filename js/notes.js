@@ -18,6 +18,12 @@
  *   notes.undo() / redo() / copy(item, part) / download() / exportNotes() / exportAs(kind)
  *   notes.menuItems(item)      what a right-click on it offers
  *   notes.pageShown(page)      the page being read changed, or moved
+ *   notes.sticky               the sticky notes on the page (js/sticky.js)
+ *
+ * Sticky notes share all of this: the panel lists them among the highlights,
+ * Ctrl+J / Ctrl+K and Ctrl+Z take them in turn, and they are kept, saved and
+ * exported with the rest. A card, the panel or an undo step tells the two
+ * apart by `kind`: a sticky's item has a `rich`.
  */
 (function (root) {
   "use strict";
@@ -105,14 +111,25 @@
       get size() { const s = Number(ctx.recall("mimick-note-size")); return s >= 6 && s <= 24 ? s : 9; },
       get author() { return ctx.recall("mimick-author") || ""; },
       get all() { return ctx.recall("mimick-panel-all") === "1"; },
+      get stickies() { return ctx.recall("mimick-panel-sticky") !== "0"; },
+      // Display ▾ → Sticky notes: + Add sticky and its formatting row on the strip.
+      get sticky() { return ctx.recall("mimick-sticky") !== "0"; },
+      get stickyColour() {
+        try { const c = JSON.parse(ctx.recall("mimick-sticky-colour") || "null"); return Array.isArray(c) ? c : COLOURS[0][1]; }
+        catch { return COLOURS[0][1]; }
+      },
     };
+    const isSticky = (item) => item != null && "rich" in item;
 
     // --- the reader's own order, for All notes and Export notes ------------------
     // Kat asked to put notes in an order of her own by dragging (23 September).
     // Kept per document, by a key that survives reopening -- the words a
     // highlight covers, or for one made elsewhere, where it sits -- since an
     // xref can change when the notes are put back from the browser's store.
-    const orderKey = (item) => (item.first >= 0 ? `w${item.first}-${item.last}` : `p${item.page}@${Math.round(item.top)}`);
+    const orderKey = (item) => (isSticky(item) ? `s${item.page}@${Math.round(item.rect[0])},${Math.round(item.rect[1])}`
+      : item.first >= 0 ? `w${item.first}-${item.last}` : `p${item.page}@${Math.round(item.top)}`);
+    /* Highlights and sticky notes together, in page order, as the panel lists them. */
+    const everything = () => [...items, ...sticky.list].sort((a, b) => a.page - b.page || a.top - b.top);
     function savedOrder() {
       try { return JSON.parse(ctx.recall(`mimick-notes-order:${doc?.key}`) || "null"); } catch { return null; }
     }
@@ -120,10 +137,10 @@
      * since keeps its place in the document relative to the ones around it. */
     function ordered() {
       const order = savedOrder();
-      if (!Array.isArray(order) || !order.length) return items.slice();
+      if (!Array.isArray(order) || !order.length) return everything();
       const rank = new Map(order.map((k, i) => [k, i]));
       let last = -1, gap = 0;
-      const ranked = items.map((item) => {
+      const ranked = everything().map((item) => {
         const r = rank.get(orderKey(item));
         if (r !== undefined) { last = r; gap = 0; return [item, r]; }
         gap += 1e-3;
@@ -140,7 +157,9 @@
 
     const shown = (item) => (drafting && drafting.xref === item.xref ? { ...item, ...drafting } : item);
     const find = (xref) => items.find((item) => item.xref === xref) ?? null;
+    const findAny = (xref) => find(xref) ?? sticky.list.find((s) => s.xref === xref) ?? null;
     const activeItem = () => (active === null ? null : find(active));
+    const activeSticky = () => (active === null ? null : sticky.list.find((s) => s.xref === active) ?? null);
 
     // --- talking to the document worker -------------------------------------
 
@@ -241,7 +260,9 @@
         });
         if (saved) {
           savedToFile();
-          ctx.status(`${saved.picked ? "Saved" : "Sent"} ${saved.name}${saved.picked ? "" : " to your downloads"}, with ${plural(items.length, "highlight")}`);
+          const stuck = sticky.list.length;
+          ctx.status(`${saved.picked ? "Saved" : "Sent"} ${saved.name}${saved.picked ? "" : " to your downloads"}, with ${plural(items.length, "highlight")}`
+                     + (stuck ? ` and ${plural(stuck, "sticky note")}` : ""));
         }
       } catch (err) {
         ctx.status("The copy could not be made: " + err.message);
@@ -265,11 +286,12 @@
      * inside its click, which is what lets the browser's save window open. */
     function exportNotes() {
       if (!doc || !ready) return;
-      if (!items.length) { ctx.status("There are no highlights or notes to export yet"); return; }
+      if (!items.length && !sticky.list.length) { ctx.status("There are no highlights or notes to export yet"); return; }
       const dialog = $("export-dialog");
       const chosen = dialog.querySelector(`input[name="export-kind"][value="${lastKind()}"]`);
       if (chosen) chosen.checked = true;
-      $("export-count").textContent = `${plural(items.length, "highlight")}, ${items.filter((i) => flat(i.note)).length} with notes`;
+      $("export-count").textContent = `${plural(items.length, "highlight")}, ${items.filter((i) => flat(i.note)).length} with notes`
+        + (sticky.list.length ? `, ${plural(sticky.list.length, "sticky note")}` : "");
       dialog.showModal();
     }
 
@@ -281,10 +303,11 @@
       const mine = ctx.generation();
       try {
         const saved = await saveFile(ctx.offer, `${stem} (notes).${kind}`, type, description, "." + kind, async () => {
-          const sections = items.map((item) => ctx.sectionAt?.(item.page, item.top) ?? null);
-          // The reader's own order, as places in the document's.
-          const order = ordered().map((item) => items.indexOf(item));
-          const job = work.then(() => ctx.call("notes_document", kind, doc.title, doc.name, sections, order));
+          // The reader's own order, highlights and sticky notes together, each
+          // with the section it is in.
+          const entries = ordered().map((item) => [isSticky(item) ? "s" : "h",
+            isSticky(item) ? sticky.list.indexOf(item) : items.indexOf(item), ctx.sectionAt?.(item.page, item.top) ?? null]);
+          const job = work.then(() => ctx.call("notes_document", kind, doc.title, doc.name, [], null, entries));
           work = job.catch(() => {});
           const bytes = await job;
           if (mine !== ctx.generation()) throw new Error("that document is closed now");
@@ -319,6 +342,7 @@
       try {
         await ctx.call("set_author", settings.author);
         items = kept ? await ctx.call("restore", kept.annotations) : await ctx.call("annotations");
+        sticky.set(await ctx.call("stickies"));
       } catch (err) {
         if (mine === ctx.generation()) ctx.status("This document's highlights cannot be read: " + err.message);
         return;
@@ -327,8 +351,11 @@
       ready = true;
       if (kept) { keptAt = new Date(kept.saved); showKept(); }
       refreshAll();
-      if (kept && items.length) {
-        ctx.status(`Your ${plural(items.length, "highlight")} from last time ${items.length === 1 ? "is" : "are"} back`);
+      const stickies = sticky.list.length;
+      if (kept && (items.length || stickies)) {
+        const what = [items.length ? plural(items.length, "highlight") : "", stickies ? plural(stickies, "sticky note") : ""]
+          .filter(Boolean).join(" and ");
+        ctx.status(`Your ${what} from last time ${items.length + stickies === 1 ? "is" : "are"} back`);
       }
     }
 
@@ -336,6 +363,7 @@
       clearTimeout(saveTimer);
       changedAt = remindedAt = null;
       doc = null; ready = false; items = []; active = null; undoStack = []; redoStack = []; drafting = null;
+      sticky.clear();
       showKept("");
       refreshAll();
     }
@@ -343,6 +371,7 @@
     // --- on the page ---------------------------------------------------------
 
     function draw(page, pageEl) {
+      sticky.draw(page, pageEl);
       for (const item of items) {
         if (item.page !== page) continue;
         const look = shown(item), picked = item.xref === active;
@@ -383,6 +412,10 @@
       if (xref === active) return;
       active = xref;
       refreshAll();
+      if (item && isSticky(item)) {
+        $("cards").querySelector(`[data-xref="${xref}"]`)?.scrollIntoView({ block: "nearest" });
+        return;
+      }
       if (item) {
         $("cards").querySelector(`[data-xref="${xref}"]`)?.scrollIntoView({ block: "nearest" });
         const words = flat(item.note) || preview(item);
@@ -392,8 +425,8 @@
 
     // --- highlighting, editing, removing, and undo -----------------------------
 
-    function pushUndo(undone, redone, undo, redo) {
-      undoStack.push({ undone, redone, undo, redo });
+    function pushUndo(undone, redone, undo, redo, tag = null) {
+      undoStack.push({ undone, redone, undo, redo, tag });
       undoStack = undoStack.slice(-UNDO_DEPTH);
       redoStack = [];
       refreshControls();
@@ -434,6 +467,12 @@
       pushUndo("Note change undone", "Note change put back", () => apply(before), () => apply(after));
     }
 
+    /* Forget the steps made under `tag` -- a sticky opened and left empty. */
+    function dropUndo(tag) {
+      undoStack = undoStack.filter((entry) => entry.tag !== tag);
+      refreshControls();
+    }
+
     function stepUndo(from, to, label) {
       const entry = from.pop();
       if (!entry) { ctx.status(label === "undone" ? "Nothing to undo" : "Nothing to put back"); return; }
@@ -445,6 +484,29 @@
     }
     const undo = () => stepUndo(undoStack, redoStack, "undone");
     const redo = () => stepUndo(redoStack, undoStack, "redone");
+
+    // --- sticky notes -------------------------------------------------------------
+    // js/sticky.js; this is what it needs of the notes and the reader.
+
+    const sticky = MimickSticky.create({
+      call: ctx.call, status: ctx.status, showMenu: ctx.showMenu, copyText: ctx.copyText, COLOURS,
+      change, dropUndo: (xref) => dropUndo("sticky:" + xref),
+      pushUndo,
+      zoom: ctx.zoom,
+      pageSize: (page) => doc.pages[page],
+      ready: () => !!doc && ready,
+      focusPage: () => ctx.focusPage(),
+      canRead: () => ctx.canRead(),
+      readSticky: (item) => ctx.readSticky(item),
+      caretSpot: () => ctx.caretSpot(),
+      viewSpot: () => ctx.viewSpot(),
+      download: () => download(),
+      colour: () => settings.stickyColour,
+      active: () => active,
+      activeSticky,
+      pick: (item) => { if (item && active !== item.xref) { active = item.xref; refreshAll(); } },
+      formatChanged: () => showFormat(),
+    });
 
     function highlight(withNote = false) {
       if (!ready) return;
@@ -483,13 +545,15 @@
     }
 
     function step(delta) {
-      if (!items.length) return;
-      const now = items.findIndex((i) => i.xref === active);
-      const index = now < 0 ? (delta > 0 ? 0 : items.length - 1) : Math.max(0, Math.min(items.length - 1, now + delta));
-      const item = items[index];
+      const all = everything();
+      if (!all.length) return;
+      const now = all.findIndex((i) => i.xref === active);
+      const index = now < 0 ? (delta > 0 ? 0 : all.length - 1) : Math.max(0, Math.min(all.length - 1, now + delta));
+      const item = all[index];
       ctx.scrollToPoint(item.page, item.top);
       active = null;
       pick(item);
+      if (isSticky(item)) ctx.status(`Sticky note on page ${item.page + 1} — double-click its card, or click into it, to write`);
     }
 
     // --- copying --------------------------------------------------------------
@@ -678,16 +742,45 @@
       const size = Math.max(6, Math.min(40, settings.size * ctx.zoom()));
       cards.style.fontSize = size + "pt";
       cards.style.fontFamily = settings.font ? `"${settings.font}", system-ui, sans-serif` : "";
-      const wanted = (i) => drafting?.xref === i.xref || (i.note ? settings.written : settings.quotes);
+      const wanted = (i) => (isSticky(i) ? settings.stickies
+        : drafting?.xref === i.xref || (i.note ? settings.written : settings.quotes));
       cards.classList.toggle("all", settings.all);
       const onPage = settings.all ? ordered().filter(wanted)
-        : items.filter((i) => pages.includes(i.page) && wanted(i)).sort((a, b) => a.page - b.page || a.top - b.top);
+        : everything().filter((i) => pages.includes(i.page) && wanted(i));
       for (const item of onPage) cards.append(card(item));
       cards.scrollTop = scroll;
       connect();
     }
 
+    function stickyCard(item) {
+      const picked = item.xref === active;
+      const node = el("div", { className: "note-card sticky-card" + (picked ? " picked" : "") + (item.folded ? " folded" : "") });
+      node.dataset.xref = item.xref;
+      node.style.setProperty("--accent", css(item.colour));
+      if (settings.all) {
+        node.append(el("div", { className: "where", textContent: `Page ${item.page + 1}` }));
+        draggable(node, item);
+      }
+      node.append(el("div", { className: "heading", textContent: "Sticky note" }));
+      const body = el("div", { className: "body rich" });
+      // The worker's clean_rich made this, and it holds nothing but words, <p>,
+      // <ul>, <li>, <b>, <i>, <u>, <s> and a font size -- so it can be shown.
+      body.innerHTML = flat(item.text) ? item.rich.replace(/font-size:\s*([\d.]+)pt/g, (m, n) => `font-size:${n / 11}em`)
+        : "<p><i>Empty</i></p>";
+      node.append(body);
+      if (picked) {
+        const badge = el("button", { className: "remove", type: "button", title: "Delete this sticky note", textContent: "×" });
+        badge.onclick = (e) => { e.stopPropagation(); sticky.remove(item); };
+        node.append(badge);
+      }
+      node.onclick = () => { pick(item); ctx.scrollToPoint(item.page, item.top); };
+      node.ondblclick = () => { ctx.scrollToPoint(item.page, item.top); setTimeout(() => sticky.focus(item)); };
+      node.oncontextmenu = (e) => { e.preventDefault(); pick(item); ctx.showMenu(e.clientX, e.clientY, sticky.menuItems(item)); };
+      return node;
+    }
+
     function card(item) {
+      if (isSticky(item)) return stickyCard(item);
       const look = shown(item), picked = item.xref === active;
       const node = el("div", { className: "note-card" + (picked ? " picked" : "") });
       node.dataset.xref = item.xref;
@@ -757,18 +850,19 @@
       const main = svg.getBoundingClientRect(), cards = $("cards").getBoundingClientRect();
       const viewBox = ctx.view.getBoundingClientRect();
       for (const node of $("cards").children) {
-        const item = find(Number(node.dataset.xref));
-        if (!item?.rects.length) continue;
+        const item = findAny(Number(node.dataset.xref));
+        const rect = item && (isSticky(item) ? item.rect : item.rects[0]);
+        if (!rect) continue;
         const box = node.getBoundingClientRect();
         const y2 = box.top + 14;
         if (y2 < cards.top || y2 > cards.bottom) continue;
-        const from = ctx.pageRectToClient(item.page, item.rects[0]);
+        const from = ctx.pageRectToClient(item.page, isSticky(item) ? [rect[0], rect[1], rect[2], rect[1] + 14 / ctx.zoom()] : rect);
         if (!from || from.top > viewBox.bottom || from.bottom < viewBox.top) continue;
         const x1 = Math.min(from.right + 2, viewBox.right - 2);
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         Object.entries({ x1: x1 - main.left, y1: (from.top + from.bottom) / 2 - main.top,
                          x2: box.left - 4 - main.left, y2: y2 - main.top }).forEach(([k, v]) => line.setAttribute(k, v));
-        line.setAttribute("stroke", css(shown(item).colour, 120 / 255));
+        line.setAttribute("stroke", css(isSticky(item) ? item.colour : shown(item).colour, 120 / 255));
         svg.append(line);
       }
     }
@@ -787,10 +881,18 @@
       $("filter-notes").textContent = `Notes${written ? "  " + written : ""}`;
       $("filter-quotes").setAttribute("aria-pressed", settings.quotes);
       $("filter-notes").setAttribute("aria-pressed", settings.written);
+      const stuck = sticky.list.length;
+      $("filter-sticky").textContent = `Sticky${stuck ? "  " + stuck : ""}`;
+      $("filter-sticky").setAttribute("aria-pressed", settings.stickies);
       $("notes-all").setAttribute("aria-pressed", settings.all);
-      for (const id of ["prev-note", "next-note"]) $(id).disabled = !items.length;
-      $("note-count").textContent = items.length ? plural(items.length, "note") : "";
-      $("notes-foot").hidden = !(has && items.length);
+      for (const id of ["prev-note", "next-note"]) $(id).disabled = !(items.length + stuck);
+      $("note-count").textContent = [items.length ? plural(items.length, "note") : "", stuck ? plural(stuck, "sticky") : ""]
+        .filter(Boolean).join(" · ");
+      $("notes-foot").hidden = !(has && (items.length || stuck));
+      $("markup-sticky").hidden = $("markup-format").hidden = !settings.sticky;
+      $("markup-sticky").disabled = !has;
+      $("markup-sticky").setAttribute("aria-pressed", sticky.placing);
+      showFormat();
       for (const id of ["markup-highlight", "markup-colour", "markup-note"]) $(id).disabled = !has;
       $("markup-colour").style.setProperty("--swatch", css(colour));
     }
@@ -804,6 +906,7 @@
 
     $("filter-quotes").onclick = () => { ctx.remember("mimick-panel-quotes", settings.quotes ? "0" : "1"); refreshAll(); };
     $("filter-notes").onclick = () => { ctx.remember("mimick-panel-notes", settings.written ? "0" : "1"); refreshAll(); };
+    $("filter-sticky").onclick = () => { ctx.remember("mimick-panel-sticky", settings.stickies ? "0" : "1"); refreshAll(); };
     $("notes-all").onclick = () => {
       ctx.remember("mimick-panel-all", settings.all ? "0" : "1");
       refreshAll();
@@ -881,6 +984,58 @@
         run: () => { colour = value; refreshControls(); },
       })));
     };
+
+    // + Add sticky, and the row that formats the sticky being typed in. A press
+    // on one of these must not take the cursor out of the sticky, so none of
+    // them takes focus; the size box does, and hands it straight back.
+    $("markup-sticky").onclick = () => sticky.place();
+    const FORMATS = { "fmt-bold": "bold", "fmt-italic": "italic", "fmt-underline": "underline",
+                      "fmt-strike": "strike", "fmt-list": "list" };
+    for (const [id, what] of Object.entries(FORMATS)) {
+      $(id).addEventListener("pointerdown", (e) => e.preventDefault());
+      $(id).onclick = () => sticky.format(what);
+    }
+    const sizeBox = $("fmt-size");
+    for (const size of sticky.SIZES) sizeBox.append(el("option", { value: size, textContent: size }));
+    sizeBox.onchange = () => sticky.format("size", sizeBox.value);
+    $("fmt-colour").addEventListener("pointerdown", (e) => e.preventDefault());
+    $("fmt-colour").onclick = (e) => {
+      const box = e.currentTarget.getBoundingClientRect();
+      const item = activeSticky();
+      const now = item?.colour ?? settings.stickyColour;
+      ctx.showMenu(box.left, box.bottom + 4, COLOURS.map(([name, value]) => ({
+        label: name, swatch: css(value), checked: sameColour(value, now),
+        run: () => {
+          ctx.remember("mimick-sticky-colour", JSON.stringify(value));
+          if (item) sticky.format("colour", value);
+          else ctx.status(`New sticky notes will be ${name.toLowerCase()}`);
+          refreshControls();
+        },
+      })));
+    };
+    function showFormat() {
+      const state = sticky.formatState();
+      $("markup-format").classList.toggle("live", state.editing);
+      for (const [id, what] of Object.entries(FORMATS)) {
+        $(id).disabled = !state.editing;
+        $(id).setAttribute("aria-pressed", !!state[what]);
+      }
+      sizeBox.disabled = !state.editing;
+      if (state.editing && document.activeElement !== sizeBox) {
+        const near = sticky.SIZES.reduce((a, b) => (Math.abs(b - state.size) < Math.abs(a - state.size) ? b : a));
+        sizeBox.value = near;
+      }
+      $("fmt-colour").style.setProperty("--swatch", css(state.colour ?? activeSticky()?.colour ?? settings.stickyColour));
+      $("fmt-colour").disabled = !ready;
+    }
+
+    function setSticky(on) {
+      ctx.remember("mimick-sticky", on ? "1" : "0");
+      if (!on) sticky.place(false);
+      refreshControls();
+      ctx.status(on ? "Sticky notes: + Add sticky and its formatting are on the Highlight / Add note strip"
+                    : "+ Add sticky is off the strip — the sticky notes on the page stay where they are");
+    }
 
     function placeBar(home, point = null, announce = false) {
       if (home === "panel" && !settings.panel) home = "top";
@@ -985,15 +1140,16 @@
         { label: "Copy", keys: "Ctrl+C", enabled: !!(ctx.selection() || picked), run: () => ctx.copy() },
         { label: "Highlight selection", keys: "Ctrl+H", enabled: ready, run: () => highlight(false) },
         { label: "Highlight and write a note…", keys: "Ctrl+M", enabled: ready, run: () => highlight(true) },
+        { label: "Add a sticky note", keys: "Ctrl+Alt+M", enabled: ready, run: () => sticky.addAtCaret() },
         "-",
-        { label: "Go to next note", keys: "Ctrl+J", enabled: items.length > 0, run: () => step(1) },
-        { label: "Go to previous note", keys: "Ctrl+K", enabled: items.length > 0, run: () => step(-1) },
+        { label: "Go to next note", keys: "Ctrl+J", enabled: items.length + sticky.list.length > 0, run: () => step(1) },
+        { label: "Go to previous note", keys: "Ctrl+K", enabled: items.length + sticky.list.length > 0, run: () => step(-1) },
         "-",
         { label: "Undo the last highlight or note", keys: "Ctrl+Z", enabled: undoStack.length > 0, run: undo },
         { label: "Redo it", keys: "Ctrl+Y", enabled: redoStack.length > 0, run: redo },
         "-",
         { label: "Save a copy with your notes (PDF)…", keys: "Ctrl+S", enabled: ready, run: download },
-        { label: "Export notes…", enabled: ready && items.length > 0, run: exportNotes },
+        { label: "Export notes…", enabled: ready && items.length + sticky.list.length > 0, run: exportNotes },
         { label: "Put notes back in page order", enabled: ready && customOrder(), run: () => {
           setOrder(null);
           ctx.status("Notes are in page order again");
@@ -1013,7 +1169,9 @@
         { label: "Notes panel", keys: "Ctrl+B", checked: settings.panel, run: () => setPanel(!settings.panel) },
         { label: "Show highlights in the panel", checked: settings.quotes, run: () => $("filter-quotes").click() },
         { label: "Show notes in the panel", checked: settings.written, run: () => $("filter-notes").click() },
+        { label: "Show sticky notes in the panel", checked: settings.stickies, run: () => $("filter-sticky").click() },
         "-",
+        { label: "Sticky notes", checked: settings.sticky, run: () => setSticky(!settings.sticky) },
         { label: "Highlight and note buttons", keys: "Ctrl+Shift+H", checked: settings.bar, run: () => setBar(!settings.bar) },
         ...Object.entries(HOMES).map(([home, label]) => ({
           label, indent: true, checked: settings.home === home, enabled: home !== "panel" || settings.panel,
@@ -1035,12 +1193,14 @@
     return {
       COLOURS,
       open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download, exportNotes, exportAs, menuItems,
-      pageShown, connect, refreshAll, displayMenu,
+      pageShown, connect, refreshAll, displayMenu, sticky,
       togglePanel: () => setPanel(!settings.panel),
+      toggleSticky: () => setSticky(!settings.sticky),
+      get stickyOn() { return settings.sticky; },
       toggleBar: () => setBar(!settings.bar),
       get active() { return activeItem(); },
       get ready() { return ready; },
-      get count() { return items.length; },
+      get count() { return items.length + sticky.list.length; },
       get editing() { return dialog.open || styleDialog.open; },
       get opening() { return opening; },
     };

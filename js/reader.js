@@ -1111,7 +1111,8 @@
         if (voice.source === "document") remember(`mimick-position:${doc.key}`, index);
         if (!(voice.source === "document" && sleepDue(page, box[1]))) status(sentenceStatus);
         const [word, on, rect] = made.words[0];
-        placeCaret(word, false, [on, rect[0], rect[1], rect[3]]);
+        // A sticky note's words (index -1) are not the document's: the cursor stays put.
+        if (word >= 0) placeCaret(word, false, [on, rect[0], rect[1], rect[3]]);
         keepInView(page, box);
       }
       redrawMarks();
@@ -1122,6 +1123,7 @@
       // The cursor rides along with the voice, so pausing leaves it where you
       // stopped listening and the arrow keys carry on from there.
       const [word, page, rect] = lit.made.words[position];
+      if (word < 0) return;
       placeCaret(word, false, [page, rect[0], rect[1], rect[3]]);
       redrawMarks();
       keepInView(page, rect);
@@ -1533,6 +1535,13 @@
   view.addEventListener("pointerdown", (e) => {
     if (!e.target.closest?.("#menu")) closeMenu();
     press = null;
+    // A sticky note is typed in, dragged and clicked by itself (js/sticky.js).
+    if (e.target.closest?.(".sticky")) return;
+    if (notes.sticky.placing && e.button === 0) {
+      e.preventDefault();
+      notes.sticky.placeAt(e.target.closest?.(".page") ? pointOnPage(e.clientX, e.clientY) : null);
+      return;
+    }
     if (e.button !== 0 || !doc?.words || !e.target.closest?.(".page") || e.target.closest(".remove")) return;
     const at = pointOnPage(e.clientX, e.clientY);
     // With the reading order showing, a click reads or skips a region and does nothing else.
@@ -1661,6 +1670,8 @@
     if (mine !== generation) return;
     const hit = at && notes.ready ? notes.at(at.page, at.x, at.y) : null;
     if (hit && !selection) notes.pick(hit);
+    const stickyHere = at && notes.ready && notes.stickyOn
+      ? [{ label: "Add a sticky note here", keys: "Ctrl+Alt+M", run: () => notes.sticky.placeAt(at) }] : [];
     showMenu(x, y, [
       { label: "Start reading from here", enabled: sentence !== null, run: () => readFrom(sentence) },
       ...(selection ? [{ label: "Read the selection", keys: "Enter", run: readSelection }] : []),
@@ -1673,6 +1684,7 @@
                            { label: "Highlight and write a note…", keys: "Ctrl+M", run: () => notes.highlight(true) }] : []),
       ] : hit ? notes.menuItems(hit)
         : [{ label: "Select some text to copy or highlight it", enabled: false }]),
+      ...(stickyHere.length ? ["-", ...stickyHere] : []),
     ]);
   });
   window.addEventListener("blur", closeMenu);
@@ -2095,6 +2107,7 @@
     $("sw-contents").disabled = cItem.enabled === false;
     $("sw-notes").setAttribute("aria-pressed", nItem.find((i) => i.label === "Notes panel").checked);
     $("sw-markup").setAttribute("aria-pressed", nItem.find((i) => i.label === "Highlight and note buttons").checked);
+    $("sw-sticky").setAttribute("aria-pressed", notes.stickyOn);
   }
   function openSwitches(on) {
     remember("mimick-switches", on ? "1" : "0");
@@ -2116,6 +2129,7 @@
   $("sw-contents").onclick = () => contents.displayMenu()[0].run();
   $("sw-notes").onclick = () => notes.togglePanel();
   $("sw-markup").onclick = () => notes.toggleBar();
+  $("sw-sticky").onclick = () => notes.toggleSticky();
   // Anything clicked or pressed may have changed a switch: redraw once it has run.
   for (const type of ["click", "keydown"]) document.addEventListener(type, () => setTimeout(showSwitches), true);
 
@@ -2213,6 +2227,30 @@
     readRange,
     canRead: () => !!doc?.sentences,
     copy: () => copySelection(),
+    /* Read a sticky note's words, then go quiet, as a selection is read. */
+    async readSticky(item) {
+      if (!doc?.sentences) return;
+      voice.prepare();
+      const mine = generation;
+      const count = await call("read_sticky", item.xref);
+      if (mine !== generation) return;
+      if (!count) { status("That sticky note has nothing to read"); return; }
+      voice.open(count, "selection");
+      voice.play(0);
+    },
+    /* Where Ctrl+Alt+M puts a sticky note: just under the text cursor, or
+     * near the top of the page on screen. In page points. */
+    caretSpot() {
+      if (!doc || !caret.place) return null;
+      const [page, x, , y1] = caret.place;
+      return { page, x, y: y1 + 4 };
+    },
+    viewSpot() {
+      if (!doc) return null;
+      const page = currentPage(), [w, h] = doc.pages[page];
+      const y = (view.scrollTop - geometry.offsets[page]) / zoom + 40;
+      return { page, x: Math.max(0, w - 220), y: Math.max(20, Math.min(h - 60, y)) };
+    },
     sectionAt: (page, y) => contents.sectionAt(page, y),
     scrollToPoint(page, y) {
       view.scrollTop = Math.max(0, geometry.offsets[page] + y * zoom - view.clientHeight / 3);
@@ -2401,7 +2439,7 @@
   window.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
-                || e.target instanceof HTMLTextAreaElement;
+                || e.target instanceof HTMLTextAreaElement || !!e.target.isContentEditable;
     if (notes.opening) { e.preventDefault(); return; }
     if (notes.editing || document.querySelector("dialog[open]")) return;
     if (!menu.hidden) {
@@ -2433,6 +2471,8 @@
       else if (!$("play").disabled) togglePlay();
       return;
     }
+    if (key === "Escape" && notes.sticky.placing) { notes.sticky.place(false); return; }
+    if (ctrl && e.altKey && !e.shiftKey && key === "m") { e.preventDefault(); notes.sticky.addAtCaret(); return; }
     if (key === "Escape" && find.isOpen) { find.close(false); return; }
     if (key === "Escape") { anchor = null; setSelection(null); return; }
     if (key === "?" && !ctrl) { e.preventDefault(); $("keys-dialog").showModal(); return; }

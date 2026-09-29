@@ -93,9 +93,11 @@ s = await state();
 check("Ctrl+A selects the page", /words selected/.test(s.status) && s.sel > 10, [s.status, s.sel]);
 await r.rightClick(await r.at(40, 40));
 const offered = await r.menuLabels();
+// …and last, since 29 September, a sticky note at the spot clicked.
 check("right-click off the text: Start greyed, then the selection's own entries",
       JSON.stringify(offered) === JSON.stringify(["(off) Start reading from here", "Read the selection", "Copy",
-                                                   "Highlight", "Highlight and write a note…"]), offered);
+                                                   "Highlight", "Highlight and write a note…",
+                                                   "Add a sticky note here"]), offered);
 await r.key("Escape"); await sleep(200);
 check("Esc closes the menu", (await r.menuLabels()) === null);
 r.finish();

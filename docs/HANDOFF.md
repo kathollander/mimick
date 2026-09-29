@@ -34,7 +34,57 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Latest: pushed as one commit, and the desktop reads scans (25 September)
+## Latest: sticky notes, in both apps (29 September)
+
+Kat asked for them, and settled the plan in a published artifact (*Mimick
+Sticky Notes*) the same day: a note anywhere on a page, **part of the PDF** the
+way a text box is in Acrobat, **editable after saving**, its formatting on the
+movable Highlight / Add note strip rather than on the note, and + Add sticky on
+that strip when Display ▾ → Sticky notes is on. She said to go ahead with the
+recommended answer to every open question, so: pinned to the page; Ctrl+B is
+bold inside a sticky and the notes panel elsewhere; `Ctrl`+`Alt`+`M` adds one;
+text size per selection; Display off takes the buttons off the strip and leaves
+the notes on the page; one strip; extras colour, fold, bullet lists (Find over
+stickies was the fourth recommended extra and is **not done** -- see below).
+
+- **A PDF FreeText annotation with rich text** (`annotations.py`, shared,
+  `Mimick-linux` `0a6ad4c` then `f4328b8`). Checked by rendering a saved one in
+  Poppler (Okular, Evince), PDFium (Chrome, Edge, Brave) and pdf.js (Firefox):
+  all three draw it with its bold, italics, underline, strikeout and sizes.
+  `clean_rich` turns whatever HTML the text arrives as -- Chrome's
+  contenteditable, Qt's `toHtml`, Acrobat's `RC` -- into one small form (`<p>`,
+  `<ul><li>`, `<b> <i> <u> <s>`, a `font-size` span), and running it twice
+  changes nothing. `Contents` holds a plain copy (set together with the rich
+  text through `pdf_set_annot_rich_contents`: PyMuPDF's `set_info(content=)`
+  **throws the rich text away**). MuPDF adds a callout line to every new text
+  box, which Acrobat would draw as an arrow from the page corner; it is removed.
+  A box is never shorter than its words: `sticky_height` measures with MuPDF's
+  own Story, checked against the ink it draws. Okular edits the plain text only,
+  so a sticky retyped there comes back without its formatting; the words stay.
+- **Browser:** `js/sticky.js` (the boxes, typing, formatting, dragging, undo
+  with an id that follows a sticky through re-creation), `notes.js` (cards under
+  a **Sticky** chip, the strip's + Add sticky and formatting row, Ctrl+J/K,
+  Export notes and Save a copy), `reader.py` (`stickies`, `sticky_add`,
+  `sticky_set`, `sticky_remove`, `read_sticky`; `snapshot` carries them with
+  `"kind": "sticky"`). A size is kept as `font-size:18pt` and shown as
+  `calc(18 * var(--pt))`, so the words zoom with the page.
+- **Traps found on the way:** Pyodide hands a JavaScript `null` to Python as
+  `JsNull`, not `None` (`_given` in `reader.py`). Firefox on Linux does not
+  bold on Ctrl+B in an editable box -- it is its bookmarks key -- so the sticky
+  does Ctrl+B/I/U itself. Putting back the selection kept from
+  `selectionchange` before formatting sent a quick Ctrl+B's words to where the
+  cursor had been a keystroke earlier; it is only put back when focus is
+  coming back from the size box or a menu. Swapping execCommand's `<font
+  size=7>` for a span moved the typing cursor out of it; the mark is restyled
+  in place instead.
+- **Checks:** `tools/check_sticky.mjs` (new, 40 steps, four clean runs in a
+  row), a sticky section in `check_firefox.mjs`, `check_selecting.mjs` (the
+  right-click menu now ends with *Add a sticky note here*). Passing after the
+  change: sticky, notes, display, access, offline, forget, tour, selecting,
+  reader, find, firefox (bar its known one-in-three `textContent` flake).
+- **Not done:** Find does not search sticky notes. **Nothing is pushed.**
+
+## Earlier: pushed as one commit, and the desktop reads scans (25 September)
 
 - **Pushed, with the history squashed** (`55346ae`), at Kat's word:
   `../mimick-squash-and-push.sh` replaced GitHub's history with one commit of

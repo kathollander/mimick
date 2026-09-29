@@ -115,6 +115,28 @@ try {
   const md = await (async () => { for (let i = 0; i < 40; i++) { await sleep(250); const f = fs.readdirSync(downloads).find((n) => n.endsWith(".md")); if (f) return f; } return null; })();
   check("Export notes downloads the notes", md === "test-paper (notes).md", md);
 
+  // A sticky note: the editing is the browser's own (contenteditable and
+  // execCommand), which Firefox does its own way.
+  await click("#markup-sticky"); await sleep(300);
+  const [px, py] = await js(`const b = document.querySelector('.page[data-page="0"]').getBoundingClientRect();
+    return [Math.round(b.left + b.width * 0.55), Math.round(b.top + b.height * 0.5)]`);
+  await wd("POST", "/actions", { actions: [{ type: "pointer", id: "p", parameters: { pointerType: "mouse" }, actions: [
+    { type: "pointerMove", origin: "viewport", x: px, y: py },
+    { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }] }] });
+  await wait(`return document.activeElement?.classList.contains("sticky-text")`, 20000);
+  check("+ Add sticky and a click: a sticky, ready to type in",
+        await js(`return document.querySelectorAll(".page .sticky").length === 1 && document.activeElement.classList.contains("sticky-text")`));
+  await keys("Exam ");
+  await keys([CTRL, "b"]); await keys("bold"); await keys([CTRL, "b"]);
+  await keys(" and ");
+  await keys([CTRL, "", "x"]); await keys("gone"); await keys([CTRL, "", "x"]);
+  await sleep(300);
+  const typed = await js(`return document.querySelector(".page .sticky-text").innerHTML`);
+  check("Ctrl+B and Ctrl+Shift+X format it", /<b>bold<\/b>/.test(typed) && /<(s|strike)>gone<\/(s|strike)>/.test(typed), typed);
+  await keys(""); await sleep(1500);     // Escape
+  const card = await js(`return document.querySelector("#cards .sticky-card")?.innerHTML ?? ""`);
+  check("Esc keeps it, and its card shows it formatted", /<b>bold<\/b>/.test(card) && /<s>gone<\/s>/.test(card), card);
+
   await openFile(path.join(root, "sample/test-document.docx"));
   await wait(`return document.getElementById("title").textContent === "Notes on Listening" && !document.getElementById("play").disabled`, 30000);
   check("a Word file opens", /^1 page · \d+ sentences to read/.test(await status()), await status());

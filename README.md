@@ -47,9 +47,20 @@ progress.
 6. **Highlight** a selection with `Ctrl`+`H`, or highlight it and **write a
    note** with `Ctrl`+`M`. Notes appear beside the page (`Ctrl`+`B` shows or
    hides them), and are kept in this browser as you work.
-7. **Save a copy** with `Ctrl`+`S`: the PDF with your highlights and notes in
-   it, which other PDF readers can show. **File ▾ → Export notes** gives you
-   just the notes, as text you can paste anywhere.
+   **Sticky notes** go anywhere on a page: **+ Add sticky** on the Highlight /
+   Add note strip, then click where it goes (or `Ctrl`+`Alt`+`M`, or right-click
+   → **Add a sticky note here**). Type straight into it; the strip's second row
+   sets its text size, **bold**, *italic*, underline, ~~strikeout~~, a bullet
+   list and its colour, and `Ctrl`+`B`, `I` and `U` work as usual while you type.
+   Drag its top edge to move it, its corner to resize it, ▾ to fold it away.
+   A sticky is part of the PDF, as a text box is in Acrobat: a saved copy
+   carries it, Firefox, Chrome, Okular and Acrobat show it, formatting and all,
+   and opening that copy in Mimick again gives it back to edit. Programs that
+   edit only plain text (Okular) keep its words but not its bold or italics.
+   **Display ▾ → Sticky notes** takes + Add sticky off the strip.
+7. **Save a copy** with `Ctrl`+`S`: the PDF with your highlights, notes and
+   sticky notes in it, which other PDF readers can show. **File ▾ → Export
+   notes** gives you just the notes, as text you can paste anywhere.
 8. **Contents**: a PDF with bookmarks lists them on the left; click one to go
    there. The **‹** at the top of that panel, and the **›** on the notes
    panel, put them away; a tab on the edge of the page brings each back (`F9`

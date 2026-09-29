@@ -15,7 +15,8 @@ from pathlib import Path
 
 import pymupdf
 
-from mimick.annotations import AnnotationStore, _write_range
+from mimick.annotations import (MARKS, STICKY_COLOUR, STICKY_WIDTH, AnnotationStore, _write_range,
+                                sticky_sentences)
 from mimick import layout
 from mimick.convert import KINDS, document_to_pdf, text_to_pdf  # noqa: F401
 from mimick.document import Document, _merge_rects, align_marks
@@ -528,8 +529,78 @@ def annotation_remove(xref: int) -> list[dict]:
 
 
 def snapshot() -> list[dict]:
-    """Every highlight as plain data, to be kept by the browser."""
-    return [{**entry, "author": _author_of(_item(entry["xref"]))} for entry in annotations()]
+    """Every highlight and sticky note as plain data, to be kept by the browser.
+    A sticky's entry says ``"kind": "sticky"``; a highlight's has no kind, as
+    before stickies, so what older versions kept still reads."""
+    return ([{**entry, "author": _author_of(_item(entry["xref"]))} for entry in annotations()]
+            + [{**entry, "kind": "sticky"} for entry in stickies()])
+
+
+# -- sticky notes ----------------------------------------------------------------
+#
+# The desktop's Sticky, on the open document: FreeText annotations with rich
+# text, known to the page by xref like highlights. Every change answers with
+# the whole list, in page order.
+
+
+def _given(value):
+    """A value from the page, or None where it passed null -- which Pyodide
+    hands over as JsNull, not None."""
+    return None if value is None or type(value).__name__ == "JsNull" else value
+
+
+def _sticky(xref: int):
+    for item in _live().stickies:
+        if item.xref == xref:
+            return item
+    return None
+
+
+def stickies() -> list[dict]:
+    """Every sticky note, in order down the document."""
+    if _store is None:
+        return []
+    return [{
+        "xref": item.xref, "page": item.page, "rect": _rect(item.rect), "rich": item.rich,
+        "text": item.text, "colour": [round(c, 3) for c in item.colour], "folded": item.folded,
+        "author": item.author, "top": round(item.top, 2),
+    } for item in _store.stickies]
+
+
+def sticky_add(page: int, x: float, y: float, rich: str = "", colour: list | None = None,
+               width: float = STICKY_WIDTH) -> dict:
+    """A new sticky note with its corner at ``x``, ``y``: its xref, and the list."""
+    colour = _given(colour)
+    item = _live().add_sticky(int(page), float(x), float(y), _given(rich) or "",
+                              tuple(colour) if colour else STICKY_COLOUR, float(width))
+    return {"xref": item.xref, "stickies": stickies()}
+
+
+def sticky_set(xref: int, rich: str | None = None, rect: list | None = None,
+               colour: list | None = None, folded: bool | None = None) -> list[dict]:
+    """Change a sticky note's words, place and size, colour or folding."""
+    item = _sticky(xref)
+    rich, rect, colour, folded = _given(rich), _given(rect), _given(colour), _given(folded)
+    if item is not None:
+        _live().set_sticky(item, rich=rich, rect=list(rect) if rect is not None else None,
+                           colour=tuple(colour) if colour else None, folded=folded)
+    return stickies()
+
+
+def read_sticky(xref: int) -> int:
+    """Make a sticky note's words the sentences read next, as a selection's
+    are (the shared ``sticky_sentences``): how many there are."""
+    global _selection
+    item = _sticky(xref)
+    _selection = sticky_sentences(item) if item is not None else []
+    return len(_selection)
+
+
+def sticky_remove(xref: int) -> list[dict]:
+    item = _sticky(xref)
+    if item is not None:
+        _live().remove_sticky(item)
+    return stickies()
 
 
 def restore(saved: list) -> list[dict]:
@@ -543,9 +614,17 @@ def restore(saved: list) -> list[dict]:
     doc = _open().doc
     for number in range(doc.page_count):
         page = doc.load_page(number)
-        for annot in list(page.annots(types=(pymupdf.PDF_ANNOT_HIGHLIGHT,))):
+        for annot in list(page.annots(types=MARKS)):
             page.delete_annot(annot)
+    store.reload()
     for entry in saved:
+        if entry.get("kind") == "sticky":
+            x0, y0, x1, y1 = entry["rect"]
+            item = store.add_sticky(int(entry["page"]), x0, y0, entry.get("rich") or "",
+                                    tuple(entry.get("colour") or STICKY_COLOUR), x1 - x0,
+                                    author=entry.get("author") or "")
+            store.set_sticky(item, rect=(x0, y0, x1, y1), folded=bool(entry.get("folded")))
+            continue
         page = doc.load_page(int(entry["page"]))
         annot = page.add_highlight_annot(quads=[pymupdf.Rect(*r).quad for r in entry["rects"]])
         annot.set_colors(stroke=tuple(entry["colour"]))
@@ -559,13 +638,28 @@ def restore(saved: list) -> list[dict]:
     return annotations()
 
 
-def notes_document(kind: str, title: str, name: str, sections: list, order: list | None = None) -> bytes:
+def notes_document(kind: str, title: str, name: str, sections: list, order: list | None = None,
+                   entries: list | None = None) -> bytes:
     """Every highlight and note as a notes document of their own -- ``kind`` is
     docx, odt, pdf or md -- written by the desktop's own notes_export, so the
     two apps give the same file. ``sections`` holds the contents-panel section
     of each highlight, in the order ``annotations`` lists them: the page knows
     the outline, and Python does not. ``order``, if given, is the reader's own
-    order of them, as positions in that same list (All notes, dragged)."""
+    order of them, as positions in that same list (All notes, dragged).
+
+    ``entries``, if given, says it all at once, sticky notes included: a
+    ``[kind, position, section]`` for each, in the order they go -- kind ``"h"``
+    a position in ``annotations``, ``"s"`` in ``stickies``."""
+    entries, order = _given(entries), _given(order)
+    if entries is not None and _store is not None:
+        marks, notes = list(_store.items), list(_store.stickies)
+        chosen, sections_of = [], {}
+        for kind_of, position, section in entries:
+            pool = notes if kind_of == "s" else marks
+            if 0 <= int(position) < len(pool):
+                chosen.append(pool[int(position)])
+                sections_of[id(pool[int(position)])] = section
+        return notes_file(kind, title, name, chosen, lambda item: sections_of.get(id(item)) or None)
     items = list(_store.items) if _store is not None else []
     under = {id(item): section for item, section in zip(items, list(sections or []))}
     order = [int(i) for i in (order or []) if 0 <= int(i) < len(items)]
@@ -591,11 +685,10 @@ def notes_pdf() -> bytes:
     without a file to write to."""
     doc = _open().doc
     data = doc.tobytes(garbage=3, deflate=True)
-    count = lambda d: sum(len(list(d.load_page(n).annots(types=(pymupdf.PDF_ANNOT_HIGHLIGHT,))))
-                          for n in range(d.page_count))
+    count = lambda d: sum(len(list(d.load_page(n).annots(types=MARKS))) for n in range(d.page_count))
     with pymupdf.open(stream=data, filetype="pdf") as written:
         if written.page_count != doc.page_count or count(written) != count(doc):
-            raise OSError("the PDF just made did not come back with every page and highlight")
+            raise OSError("the PDF just made did not come back with every page, highlight and sticky note")
     return data
 
 

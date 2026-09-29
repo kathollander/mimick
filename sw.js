@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "abc28576e1728837";
+const VERSION = "c26aadef7ffb6305";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -56,6 +56,7 @@ const FILES = [
   "js/read-aloud.js",
   "js/reader.js",
   "js/recent.js",
+  "js/sticky.js",
   "js/timing.js",
   "js/tour.js",
   "js/voice-picker.js",
