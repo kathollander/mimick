@@ -242,10 +242,15 @@ const home = () => ev(`JSON.stringify([document.getElementById("markup").dataset
   document.getElementById("markup-top").hidden, document.getElementById("markup-bottom").hidden, document.getElementById("notes").hidden])`).then(JSON.parse);
 check("the strip starts in the notes panel", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false]), await home());
 await r.key("b", CTRL); await sleep(400);
-check("Ctrl+B hides the panel, and the strip moves to the top", JSON.stringify(await home()) === JSON.stringify(["top", "markup-top", false, true, true]), await home());
+check("Ctrl+B hides the panel, and the strip goes with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, true]), await home());
+await r.key("b", CTRL); await sleep(400);
+check("…and comes back with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false]), await home());
 const grip = await r.centre("#markup-grip");
 await r.drag(grip, [600, 450], 8);
 check("dragged over the page, it floats there", (await home())[0] === "float");
+await r.key("b", CTRL); await sleep(400);
+check("a loose strip stays loose when the panel is hidden", JSON.stringify(await home()) === JSON.stringify(["float", "main", true, true, true])
+      && await ev(`document.getElementById("markup").offsetParent !== null`), await home());
 // It cannot be lost: dragged past the window's edge it stops at it, and a
 // smaller window keeps it in view.
 const barBox = () => ev(`(() => { const b = document.getElementById("markup").getBoundingClientRect(), m = document.getElementById("main").getBoundingClientRect();

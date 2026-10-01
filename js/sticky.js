@@ -20,7 +20,8 @@
  *   sticky.set(list) / sticky.list             the worker's list
  *   sticky.draw(page, el)                      put the page's stickies on it
  *   sticky.at(page, x, y)                      the sticky under a point, or null
- *   sticky.place() / placing / placeAt(at)     + Add sticky, then a click
+ *   sticky.addOnScreen()                       + Add sticky, then drag it
+ *   sticky.placeAt(at)                         right-click → Add sticky note here
  *   sticky.addAtCaret()                        Ctrl+Alt+M
  *   sticky.focus(item) / remove(item) / menuItems(item)
  *   sticky.format(what, value)                 from the strip
@@ -73,7 +74,6 @@
     let editing = null;              // { xref, before, fresh, box }
     let commitTimer = 0;
     let range = null;                // the selection in the sticky being typed in
-    let placing = false;
     let pendingSize = null;
     // A sticky's xref changes each time an undo makes it again, so undo steps
     // hold an id of their own, which follows it to its newest xref.
@@ -232,19 +232,17 @@
 
     // --- adding ----------------------------------------------------------------
 
-    function place(on = !placing) {
-      if (!ctx.ready()) return;
-      placing = on;
-      document.body.classList.toggle("placing-sticky", on);
-      ctx.formatChanged();
-      if (on) ctx.status("Click where the sticky note goes — Esc to stop");
-      else ctx.status("");
+    function placeAt(at) {
+      if (!at || !ctx.ready()) return;
+      add(at.page, at.x, at.y);
     }
 
-    function placeAt(at) {
-      place(false);
-      if (!at) return;
-      add(at.page, at.x, at.y);
+    /* + Add sticky: in the middle of the page on screen, ready to type in and
+     * to be dragged by its top edge to where it goes. */
+    function addOnScreen() {
+      if (!ctx.ready()) return;
+      const spot = ctx.viewSpot();
+      if (spot) add(spot.page, spot.x, spot.y, true);
     }
 
     /* Ctrl+Alt+M: at the text cursor if there is one, or near the top of the
@@ -256,14 +254,15 @@
       add(spot.page, spot.x, spot.y);
     }
 
-    function add(page, x, y) {
+    function add(page, x, y, toDrag = false) {
       ctx.change(async () => {
         const { xref, stickies } = await ctx.call("sticky_add", page, x, y, "", ctx.colour());
         apply(stickies);
         const item = find(xref);
         if (!item) return;
         rememberAdded(item);
-        ctx.status("Sticky note added — type, and Esc when you are done. The strip's buttons format it");
+        ctx.status(toDrag ? "Sticky note added — drag its top edge to move it, type in it, and Esc when you are done"
+                          : "Sticky note added — type, and Esc when you are done. The strip's buttons format it");
         setTimeout(() => { const box = boxes.get(xref); if (box) { editing = null; focusBox(box, true); } });
       });
     }
@@ -562,17 +561,16 @@
     }
 
     return {
-      set, draw, at, place, placeAt, addAtCaret, remove, focus, menuItems, format, formatState, finish,
+      set, draw, at, placeAt, addOnScreen, addAtCaret, remove, focus, menuItems, format, formatState, finish,
       SIZES,
       clear() {
-        editing = null; clearTimeout(commitTimer); range = null; place(false);
+        editing = null; clearTimeout(commitTimer); range = null;
         idOf.clear(); xrefOf.clear();
         for (const box of boxes.values()) box.root.remove();
         boxes.clear();
         list = [];
       },
       get list() { return list; },
-      get placing() { return placing; },
       get editing() { return editing ? editing.xref : null; },
       shownRich: shown,
     };

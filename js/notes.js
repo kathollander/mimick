@@ -889,9 +889,8 @@
       $("note-count").textContent = [items.length ? plural(items.length, "note") : "", stuck ? plural(stuck, "sticky") : ""]
         .filter(Boolean).join(" · ");
       $("notes-foot").hidden = !(has && (items.length || stuck));
-      $("markup-sticky").hidden = $("markup-format").hidden = !settings.sticky;
+      $("markup-sticky-pair").hidden = $("markup-format").hidden = !settings.sticky;
       $("markup-sticky").disabled = !has;
-      $("markup-sticky").setAttribute("aria-pressed", sticky.placing);
       showFormat();
       for (const id of ["markup-highlight", "markup-colour", "markup-note"]) $(id).disabled = !has;
       $("markup-colour").style.setProperty("--swatch", css(colour));
@@ -922,13 +921,10 @@
       ctx.remember("mimick-notes-panel", on ? "1" : "0");
       panel.hidden = !on;
       $("notes-tab").hidden = on;
-      // Putting the column away must not take Add note away with it.
-      if (!on && settings.home === "panel") {
-        placeBar("top");
-        ctx.status("Notes panel hidden — Highlight and Add note moved to the top");
-      } else {
-        ctx.status(on ? "Notes panel shown" : "Notes panel hidden");
-      }
+      // A strip in the panel goes away with it, and comes back with it: it
+      // stays wherever it was last put (Kat, 1 October). Ctrl+H and Ctrl+M
+      // still work without it.
+      ctx.status(on ? "Notes panel shown" : "Notes panel hidden");
       ctx.relayout();
       refreshAll();
     }
@@ -985,10 +981,12 @@
       })));
     };
 
-    // + Add sticky, and the row that formats the sticky being typed in. A press
-    // on one of these must not take the cursor out of the sticky, so none of
-    // them takes focus; the size box does, and hands it straight back.
-    $("markup-sticky").onclick = () => sticky.place();
+    // + Add sticky puts one on the page on screen, to be dragged where it goes
+    // (Kat, 1 October: no "click where it goes" step). Its colour, and the row
+    // that formats the sticky being typed in: a press on one of these must not
+    // take the cursor out of the sticky, so none of them takes focus; the size
+    // box does, and hands it straight back.
+    $("markup-sticky").onclick = () => sticky.addOnScreen();
     const FORMATS = { "fmt-bold": "bold", "fmt-italic": "italic", "fmt-underline": "underline",
                       "fmt-strike": "strike", "fmt-list": "list" };
     for (const [id, what] of Object.entries(FORMATS)) {
@@ -998,8 +996,8 @@
     const sizeBox = $("fmt-size");
     for (const size of sticky.SIZES) sizeBox.append(el("option", { value: size, textContent: size }));
     sizeBox.onchange = () => sticky.format("size", sizeBox.value);
-    $("fmt-colour").addEventListener("pointerdown", (e) => e.preventDefault());
-    $("fmt-colour").onclick = (e) => {
+    $("sticky-colour").addEventListener("pointerdown", (e) => e.preventDefault());
+    $("sticky-colour").onclick = (e) => {
       const box = e.currentTarget.getBoundingClientRect();
       const item = activeSticky();
       const now = item?.colour ?? settings.stickyColour;
@@ -1025,20 +1023,19 @@
         const near = sticky.SIZES.reduce((a, b) => (Math.abs(b - state.size) < Math.abs(a - state.size) ? b : a));
         sizeBox.value = near;
       }
-      $("fmt-colour").style.setProperty("--swatch", css(state.colour ?? activeSticky()?.colour ?? settings.stickyColour));
-      $("fmt-colour").disabled = !ready;
+      $("sticky-colour").style.setProperty("--swatch", css(state.colour ?? activeSticky()?.colour ?? settings.stickyColour));
+      $("sticky-colour").disabled = !ready;
     }
 
     function setSticky(on) {
       ctx.remember("mimick-sticky", on ? "1" : "0");
-      if (!on) sticky.place(false);
       refreshControls();
       ctx.status(on ? "Sticky notes: + Add sticky and its formatting are on the Highlight / Add note strip"
                     : "+ Add sticky is off the strip — the sticky notes on the page stay where they are");
     }
 
     function placeBar(home, point = null, announce = false) {
-      if (home === "panel" && !settings.panel) home = "top";
+      if (home === "panel" && !settings.panel && announce) { setPanel(true); return placeBar(home, point, announce); }
       const hosts = { panel: $("markup-panel"), top: $("markup-top"), bottom: $("markup-bottom"), float: $("main") };
       hosts[home].append(bar);
       bar.dataset.home = home;
@@ -1081,6 +1078,8 @@
     }
 
     function setBar(on) {
+      // Asked for while it is in a closed panel: the panel opens to show it.
+      if (settings.bar && settings.home === "panel" && !settings.panel) { setPanel(true); return; }
       ctx.remember("mimick-markup-shown", on ? "1" : "0");
       placeBar(settings.home);
       ctx.status(on ? "Highlight and Add note shown" : "Highlight and Add note hidden — Ctrl+H and Ctrl+M still work");
@@ -1174,7 +1173,7 @@
         { label: "Sticky notes", checked: settings.sticky, run: () => setSticky(!settings.sticky) },
         { label: "Highlight and note buttons", keys: "Ctrl+Shift+H", checked: settings.bar, run: () => setBar(!settings.bar) },
         ...Object.entries(HOMES).map(([home, label]) => ({
-          label, indent: true, checked: settings.home === home, enabled: home !== "panel" || settings.panel,
+          label, indent: true, checked: settings.home === home,
           run: () => placeBar(home, null, true),
         })),
       ];

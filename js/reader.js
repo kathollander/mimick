@@ -238,6 +238,7 @@
   let loading = null;
   let openSerial = 0;
   const SLIDE_KINDS = new Set(["pptx", "ppsx", "odp"]);
+  const STICKY_WIDTH = 180;      // a new sticky note, in points: annotations.py's STICKY_WIDTH
 
   /* The bar, from the moment a file is chosen: before this, a deck showed
    * nothing at all for the several seconds it took to lay out. */
@@ -1537,11 +1538,6 @@
     press = null;
     // A sticky note is typed in, dragged and clicked by itself (js/sticky.js).
     if (e.target.closest?.(".sticky")) return;
-    if (notes.sticky.placing && e.button === 0) {
-      e.preventDefault();
-      notes.sticky.placeAt(e.target.closest?.(".page") ? pointOnPage(e.clientX, e.clientY) : null);
-      return;
-    }
     if (e.button !== 0 || !doc?.words || !e.target.closest?.(".page") || e.target.closest(".remove")) return;
     const at = pointOnPage(e.clientX, e.clientY);
     // With the reading order showing, a click reads or skips a region and does nothing else.
@@ -2238,8 +2234,8 @@
       voice.open(count, "selection");
       voice.play(0);
     },
-    /* Where Ctrl+Alt+M puts a sticky note: just under the text cursor, or
-     * near the top of the page on screen. In page points. */
+    /* Where a new sticky note goes: just under the text cursor (Ctrl+Alt+M),
+     * or in the middle of what is on screen of the current page. In page points. */
     caretSpot() {
       if (!doc || !caret.place) return null;
       const [page, x, , y1] = caret.place;
@@ -2248,8 +2244,9 @@
     viewSpot() {
       if (!doc) return null;
       const page = currentPage(), [w, h] = doc.pages[page];
-      const y = (view.scrollTop - geometry.offsets[page]) / zoom + 40;
-      return { page, x: Math.max(0, w - 220), y: Math.max(20, Math.min(h - 60, y)) };
+      const x = (view.scrollLeft + view.clientWidth / 2 - geometry.lefts[page]) / zoom - STICKY_WIDTH / 2;
+      const y = (view.scrollTop + view.clientHeight / 3 - geometry.offsets[page]) / zoom;
+      return { page, x: Math.max(0, Math.min(w - STICKY_WIDTH, x)), y: Math.max(20, Math.min(h - 60, y)) };
     },
     sectionAt: (page, y) => contents.sectionAt(page, y),
     scrollToPoint(page, y) {
@@ -2472,7 +2469,6 @@
       else if (!$("play").disabled) togglePlay();
       return;
     }
-    if (key === "Escape" && notes.sticky.placing) { notes.sticky.place(false); return; }
     if (ctrl && e.altKey && !e.shiftKey && key === "m") { e.preventDefault(); notes.sticky.addAtCaret(); return; }
     if (key === "Escape" && find.isOpen) { find.close(false); return; }
     if (key === "Escape") { anchor = null; setSelection(null); return; }

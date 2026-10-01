@@ -48,10 +48,11 @@ progress.
    note** with `Ctrl`+`M`. Notes appear beside the page (`Ctrl`+`B` shows or
    hides them), and are kept in this browser as you work.
    **Sticky notes** go anywhere on a page: **+ Add sticky** on the Highlight /
-   Add note strip, then click where it goes (or `Ctrl`+`Alt`+`M`, or right-click
-   → **Add a sticky note here**). Type straight into it; the strip's second row
-   sets its text size, **bold**, *italic*, underline, ~~strikeout~~, a bullet
-   list and its colour, and `Ctrl`+`B`, `I` and `U` work as usual while you type.
+   Add note strip puts one on the page on screen, and the colour button beside
+   it picks its colour (or `Ctrl`+`Alt`+`M`, or right-click → **Add a sticky
+   note here**). Type straight into it; the strip's last row sets its text
+   size, **bold**, *italic*, underline, ~~strikeout~~ and a bullet list, and
+   `Ctrl`+`B`, `I` and `U` work as usual while you type.
    Drag its top edge to move it, its corner to resize it, ▾ to fold it away.
    `Ctrl`+`F` finds words in your sticky notes as well as in the document.
    A sticky is part of the PDF, as a text box is in Acrobat: a saved copy

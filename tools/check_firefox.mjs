@@ -117,14 +117,9 @@ try {
 
   // A sticky note: the editing is the browser's own (contenteditable and
   // execCommand), which Firefox does its own way.
-  await click("#markup-sticky"); await sleep(300);
-  const [px, py] = await js(`const b = document.querySelector('.page[data-page="0"]').getBoundingClientRect();
-    return [Math.round(b.left + b.width * 0.55), Math.round(b.top + b.height * 0.5)]`);
-  await wd("POST", "/actions", { actions: [{ type: "pointer", id: "p", parameters: { pointerType: "mouse" }, actions: [
-    { type: "pointerMove", origin: "viewport", x: px, y: py },
-    { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }] }] });
+  await click("#markup-sticky");
   await wait(`return document.activeElement?.classList.contains("sticky-text")`, 20000);
-  check("+ Add sticky and a click: a sticky, ready to type in",
+  check("+ Add sticky: a sticky on the page, ready to type in",
         await js(`return document.querySelectorAll(".page .sticky").length === 1 && document.activeElement.classList.contains("sticky-text")`));
   await keys("Exam ");
   await keys([CTRL, "b"]); await keys("bold"); await keys([CTRL, "b"]);

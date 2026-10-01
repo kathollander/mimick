@@ -49,12 +49,16 @@ let s = await state();
 check("+ Add sticky is on the strip, and its formatting row is waiting", s.boxes.length === 0 && !s.live
       && await ev(`!document.getElementById("markup-sticky").hidden && document.getElementById("fmt-bold").disabled`), s);
 
-// 1. + Add sticky, then a click on the page.
-await r.click(await r.centre("#markup-sticky")); await sleep(200);
-check("+ Add sticky asks where it goes", /Click where the sticky note goes/.test((await state()).status), (await state()).status);
-await r.click(await r.at(330, 420)); await sleep(1200);
+// 1. + Add sticky puts one on the page on screen, ready to type in and to drag.
+await r.click(await r.centre("#markup-sticky")); await sleep(1200);
 s = await state();
-check("a click puts a sticky note there, ready to type in", s.boxes.length === 1 && s.focused && s.live, s);
+check("+ Add sticky puts a sticky note on the page, ready to type in", s.boxes.length === 1 && s.focused && s.live, s);
+check("…in the middle of what is on screen", await ev(`(() => { const b = document.querySelector(".page .sticky").getBoundingClientRect(),
+  v = document.getElementById("view").getBoundingClientRect(), mid = (v.left + v.right) / 2;
+  return b.left < mid && b.right > mid && b.top > v.top && b.bottom < v.bottom; })()`));
+check("…and says it can be dragged", /drag its top edge/.test(s.status), s.status);
+// Where it went, in page points (test-paper.pdf is A4), for the saved copy below.
+const placed = [parseFloat(s.boxes[0].left) * 595.28 / 100, parseFloat(s.boxes[0].top) * 841.89 / 100];
 
 // 2. Type, and format with the keys and with the strip.
 await r.type("Exam ");
@@ -189,7 +193,7 @@ for p in d:
                     "rich": pymupdf.mupdf.pdf_annot_rich_contents(a.this)})
 print(json.dumps(out))`, path.join(r.downloads, file)]).toString());
   check("…in which it is a text box on page 1, where it was put",
-        found.length === 1 && found[0].page === 0 && Math.abs(found[0].rect[0] - 330) < 2 && Math.abs(found[0].rect[1] - 420) < 2,
+        found.length === 1 && found[0].page === 0 && Math.abs(found[0].rect[0] - placed[0]) < 2 && Math.abs(found[0].rect[1] - placed[1]) < 2,
         found.map((f) => [f.page, f.rect]));
   check("…with its formatting as rich text, and a plain copy", /<b>bold<\/b>/.test(found[0]?.rich) && /font-size:18pt/.test(found[0]?.rich)
         && found[0]?.plain.startsWith("Exam bold"), found[0]);
@@ -211,13 +215,13 @@ check("…and the Markdown has it, bold and struck out", /\*\*Sticky note\*\*/.t
 await r.click(await r.centre("#display-menu")); await sleep(300);
 await r.menu("Sticky notes"); await sleep(400);
 s = await state();
-check("Display ▾ → Sticky notes off hides + Add sticky and the row", await ev(`document.getElementById("markup-sticky").hidden
+check("Display ▾ → Sticky notes off hides + Add sticky and the row", await ev(`document.getElementById("markup-sticky").offsetParent === null
       && document.getElementById("markup-format").hidden`));
 check("…and the sticky notes stay on the page", s.boxes.length === 1, s.boxes.length);
 await r.click(await r.centre("#switches-toggle")); await sleep(300);
 check("the quick switch says it is off", await ev(`document.getElementById("sw-sticky").getAttribute("aria-pressed")`) === "false");
 await r.click(await r.centre("#sw-sticky")); await sleep(300);
-check("…and turns it back on", await ev(`!document.getElementById("markup-sticky").hidden`));
+check("…and turns it back on", await ev(`document.getElementById("markup-sticky").offsetParent !== null`));
 
 // 12. Ctrl+B outside a sticky is still the notes panel.
 await ev(`document.getElementById("view").focus()`);

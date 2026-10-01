@@ -268,20 +268,22 @@
   #markup[data-home="panel"] #markup-grip { line-height: .6; }
   #markup.dragging #markup-grip { cursor: grabbing; }
   .pair { display: flex; gap: 4px; }
-  .pair #markup-highlight { flex: 1; }
-  #markup-colour, .swatch { width: 44px; }
-  #markup-colour::after, .swatch::after { content: ""; display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+  .pair #markup-highlight, .pair #markup-sticky { flex: 1; }
+  #markup-colour, #sticky-colour, .swatch { width: 44px; }
+  #markup-colour::after, #sticky-colour::after, .swatch::after { content: ""; display: inline-block; width: 14px; height: 14px; border-radius: 50%;
                                           background: var(--swatch); vertical-align: middle; }
+  #sticky-colour::after { border-radius: 3px; border: 1px solid rgba(0,0,0,.35); }   /* a note's shape, not a highlight's */
   .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  #markup-sticky[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
   #markup-format { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
   #markup[data-home="panel"] #markup-format { padding-top: 4px; border-top: 1px dashed var(--border); }
   #markup-format:not(.live) { opacity: .55; }
-  #markup-format .square { width: 28px; padding: 3px 0; }
+  #markup-format .square { width: 34px; padding: 3px 0; }
+  /* In the panel the row has the column's width to itself: its buttons share it. */
+  #markup[data-home="panel"] #markup-format { flex-wrap: nowrap; gap: 4px; }
+  #markup[data-home="panel"] #markup-format > * { flex: 1; min-width: 0; }
+  #markup[data-home="panel"] #fmt-size { flex: 1.4; }
   #markup-format [aria-pressed="true"] { border-color: var(--accent); background: var(--pressed); }
-  #fmt-size { width: 54px; padding: 3px 4px; }
-  #fmt-colour::after { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px;
-                       background: var(--swatch); vertical-align: middle; border: 1px solid rgba(0,0,0,.35); }
+  #fmt-size { width: 58px; padding: 3px 4px; }
 
   /* Sticky notes (js/sticky.js): part of the page, so drawn in page points --
      --pt is a point in pixels -- and in the paper's colours, not the theme's. */
@@ -314,7 +316,6 @@
   /* Find, in a sticky note: the whole note lit, as a match is. */
   .page .sticky.found { box-shadow: 0 0 0 3px rgba(255, 225, 40, .75); }
   .page .sticky.found.current { box-shadow: 0 0 0 3px #ff8c00; }
-  body.placing-sticky .page, body.placing-sticky .page canvas { cursor: crosshair; }
   .note-card.sticky-card .body.rich p { margin: 0; }
   .note-card.sticky-card .body.rich ul { margin: 2px 0; padding-left: 18px; }
   .note-card.sticky-card.folded .body { opacity: .7; }
@@ -584,7 +585,10 @@
           <button id="markup-highlight" title="Highlight the selected text  (Ctrl+H)" disabled>Highlight</button>
           <button id="markup-colour" title="Highlight colour" aria-label="Highlight colour" disabled></button>
         </div>
-        <button id="markup-sticky" aria-pressed="false" title="Add a sticky note: then click where it goes on the page  (Ctrl+Alt+M)" disabled>+  Add sticky</button>
+        <div class="pair" id="markup-sticky-pair">
+          <button id="markup-sticky" title="Add a sticky note to the page on screen, then drag it by its top edge to where it goes  (Ctrl+Alt+M)" disabled>+  Add sticky</button>
+          <button id="sticky-colour" title="Sticky note colour — the one you are in, or the next one you add" aria-label="Sticky note colour" disabled></button>
+        </div>
         <div id="markup-format" role="toolbar" aria-label="Sticky note text" title="Formats the sticky note you are typing in">
           <select id="fmt-size" title="Text size, in points  (Ctrl+] bigger, Ctrl+[ smaller)" aria-label="Text size" disabled></select>
           <button id="fmt-bold" class="square" aria-pressed="false" title="Bold  (Ctrl+B)" aria-label="Bold" disabled><b>B</b></button>
@@ -592,7 +596,6 @@
           <button id="fmt-underline" class="square" aria-pressed="false" title="Underline  (Ctrl+U)" aria-label="Underline" disabled><u>U</u></button>
           <button id="fmt-strike" class="square" aria-pressed="false" title="Strikeout  (Ctrl+Shift+X)" aria-label="Strikeout" disabled><s>S</s></button>
           <button id="fmt-list" class="square" aria-pressed="false" title="Bullet list  (Ctrl+Shift+8)" aria-label="Bullet list" disabled>•≡</button>
-          <button id="fmt-colour" class="square" title="Sticky note colour — this one, or the next one you add" aria-label="Sticky note colour" disabled></button>
         </div>
       </div>
     </div>
@@ -859,7 +862,7 @@
       </table>
       <h2>Sticky notes</h2>
       <table>
-        <tr><td>Ctrl+Alt+M</td><td>Add a sticky note under the text cursor (or + Add sticky on the strip, then click where it goes)</td></tr>
+        <tr><td>Ctrl+Alt+M</td><td>Add a sticky note under the text cursor (or + Add sticky on the strip, then drag it where it goes)</td></tr>
         <tr><td>Ctrl+B / Ctrl+I / Ctrl+U</td><td>Bold, italic, underline — while you type in a sticky note (elsewhere Ctrl+B is the notes panel)</td></tr>
         <tr><td>Ctrl+Shift+X</td><td>Strikeout</td></tr>
         <tr><td>Ctrl+] / Ctrl+[</td><td>Bigger or smaller text</td></tr>

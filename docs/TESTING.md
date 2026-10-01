@@ -236,6 +236,7 @@ only the sample.
 
 **The Highlight / Add note buttons**
 - [ ] Drag them by the ⋯ handle: onto the page they float; to the top or bottom edge they become a strip; onto the panel they go back in
+- [ ] Hide the notes panel with them in it: they go away with it and come back with it. Loose, at the top or at the bottom, they stay put
 - [ ] Dragged loose, they stop at the edge of the window: you can't drag them off it, and making the window smaller keeps them in view
 - [ ] Hiding the panel moves them to the top rather than hiding them
 - [ ] `Ctrl`+`Shift`+`H` hides and shows them
