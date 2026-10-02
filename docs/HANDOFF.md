@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 1 October (sticky notes, above); the paragraph that follows was
+last updated 1 October (the strip and the save bug, above); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -34,6 +34,25 @@ Since 17 September the browser version **is** Mimick:
 
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
+
+## Latest: the strip snaps into place, and a save bug (1 October, later)
+
+Not pushed yet (`f85ab2b`, `bbe54f5`); the desktop has the same in
+`8c6ebcb`..`789825d`, also unpushed. Kat ran the desktop squash script today,
+so `mimick-linux` can now be pushed normally.
+
+- **Dragging the Highlight / Add note strip** over a place it docks snaps it
+  there in that place's shape, dashed-outlined, with a "Let go to put it…"
+  label (`snap` in `notes.js`). The whole right-hand column counts as the
+  notes panel. Its place is saved as `mimick-markup-place` now: the old key
+  held "top"s left by the old hide-the-panel behaviour, so everyone starts
+  back in the panel once.
+- **Save a copy renumbered the open document** (`garbage=3`), so afterwards
+  deleting, moving or editing an existing highlight or sticky changed the page
+  but not the document. Now `garbage=1` in `reader.py`'s `notes_pdf` and the
+  shared `annotations.py`; level 2 also renumbers once anything was deleted.
+  On the desktop the autosave did this a second after every change.
+  `check_sticky` covers it in both apps.
 
 ## Latest: sticky notes reworked, and pushed (1 October)
 
