@@ -273,8 +273,25 @@ const barBox = () => ev(`(() => { const b = document.getElementById("markup").ge
 await r.drag(await r.centre("#markup-grip"), [600, 830], 8);
 check("dragged to the foot, it goes across the bottom", JSON.stringify((await home()).slice(0, 4)) === JSON.stringify(["bottom", "markup-bottom", true, false]), await home());
 await r.key("b", CTRL); await sleep(400);
-await r.drag(await r.centre("#markup-grip"), await r.centre("#cards"), 8);
-check("dragged onto the notes panel, it goes back in", (await home())[0] === "panel", await home());
+{
+  // Kat, 1 October: it was unclear that the right-hand side docks it. While
+  // dragging, the place it will go is outlined and named; the whole column
+  // counts, down to its foot and out to the window's edge.
+  const from = await r.centre("#markup-grip");
+  const ghost = () => ev(`(() => { const g = document.getElementById("markup-ghost"), n = document.getElementById("notes").getBoundingClientRect(),
+    b = document.getElementById("markup").getBoundingClientRect();
+    return JSON.stringify([!g.hidden, g.dataset.home, Math.abs(b.left - n.left) < 2 && Math.abs(b.width - n.width) < 2, g.textContent]); })()`).then(JSON.parse);
+  await r.mouse("mousePressed", from); await sleep(100);
+  for (const y of [700, 600, 450]) { await r.mouse("mouseMoved", [600, y]); await sleep(60); }
+  check("dragged over the page, no outline shows", !(await ghost())[0], await ghost());
+  const right = await ev(`Math.round(innerWidth - 3)`);
+  for (const x of [900, 1100, right]) { await r.mouse("mouseMoved", [x, 800]); await sleep(60); }
+  const shown = await ghost();
+  check("at the far right, low down, it snaps into the notes column's shape, labelled", shown[0] && shown[1] === "panel" && shown[2]
+        && /notes panel/.test(shown[3]), shown);
+  await r.mouse("mouseReleased", [right, 800]); await sleep(400);
+  check("…and let go there, it goes back in", (await home())[0] === "panel" && !(await ghost())[0], await home());
+}
 await r.key("h", CTRL | SHIFT); await sleep(300);
 check("Ctrl+Shift+H hides it", await ev(`document.getElementById("markup").hidden`));
 await r.key("h", CTRL | SHIFT); await sleep(300);

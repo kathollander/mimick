@@ -106,7 +106,10 @@
       get quotes() { return ctx.recall("mimick-panel-quotes") !== "0"; },
       get written() { return ctx.recall("mimick-panel-notes") !== "0"; },
       get bar() { return ctx.recall("mimick-markup-shown") !== "0"; },
-      get home() { const h = ctx.recall("mimick-markup-home"); return h in HOMES ? h : "panel"; },
+      // A new key on 1 October: until then hiding the notes panel moved the
+      // strip to the top and saved that, so browsers remembered a "top" nobody
+      // chose. Everyone starts back in the panel once (Kat, 1 October).
+      get home() { const h = ctx.recall("mimick-markup-place"); return h in HOMES ? h : "panel"; },
       get font() { return ctx.recall("mimick-note-font") || ""; },
       get size() { const s = Number(ctx.recall("mimick-note-size")); return s >= 6 && s <= 24 ? s : 9; },
       get author() { return ctx.recall("mimick-author") || ""; },
@@ -1049,7 +1052,7 @@
       } else {
         bar.style.left = bar.style.top = "";
       }
-      ctx.remember("mimick-markup-home", home);
+      ctx.remember("mimick-markup-place", home);
       if (announce) {
         ctx.status({ panel: "Highlight and Add note are in the notes panel",
                      top: "Highlight and Add note are across the top",
@@ -1089,13 +1092,41 @@
     // under the pointer, and follows it; where it is let go decides its home.
     const grip = $("markup-grip");
     let dragging = null;
+    // Anywhere over the notes column, or just short of it, is the panel: it is
+    // the whole right-hand side, not a target to hit exactly (Kat, 1 October).
     const aim = (x, y) => {
       const main = $("main").getBoundingClientRect(), notesBox = panel.getBoundingClientRect();
-      if (settings.panel && x >= notesBox.left && x <= notesBox.right && y >= notesBox.top && y <= notesBox.bottom) return "panel";
+      if (settings.panel && x >= notesBox.left - SNAP_MARGIN / 2 && y >= main.top && y <= main.bottom) return "panel";
       if (y - main.top <= SNAP_MARGIN) return "top";
       if (main.bottom - y <= SNAP_MARGIN) return "bottom";
       return "float";
     };
+    // While dragging over a place it docks, the strip snaps there in the shape
+    // it will have -- down the top of the notes column, or across the top or
+    // foot of the page -- outlined, with a label saying so (Kat, 1 October).
+    // Off it again, it follows the pointer as a loose strip.
+    const label = el("div", { id: "markup-ghost", hidden: true });
+    document.body.append(label);
+    function snap(home) {
+      const main = $("main").getBoundingClientRect();
+      bar.dataset.home = home;
+      if (home === "float") { bar.style.width = ""; label.hidden = true; return false; }
+      const notesBox = panel.getBoundingClientRect();
+      const width = home === "panel" ? notesBox.width : main.width;
+      bar.style.width = width + "px";
+      const left = home === "panel" ? notesBox.left - main.left : 0;
+      const top = home === "panel" ? $("markup-panel").getBoundingClientRect().top - main.top
+                : home === "top" ? 0 : main.height - bar.offsetHeight;
+      Object.assign(bar.style, { left: left + "px", top: top + "px" });
+      const box = bar.getBoundingClientRect();
+      label.textContent = { panel: "Let go to put it in the notes panel", top: "Let go to put it across the top",
+                            bottom: "Let go to put it across the bottom" }[home];
+      label.hidden = false;
+      label.dataset.home = home;
+      Object.assign(label.style, { left: box.left + box.width / 2 + "px",
+                                   top: (home === "bottom" ? box.top - 6 : box.bottom + 6) + "px" });
+      return true;
+    }
     grip.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
       e.preventDefault();
@@ -1113,16 +1144,19 @@
     });
     grip.addEventListener("pointermove", (e) => {
       if (!dragging) return;
+      bar.dataset.aim = aim(e.clientX, e.clientY);
+      if (snap(bar.dataset.aim)) return;
       const main = $("main").getBoundingClientRect();
       const [x, y] = inside(e.clientX - dragging.dx - main.left, e.clientY - dragging.dy - main.top);
       Object.assign(bar.style, { left: x + "px", top: y + "px" });
-      bar.dataset.aim = aim(e.clientX, e.clientY);
     });
     const endDrag = (e) => {
       if (!dragging) return;
       dragging = null;
       bar.classList.remove("dragging");
       delete bar.dataset.aim;
+      label.hidden = true;
+      bar.style.width = "";
       const home = aim(e.clientX, e.clientY);
       placeBar(home, home === "float" ? [parseFloat(bar.style.left), parseFloat(bar.style.top)] : null, true);
     };

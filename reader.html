@@ -261,8 +261,17 @@
   #markup[data-home="float"] { position: absolute; z-index: 5; padding: 6px 8px; background: var(--panel);
                                border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
   #markup.dragging { opacity: .9; }
-  #markup.dragging[data-aim="panel"], #markup.dragging[data-aim="top"], #markup.dragging[data-aim="bottom"] {
-    outline: 2px dashed var(--accent); }
+  /* Dragged over a place it docks, the strip snaps there in that place's shape,
+     outlined, with a label under it (js/notes.js, snap). */
+  #markup.dragging { position: absolute; z-index: 5; }
+  #markup.dragging:not([data-home="float"]) { opacity: 1; box-sizing: border-box; padding: 6px 10px;
+    background: var(--panel); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px;
+    box-shadow: 0 4px 16px var(--shadow); }
+  #markup-ghost { position: fixed; z-index: 6; pointer-events: none; transform: translateX(-50%);
+                  padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #fff;
+                  font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 2px 8px var(--shadow); }
+  #markup-ghost[data-home="bottom"] { transform: translate(-50%, -100%); }
+  #markup-ghost[hidden] { display: none; }
   #markup-grip { color: var(--dim); font-size: 15px; cursor: grab; user-select: none; padding: 0 4px; text-align: center;
                  touch-action: none; }
   #markup[data-home="panel"] #markup-grip { line-height: .6; }
