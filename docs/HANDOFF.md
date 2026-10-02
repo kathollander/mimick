@@ -1,7 +1,8 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated the evening of 19 September, after the launch, the first Firefox
+last updated 1 October (sticky notes, above); the paragraph that follows was
+written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
 checks it touched passing, scratch files removed. **Pushed and live on 19
@@ -34,7 +35,36 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Latest: sticky notes, in both apps (29 September)
+## Latest: sticky notes reworked, and pushed (1 October)
+
+Kat tried the sticky notes below and asked for four changes, all in the
+browser only (`b42387f`); the desktop still works the 29 September way:
+
+- **+ Add sticky drops the note in the middle of the page on screen**
+  (`viewSpot` in `reader.js`, `addOnScreen` in `sticky.js`), focused to type
+  in, to be dragged by its top edge. The "click where it goes" mode
+  (`placing`, its crosshair and Esc) is gone; right-click → *Add a sticky note
+  here* and `Ctrl`+`Alt`+`M` are unchanged.
+- **Its colour sits beside + Add sticky** (`#sticky-colour`, a square swatch),
+  as Highlight's does; it left the formatting row (was `fmt-colour`).
+- **The formatting row fills the panel's width**, its buttons sharing it.
+- **Hiding the notes panel leaves the strip where it was put.** In the panel,
+  it hides and comes back with the panel; loose, top or bottom, it stays.
+  `Ctrl`+`Shift`+`H` or Display ▾ → *In the notes panel* opens the panel when
+  the strip is in a closed one. (Before, hiding the panel moved the strip to
+  the top and saved "top", so a browser that hid it once keeps it at the top
+  until it is dragged back.)
+
+Checks: sticky, notes, firefox, offline all pass. **`check_documents` fails
+one step** -- "…then carries the same bar on into opening it", the .pptx
+progress bar -- and fails the same way on `4ff5b56`, before sticky notes, so
+it is older; not investigated. **Pushed and live**, with the 29 September
+commits. The desktop's commits are not: it waits on
+`../mimick-linux-squash-and-push.sh`, Kat's to run. To bring the desktop level:
+the same four changes in `mimick/ui/markup_bar.py`, `page_view.py` and
+`main_window.py`.
+
+## Earlier: sticky notes, in both apps (29 September)
 
 Kat asked for them, and settled the plan in a published artifact (*Mimick
 Sticky Notes*) the same day: a note anywhere on a page, **part of the PDF** the
@@ -86,7 +116,7 @@ the notes on the page; one strip; extras colour, fold, bullet lists and Find.
   page's own matches -- not slotted in by height, which would reorder a
   two-column page's matches -- and lights the whole note; Esc leaves no page
   text selected.
-- **Nothing is pushed.** Both repos' commits are local.
+- **Pushed 1 October** (browser); the desktop's commits are still local.
 
 ## Earlier: pushed as one commit, and the desktop reads scans (25 September)
 
