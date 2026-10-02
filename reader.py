@@ -690,7 +690,11 @@ def notes_pdf() -> bytes:
     opens again with the same pages and highlights -- AnnotationStore.save_as,
     without a file to write to."""
     doc = _open().doc
-    data = doc.tobytes(garbage=3, deflate=True)
+    # garbage=1, not 3: 2 and up renumber the open document's objects too, once
+    # anything has been deleted, and every highlight and sticky is found again
+    # by its number -- after a Save a copy, editing or deleting one did nothing
+    # until the file was opened again.
+    data = doc.tobytes(garbage=1, deflate=True)
     count = lambda d: sum(len(list(d.load_page(n).annots(types=MARKS))) for n in range(d.page_count))
     with pymupdf.open(stream=data, filetype="pdf") as written:
         if written.page_count != doc.page_count or count(written) != count(doc):

@@ -199,6 +199,25 @@ print(json.dumps(out))`, path.join(r.downloads, file)]).toString());
         && found[0]?.plain.startsWith("Exam bold"), found[0]);
 }
 
+// 9b. Saving must not renumber the open document: every sticky is found again
+// by its number, so after a renumbering save, deleting one left it in the next
+// copy (found 1 October). Delete it after the save, save again: it is gone.
+const freeTexts = (name) => JSON.parse(execFileSync(PYTHON, ["-c", `
+import json, pymupdf, sys
+d = pymupdf.open(sys.argv[1])
+print(json.dumps(sum(len(list(p.annots(types=(pymupdf.PDF_ANNOT_FREE_TEXT,)))) for p in d)))`, path.join(r.downloads, name)]).toString());
+await ev(`document.querySelector(".page .sticky").classList.add("picked")`);
+await r.click(await r.centre(".page .sticky .sticky-delete")); await sleep(800);
+check("after a Save a copy, × still deletes it", (await state()).boxes.length === 0, (await state()).boxes.length);
+for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));
+await r.key("s", CTRL);
+let second = null;
+for (let i = 0; i < 40 && !second; i++) { await sleep(250); second = fs.readdirSync(r.downloads).find((f) => f.endsWith(".pdf")); }
+check("deleted after a Save a copy, a sticky is gone from the next copy", !!second && freeTexts(second) === 0,
+      second && freeTexts(second));
+await r.key("z", CTRL); await sleep(1000);
+check("…and Ctrl+Z still puts it back", (await state()).boxes.length === 1, (await state()).boxes.length);
+
 // 10. Export notes.
 await r.click(await r.centre("#file-menu")); await sleep(300);
 await r.menu("Export notes…");
