@@ -247,10 +247,10 @@
      * browser lets a page choose where a file goes, the save window opens first
      * -- it has to, inside the key press or click -- and the file is written once
      * made; elsewhere it downloads. */
-    async function download() {
+    async function download(as = "notes") {
       if (!doc || !ready) return;
       const stem = doc.name.replace(/\.pdf$/i, "");
-      const name = (/ \(notes\)$/.test(stem) ? stem : stem + " (notes)") + ".pdf";
+      const name = (stem.endsWith(` (${as})`) ? stem : `${stem} (${as})`) + ".pdf";
       const mine = ctx.generation();
       try {
         const saved = await saveFile(ctx.offer, name, "application/pdf", "PDF document", ".pdf", async () => {
@@ -1225,7 +1225,8 @@
 
     return {
       COLOURS,
-      open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download, exportNotes, exportAs, menuItems,
+      open, close, draw, at, pick, highlight, edit, remove, step, undo, redo, copy, download: () => download(),
+      downloadSmaller: () => download("smaller"), exportNotes, exportAs, menuItems,
       pageShown, connect, refreshAll, displayMenu, sticky,
       /* Find went to a match in a sticky: bring it on screen and pick it out. */
       showSticky(xref) {

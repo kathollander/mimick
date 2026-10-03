@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 2 October (photographed PDFs shrunk as they open, above); the paragraph that follows was
+last updated 2 October (photographed PDFs lightened as they open, above); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -35,33 +35,43 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Latest: photographed PDFs are shrunk to 150 dpi as they open (2 October)
+## Latest: photographed PDFs are lightened as they open (2 October)
 
 Kat's ask: a 26-page chapter photographed with a phone (82 MB) made the reader
-struggle. Every page worker decodes the whole 12-megapixel JPEG for each page
-it draws.
+struggle. Every page worker decoded the whole 12-megapixel JPEG for each page
+it drew, and the page itself was 3072 × 4080 *points* (43 × 57 inches): it
+opened like a poster and was legible only at 40%. Her view, which this
+follows: process it once into a practical document, and work from that.
 
-- **Any PDF of 5 MB or more** goes through `reader.shrink_images` before it
-  opens (`openPdf` in `reader.js`). Every colour or grey picture finer than
-  165 dpi is resampled (MuPDF's own bicubic, `Pixmap(pix, w, h)`) to 150 dpi
-  and kept as a JPEG at quality 80. Black-and-white pictures (1 bit) are left
-  alone. The result is used only if it saves a quarter or more. A bar counts
-  "Picture N of M"; the bottom bar then says "(pictures shrunk to 150 dpi,
-  82 MB → 16 MB)", and still says it after OCR reopens the file.
-- **Measured against the paper, not the page.** Phone scanning apps make the
-  page the photograph's size (Kat's: 3072 × 4080 *points*), so a 370 dpi
-  photo looks like 72 dpi to the page. A page longer than 17 inches is taken
-  as a photo of a letter sheet (11 inches). This is why MuPDF's
-  `rewrite_images` is not used: it measures against the page and shrank
-  nothing on that file, only re-compressing it (82 → 49 MB in 35 s).
-- **The key is the original file's hash**, so highlights, stickies, recognised
-  text and the place left all come back. Restoring notes goes by rectangles,
-  so the renumbering `garbage=3` does to the new copy is harmless here. Save a
-  copy writes the shrunk pictures.
-- **Cost:** about 15 s of shrinking for Kat's 82 MB in headless Chrome
-  (30 s to drawn pages, including Python starting), and again on every open,
-  since nothing is cached. Keeping the shrunk copy in IndexedDB by key would
-  make reopening instant, if that matters.
+- **`reader.lighten_pdf`**, called for every PDF from `openPdf` in
+  `reader.js`, does two things:
+  - **Pages to paper size:** a page longer than 17 inches (tabloid) is taken
+    as a photo of a letter sheet and redrawn 11 inches on its long side, its
+    shape kept (`show_pdf_page` into a new document; contents copied). A
+    document with annotations in it is not refitted, since they would stay
+    where they were.
+  - **Pictures to 150 dpi, in files of 5 MB or more:** colour or grey
+    pictures finer than 165 dpi are resampled to 150 (`Pixmap(pix, w, h)`)
+    and kept as JPEG quality 80; on a letter page that is 1650 px down the
+    long side. Black-and-white (1-bit) pictures are left alone. The dpi is
+    measured against the paper, not the page, which is why MuPDF's
+    `rewrite_images` is not used: it measured the 43-inch page, called the
+    photo 72 dpi, and shrank nothing.
+- **Done once.** The light copy is kept in IndexedDB (`mimick-light`, the 3
+  most recent) under the original file's hash, so opening the same file again
+  takes 0.5 s instead of 35 s. Forget this document removes it.
+- **Kept as a file if the reader wants:** a "Save the smaller copy" button
+  in the bottom bar (unless Recognise the text is asking there), and
+  File ▾ → Save the smaller copy (PDF)…, which is `notes.download("smaller")`
+  and so includes any notes. The original file is never written to.
+- **Keys:** a copy that was only shrunk keeps the original's hash, so notes,
+  recognised text and the place left all come back. A refitted copy is
+  `"paper:" + hash`, because everything on its pages moved; notes made on
+  the poster-sized pages before 2 October don't carry over (only Kat's local
+  testing had any).
+- **Bottom bar:** "26 pages (photographed pages fitted to letter size;
+  pictures shrunk to 150 dpi, 82 MB → 16 MB)", and it stays after OCR reopens
+  the file. While shrinking, the bar counts "Picture N of M".
 - **OCR was not worse:** one page recognised by the app from the original and
   from the shrunk copy gave 570 and 596 words; the shrunk copy read
   "Spectrum", "Disorder," and "kinds" where the original gave garbage.
@@ -69,9 +79,10 @@ it draws.
   worker and fetches it in 2 MB pieces: one ~8 MB answer hangs the debugging
   connection.
 - **Desktop: not done** (Kat, 2 October: browser first, desktop later). See
-  PARITY.md, *For the desktop*. `shrink_images` is web-only glue in
-  `reader.py`; for the desktop it belongs in `document.py` (or the shared
-  side), ported back here by `tools/port.sh`.
+  PARITY.md, *For the desktop*. `lighten_pdf` is web-only glue in
+  `reader.py`; for the desktop it belongs on the shared side, ported back
+  here by `tools/port.sh`. The desktop could also just write the light copy
+  beside the original.
 
 ## Earlier: the strip snaps into place, and a save bug (1 October, later)
 

@@ -381,8 +381,8 @@
     doc = null;
     setReadable(false);
     const t0 = performance.now();
-    const wasShrunk = shrunk;
-    shrunk = null;
+    const wasLightened = lightened;
+    lightened = null;
     key ??= await Store.hash(buffer);
     if (mine !== generation) return;
     // Every worker needs its own copy; the document worker takes the original.
@@ -397,7 +397,7 @@
     try {
       const [info, stored] = await Promise.all([Promise.any(opened), Store.open(key)]);
       if (mine !== generation) return;
-      doc = { title: info.title, pages: info.pages, key, name, fileName: openingName ?? name, shrunk: wasShrunk };
+      doc = { title: info.title, pages: info.pages, key, name, fileName: openingName ?? name, lightened: wasLightened };
       kept = stored;
       slow = kept.size > 0;
       document.title = `${doc.title} — Mimick`;
@@ -539,7 +539,7 @@
       return;
     }
     if (mine !== generation) return;
-    shrunk = doc.shrunk;   // the same file, so the bottom bar still says it was shrunk
+    lightened = doc.lightened;   // the same file, so the bottom bar still says what was done to it
     openBytes(bytes.slice().buffer, name, key);
   }
 
@@ -583,34 +583,101 @@
     openPdf(file);
   }
 
-  /* A big PDF made of photographs -- pages taken with a phone -- is brought
-   * down to 150 dpi before it opens (reader.shrink_images), so the page
-   * workers are not decoding tens of megabytes of pictures for every page. It
-   * keeps the original's key, so its notes, its recognised text and the place
-   * it was left all still find it. */
+  /* A PDF made of photographs -- pages taken with a phone -- is lightened
+   * before it opens (reader.lighten_pdf): pages the photograph's own size,
+   * four feet tall, are brought to letter size, and in a big file the
+   * pictures come down to 150 dpi, so the page workers are not decoding tens
+   * of megabytes of them for every page. Shrinking keeps the original's key,
+   * so its notes, its recognised text and the place it was left all still find
+   * it; refitting moves everything on the page, so a refitted document is
+   * known by a key of its own. */
   const SHRINK_FROM = 5_000_000;   // reader.SHRINK_FILES_FROM
-  let shrunk = null;               // { from, to } in bytes, for the document opening next
+  let lightened = null;            // { fitted, shrunk, from, to, source }, for the document opening next
   async function openPdf(file) {
     const bytes = await file.arrayBuffer();
-    if (bytes.byteLength < SHRINK_FROM) { openBytes(bytes, file.name); return; }
     const mine = ++generation;
-    status(pythonReady ? `Shrinking the photographs in ${file.name}…` : `Getting ready, then opening ${file.name}…`);
-    laying(file.name, false, true);
-    const key = await Store.hash(bytes);
-    let smaller = null;
+    const source = await Store.hash(bytes);
+    if (mine !== generation) return;
+    // Lightened before: that copy is opened, rather than doing it all again.
+    const kept = await Light.get(source);
+    if (mine !== generation) return;
+    if (kept) {
+      const { pdf, ...made } = kept;
+      lightened = { ...made, source };
+      await openBytes(await pdf.arrayBuffer(), file.name, made.fitted ? "paper:" + source : source);
+      offerSmaller();
+      return;
+    }
+    if (bytes.byteLength >= SHRINK_FROM) {
+      status(pythonReady ? `Shrinking the photographs in ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+      laying(file.name, false, true);
+    }
+    let light = null;
     try {
-      smaller = await callWatching((done, total) => {
+      light = await callWatching((done, total) => {
         if (mine !== generation || !loading?.converting) return;
         loading.converting = { done, total };
         showLoading();
-      }, "shrink_images", new Uint8Array(bytes));
+      }, "lighten_pdf", new Uint8Array(bytes));
     } catch {
-      // Not shrunk is still worth opening.
+      // Opened as it is, then.
     }
     if (mine !== generation) return;
-    shrunk = smaller ? { from: bytes.byteLength, to: smaller.byteLength } : null;
-    openBytes(smaller ? smaller.slice().buffer : bytes, file.name, key);
+    if (!light) { lightened = null; openBytes(bytes, file.name, source); return; }
+    const made = { fitted: light.fitted, shrunk: light.shrunk, from: bytes.byteLength, to: light.pdf.byteLength };
+    Light.keep(source, { ...made, pdf: new Blob([light.pdf], { type: "application/pdf" }) });
+    lightened = { ...made, source };
+    await openBytes(light.pdf.slice().buffer, file.name, made.fitted ? "paper:" + source : source);
+    offerSmaller();
   }
+
+  /* The lightened copy is the one to keep: a button for it in the bottom bar,
+   * unless something more pressing is asked there (recognising the text). It
+   * is also File ▾ → Save the smaller copy. */
+  function offerSmaller() {
+    if (!doc?.lightened || asking) return;
+    ask("smaller", "Save the smaller copy", "Save this lighter PDF, to open from now on instead of the photographed one", notes.downloadSmaller);
+  }
+
+  // The lightened copies, kept in this browser (IndexedDB, "mimick-light") by
+  // the original file's hash, so a photographed PDF is lightened only once.
+  // The KEEP_LIGHT most recently made are kept. Storage can be refused; then
+  // every file is lightened each time it opens, as it would be anyway.
+  const KEEP_LIGHT = 3;
+  const Light = (() => {
+    let opening = null;
+    const db = () => opening ??= new Promise((resolve) => {
+      let request;
+      try { request = indexedDB.open("mimick-light", 1); } catch { resolve(null); return; }
+      request.onupgradeneeded = () => request.result.createObjectStore("copies");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = request.onblocked = () => resolve(null);
+    });
+    const done = (request) => new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const copies = (store, mode) => store.transaction("copies", mode).objectStore("copies");
+    async function get(hash) {
+      const store = await db();
+      try { return store ? (await done(copies(store).get(hash))) ?? null : null; } catch { return null; }
+    }
+    async function keep(hash, copy) {
+      const store = await db();
+      if (!store) return;
+      try {
+        await done(copies(store, "readwrite").put({ ...copy, at: Date.now() }, hash));
+        const [keys, all] = await Promise.all([done(copies(store).getAllKeys()), done(copies(store).getAll())]);
+        const old = keys.map((k, i) => [k, all[i].at]).sort((x, y) => y[1] - x[1]).slice(KEEP_LIGHT);
+        for (const [k] of old) await done(copies(store, "readwrite").delete(k));
+      } catch { /* not kept: it is lightened again next time */ }
+    }
+    async function forget(hash) {
+      const store = await db();
+      try { if (store) await done(copies(store, "readwrite").delete(hash)); } catch { /* not kept */ }
+    }
+    return { get, keep, forget };
+  })();
 
   /* Anything that is not already a PDF, laid out as one by the document worker
    * and then opened as one, known by a hash of the file so its notes come back.
@@ -1035,13 +1102,14 @@
   }
   $("forget-dialog").addEventListener("close", async () => {
     if ($("forget-dialog").returnValue !== "forget" || !doc) { view.focus(); return; }
-    const { key, title, fileName } = doc;
+    const { key, title, fileName, lightened: light } = doc;
     closeDocument();
     for (const recent of MimickRecent.list()) if (recent.name === fileName) MimickRecent.remove(recent.id);
     for (const kind of ["position", "order", "view"]) {
       try { localStorage.removeItem(`mimick-${kind}:${key}`); } catch { /* not kept */ }
     }
-    await Promise.all([MimickNotesStore.remove(key), Store.forget(key), MimickOcr.forget(key)]);
+    await Promise.all([MimickNotesStore.remove(key), Store.forget(key), MimickOcr.forget(key),
+                       light && Light.forget(light.source)]);
     status(`Forgot ${title} — nothing about it is kept in this browser now. The file itself is untouched.`);
   });
 
@@ -1199,7 +1267,9 @@
   const built = () => doc?.sentences != null;
   const megabytes = (bytes) => `${Math.max(1, Math.round(bytes / 1e6))} MB`;
   const pagesCount = () => `${doc.pages.length} page${doc.pages.length === 1 ? "" : "s"}`
-    + (doc.shrunk ? ` (pictures shrunk to 150 dpi, ${megabytes(doc.shrunk.from)} → ${megabytes(doc.shrunk.to)})` : "");
+    + (doc.lightened ? ` (${[doc.lightened.fitted && "photographed pages fitted to letter size",
+                              doc.lightened.shrunk && `pictures shrunk to 150 dpi, ${megabytes(doc.lightened.from)} → ${megabytes(doc.lightened.to)}`]
+                             .filter(Boolean).join("; ")})` : "");
   const NOTHING_SET = "Nothing here is set to be read — Reading ▾ → Show reading order to choose what is";
 
   function setReadable(on, why = null) {
@@ -2195,6 +2265,7 @@
     // PDF only: highlights and notes are annotations on rectangles of a page, which no
     // flowing format can hold. The notes on their own go out as text. See PARITY.md.
     { label: "Save a copy (PDF)…", keys: "Ctrl+S", enabled: notes.ready, run: notes.download },
+    ...(doc?.lightened ? [{ label: "Save the smaller copy (PDF)…", enabled: notes.ready, run: notes.downloadSmaller }] : []),
     { label: "Export notes…", enabled: notes.ready && notes.count > 0, run: notes.exportNotes },
     "-",
     { label: "Forget this document…", enabled: !!doc, run: askForget },

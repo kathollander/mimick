@@ -124,15 +124,15 @@ const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "wor
                        "snapshot", "restore", "notes_pdf", "notes_document", "repeats", "set_author", "set_reading",
                        "regions", "region_counts", "set_region_choices", "toggle_region", "reset_regions",
                        "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf", "document_to_pdf", "add_text_layer",
-                       "first_sentence_from", "shrink_images"]);
+                       "first_sentence_from", "lighten_pdf"]);
 
 function call(py, { id, name, args = [] }) {
   if (!CALLS.has(name)) throw new Error(`reader.py has no ${name} for the page`);
   // Laying a slide deck out takes seconds, so it is given somewhere to say how
   // far it has got and the page moves its bar as the slides go by. Only
-  // document_to_pdf (for a deck) and shrink_images (a photographed PDF, picture
+  // document_to_pdf (for a deck) and lighten_pdf (a photographed PDF, picture
   // by picture) take one.
-  const extra = name === "document_to_pdf" || name === "shrink_images"
+  const extra = name === "document_to_pdf" || name === "lighten_pdf"
     ? [(done, total) => self.postMessage({ type: "progress", id, done, total })] : [];
   const result = callReader(py, name, ...args, ...extra);
   self.postMessage({ type: "called", id, result: result ?? null });

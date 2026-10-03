@@ -1,4 +1,6 @@
-/* A big PDF of photographs is shrunk to 150 dpi as it opens, in a real Chrome.
+/* PDFs of photographs are lightened as they open, in a real Chrome: a big one's
+ * pictures shrunk to 150 dpi, and pages the size of the photograph (feet
+ * across) fitted to letter size.
  *
  *     python3 serve.py &          # the page, on 8731
  *     node tools/check_shrink.mjs
@@ -9,8 +11,9 @@
  * recognise -- big enough to be shrunk, and opens it. Checks the bottom bar
  * says so, that the pictures the reader holds are 150 dpi, that a highlight
  * made on the shrunk copy comes back when the same file is opened again (the
- * key is the original file's), and that a small PDF is left as it is. Needs
- * no voice.
+ * key is the original file's), and that a small PDF is left as it is. Then
+ * the photographed copy drawn five times its size, as a phone's scanning app makes
+ * the page: it opens 11 inches tall, saying so. Needs no voice.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -77,6 +80,33 @@ await wait(`/^9 pages.*sentences to read/.test(document.getElementById("status")
 await wait(`document.querySelectorAll(".hl.annot").length > 0`, 20000).catch(() => {});
 check("opened again, the highlight comes back (the key is the original file's)",
       (await ev(`document.querySelectorAll(".hl.annot").length`)) > 0, await r.status());
+const keptCopies = await ev(`new Promise((resolve) => { const q = indexedDB.open("mimick-light");
+  q.onsuccess = () => { const c = q.result.transaction("copies").objectStore("copies").count(); c.onsuccess = () => resolve(c.result); }; })`);
+check("the shrunk copy is kept, to open again without shrinking it again", keptCopies === 1, keptCopies);
+
+// A page the photograph's own size: the photographed copy's, five times over.
+const poster = await r.inWorker("document-worker.js", `python.then((py) => py.runPython(\`
+import base64, pymupdf, reader
+src = reader._open().doc
+out = pymupdf.open()
+for p in src:
+    page = out.new_page(width=p.rect.width * 5, height=p.rect.height * 5)
+    page.show_pdf_page(page.rect, src, p.number)
+base64.b64encode(out.tobytes(deflate=True)).decode()
+\`))`);
+const posterFile = path.join(folder, "poster paper.pdf");
+fs.writeFileSync(posterFile, Buffer.from(poster, "base64"));
+{
+  const { root: dom } = (await r.t.send("DOM.getDocument")).result;
+  const { nodeId } = (await r.t.send("DOM.querySelector", { nodeId: dom.nodeId, selector: "#file" })).result;
+  await r.t.send("DOM.setFileInputFiles", { nodeId, files: [posterFile] });
+}
+await wait(`/fitted to letter size.*sentences to read/.test(document.getElementById("status").textContent)`, 120000).catch(() => {});
+check("a page five times paper size says it was fitted", /^9 pages \(photographed pages fitted to letter size\) · 64 sentences/.test(await r.status()), await r.status());
+const tall = await r.inWorker("document-worker.js", `python.then((py) => py.runPython("import reader; round(reader._open().doc[0].rect.height)"))`);
+check("…and opens 11 inches tall", tall === 792, tall);
+await sleep(500);
+check("…with a button to save the smaller copy", await ev(`!document.getElementById("status-do").hidden && document.getElementById("status-do").textContent === "Save the smaller copy"`));
 
 fs.rmSync(folder, { recursive: true, force: true });
 r.finish();

@@ -67,18 +67,22 @@ def open_document(pdf_bytes: bytes, name: str, skip_citations: bool = True,
 
 # A photographed document -- pages taken with a phone, 300 to 400 dpi of
 # JPEG each -- is tens of megabytes that every page worker decodes again and
-# again, and the reader crawls. Such a file is shrunk as it opens: every colour
-# or grey picture finer than SHRINK_ABOVE is resampled to SHRINK_TO and kept as
-# a JPEG. Black and white scans are left alone; they are small already, and
-# halving them hurts the letters. Only a file of SHRINK_FILES_FROM or more is
-# looked at.
+# again, and the reader crawls. Such a file is lightened as it opens.
 #
-# The fineness is measured against the paper, not the page: a phone's scanning
-# app often makes the page the photograph's own size (3072 by 4080 points, four
-# feet tall), where a 370 dpi photograph looks like 72. A page larger than any
-# sheet (PAPER_AT_MOST) is taken to be a photograph of a letter-sized one,
-# PAPER_LONG_SIDE inches on its long side. MuPDF's own rewrite_images measures
-# against the page, so on such a file it shrinks nothing.
+# Its pages are brought to paper size. A phone's scanning app often makes the
+# page the photograph's own size (3072 by 4080 points: four feet tall), which
+# opens like a poster and is legible only at 40%. A page longer than any sheet
+# (PAPER_AT_MOST) is taken to be a photograph of a letter-sized one and drawn
+# PAPER_LONG_SIDE inches on its long side, its shape kept. A document with
+# highlights or notes in it is not refitted: they would have to move with it.
+#
+# Its pictures are shrunk, in a file of SHRINK_FILES_FROM or more: every colour
+# or grey picture finer than SHRINK_ABOVE is resampled to SHRINK_TO and kept as
+# a JPEG -- on a letter page, 1650 pixels down its long side. Black and white
+# scans are left alone; they are small already, and halving them hurts the
+# letters. The fineness is measured against that paper, not the page: on the
+# four-foot page a 370 dpi photograph looks like 72, which is why MuPDF's own
+# rewrite_images, measuring against the page, shrinks nothing there.
 SHRINK_FILES_FROM = 5_000_000
 SHRINK_ABOVE = 165
 SHRINK_TO = 150
@@ -86,56 +90,92 @@ PAPER_AT_MOST = 17      # inches: tabloid's long side
 PAPER_LONG_SIDE = 11    # inches: letter's
 
 
-def shrink_images(pdf_bytes, progress=None) -> bytes | None:
-    """``pdf_bytes`` with its pictures brought down to SHRINK_TO dpi, or None
-    when that would not save at least a quarter of it, or cannot be done (a
-    locked PDF, or one MuPDF cannot rewrite). ``progress(done, total)``, if
-    given, hears how many pictures are done."""
-    pdf_bytes = pdf_bytes.to_bytes() if hasattr(pdf_bytes, "to_bytes") else bytes(pdf_bytes)
-    if len(pdf_bytes) < SHRINK_FILES_FROM:
+def _paper(rect) -> float:
+    """How much a page this size is scaled by to be paper."""
+    long_side = max(rect.width, rect.height) / 72
+    return PAPER_LONG_SIDE / long_side if long_side > PAPER_AT_MOST else 1.0
+
+
+def _shrink(doc, progress) -> bool:
+    """Shrink ``doc``'s pictures in place; whether there were any to shrink."""
+    # Each picture's finest showing, in dots per inch of paper.
+    finest: dict[int, float] = {}
+    for page in doc:
+        paper = _paper(page.rect)
+        for info in page.get_image_info(xrefs=True):
+            xref, box = info["xref"], pymupdf.Rect(info["bbox"])
+            inches = max(box.width, box.height) / 72 * paper
+            if not xref or inches <= 0 or info.get("bpc", 8) < 8:
+                continue
+            dpi = max(info["width"], info["height"]) / inches
+            finest[xref] = max(finest.get(xref, 0.0), dpi)
+    todo = [(xref, dpi) for xref, dpi in finest.items() if dpi > SHRINK_ABOVE]
+    for done, (xref, dpi) in enumerate(todo):
+        if progress:
+            progress(done, len(todo))
+        picture = pymupdf.Pixmap(doc, xref)
+        if picture.alpha or picture.n not in (1, 3):
+            # A picture with a mask, or in CMYK: JPEG wants it plain.
+            picture = pymupdf.Pixmap(pymupdf.csRGB if picture.n - picture.alpha > 1 else pymupdf.csGRAY,
+                                     picture)
+        scale = SHRINK_TO / dpi
+        smaller = pymupdf.Pixmap(picture, max(1, round(picture.width * scale)),
+                                 max(1, round(picture.height * scale)), None)
+        doc[0].replace_image(xref, stream=smaller.tobytes("jpeg", jpg_quality=80))
+    if todo and progress:
+        progress(len(todo), len(todo))
+    return bool(todo)
+
+
+def _fit(doc):
+    """``doc`` with every page larger than paper drawn at paper size, as a new
+    document; or None when no page is, or it has notes that would be left
+    where they were."""
+    if all(_paper(page.rect) == 1.0 for page in doc) or any(page.first_annot for page in doc):
         return None
+    out = pymupdf.open()
+    for page in doc:
+        scale = _paper(page.rect)
+        fitted = out.new_page(width=page.rect.width * scale, height=page.rect.height * scale)
+        fitted.show_pdf_page(fitted.rect, doc, page.number)
+    try:
+        out.set_metadata(doc.metadata)
+        out.set_toc(doc.get_toc(simple=True))
+    except Exception:
+        pass   # a title or contents that will not copy is no reason not to open it
+    return out
+
+
+def lighten_pdf(pdf_bytes, progress=None) -> dict | None:
+    """``pdf_bytes`` with its pages brought to paper size and its pictures to
+    SHRINK_TO dpi: ``{"pdf", "fitted", "shrunk"}``, the last two saying which
+    was done. None when neither was worth doing, or it cannot be done (a locked
+    PDF, or one MuPDF cannot rewrite). ``progress(done, total)``, if given,
+    hears how many pictures are done."""
+    pdf_bytes = pdf_bytes.to_bytes() if hasattr(pdf_bytes, "to_bytes") else bytes(pdf_bytes)
     try:
         doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     except Exception:
         return None
+    fitted = None
     try:
         if doc.needs_pass:
             return None
-        # Each picture's finest showing, in dots per inch of paper.
-        finest: dict[int, float] = {}
-        for page in doc:
-            long_side = max(page.rect.width, page.rect.height) / 72
-            paper = PAPER_LONG_SIDE / long_side if long_side > PAPER_AT_MOST else 1.0
-            for info in page.get_image_info(xrefs=True):
-                xref, box = info["xref"], pymupdf.Rect(info["bbox"])
-                inches = max(box.width, box.height) / 72 * paper
-                if not xref or inches <= 0 or info.get("bpc", 8) < 8:
-                    continue
-                dpi = max(info["width"], info["height"]) / inches
-                finest[xref] = max(finest.get(xref, 0.0), dpi)
-        todo = [(xref, dpi) for xref, dpi in finest.items() if dpi > SHRINK_ABOVE]
-        if not todo:
+        shrunk = len(pdf_bytes) >= SHRINK_FILES_FROM and _shrink(doc, progress)
+        fitted = _fit(doc)
+        if not shrunk and fitted is None:
             return None
-        for done, (xref, dpi) in enumerate(todo):
-            if progress:
-                progress(done, len(todo))
-            picture = pymupdf.Pixmap(doc, xref)
-            if picture.alpha or picture.n not in (1, 3):
-                # A picture with a mask, or in CMYK: JPEG wants it plain.
-                picture = pymupdf.Pixmap(pymupdf.csRGB if picture.n - picture.alpha > 1 else pymupdf.csGRAY,
-                                         picture)
-            scale = SHRINK_TO / dpi
-            smaller = pymupdf.Pixmap(picture, max(1, round(picture.width * scale)),
-                                     max(1, round(picture.height * scale)), None)
-            doc[0].replace_image(xref, stream=smaller.tobytes("jpeg", jpg_quality=80))
-        if progress:
-            progress(len(todo), len(todo))
-        out = doc.tobytes(garbage=3, deflate=True)
+        out = (fitted or doc).tobytes(garbage=3, deflate=True)
     except Exception:
         return None
     finally:
         doc.close()
-    return out if len(out) < len(pdf_bytes) * 0.75 else None
+        if fitted is not None:
+            fitted.close()
+    shrunk = shrunk and len(out) < len(pdf_bytes) * 0.75
+    if fitted is None and not shrunk:
+        return None
+    return {"pdf": out, "fitted": fitted is not None, "shrunk": shrunk}
 
 
 def set_reading(switch: str, on: bool, anchor: int = -1) -> dict:
