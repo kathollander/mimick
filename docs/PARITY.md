@@ -101,6 +101,7 @@ desktop found it.
 - ✅ **Auto-OCR as a scan opens** -- both, 20 pages at once, more asks (desktop 25 September)
 - ✅ **Find in document** (`Ctrl`+`F`) — done on the desktop 18 September. The search moved into the shared `document.py` as `Document.find`, and this version's `reader.py` now calls it instead of keeping a second copy that had already drifted
 - ⬜ **Reading time in the bottom bar**: how long the document takes at the speed chosen in the Speed box, changing whenever it changes; while reading, what is left. Browser: `showReadingTime` in `js/reader.js`, 15.1 characters a second from `export.py`
+- ⬜ **Big photographed PDFs shrunk to 150 dpi as they open** (2 October, Kat: browser first, desktop later). Browser: `reader.shrink_images` and `openPdf` in `js/reader.js`. It measures dpi against the paper, since phone apps make the page the photo's size; see HANDOFF, *photographed PDFs*. On the desktop, do it as `Document` opens (or ask first), with a progress dialog
 - ⬜ **Scanned pages drawn ahead and kept**, if slow pages bite on the desktop (a page of the 598-page scan takes 0.6s there). Browser: `drawAhead` in `js/reader.js`
 - ⬜ **The loose Highlight/Add note strip kept inside the window** while dragged and when the window shrinks — check whether the desktop's floating markup bar can be lost the same way
 

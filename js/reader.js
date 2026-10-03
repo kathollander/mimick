@@ -242,8 +242,8 @@
 
   /* The bar, from the moment a file is chosen: before this, a deck showed
    * nothing at all for the several seconds it took to lay out. */
-  function laying(name, slides) {
-    loading = { name, serial: ++openSerial, converting: { done: 0, total: 0 }, slides };
+  function laying(name, slides, shrinking = false) {
+    loading = { name, serial: ++openSerial, converting: { done: 0, total: 0 }, slides, shrinking };
     showLoading();
   }
   let barPhase = "", barShown = 0, barTarget = 0, barCreep = 0, barSince = performance.now(), barTimer = 0;
@@ -296,13 +296,15 @@
       // take a second or two and have nothing to count, so the bar creeps.
       phase = "open:" + loading.serial;
       const { done, total } = loading.converting;
-      label = loading.slides ? `Reading the slides of ${loading.name}…` : `Laying out ${loading.name}…`;
+      label = loading.slides ? `Reading the slides of ${loading.name}…`
+        : loading.shrinking ? `Shrinking the photographs in ${loading.name}…` : `Laying out ${loading.name}…`;
       // Laying out is the first half of the bar, so the second half is left for
       // the opening and drawing that follow. A deck knows how far it has got; the
       // rest creep towards that halfway mark rather than jump to it.
       target = total ? 0.05 + 0.45 * (done / total) : 0.05;
       creep = total ? 0 : 0.45;
-      if (total) detail = `Slide ${done} of ${total}.`;
+      if (total) detail = `${loading.shrinking ? "Picture" : "Slide"} ${done} of ${total}.`;
+      else if (loading.shrinking) detail = "Looking at its pictures.";
       else if (performance.now() - barSince > 6000) detail = "A big file takes a few seconds to lay out.";
     } else if (loading) {
       phase = "open:" + loading.serial;
@@ -379,6 +381,8 @@
     doc = null;
     setReadable(false);
     const t0 = performance.now();
+    const wasShrunk = shrunk;
+    shrunk = null;
     key ??= await Store.hash(buffer);
     if (mine !== generation) return;
     // Every worker needs its own copy; the document worker takes the original.
@@ -393,7 +397,7 @@
     try {
       const [info, stored] = await Promise.all([Promise.any(opened), Store.open(key)]);
       if (mine !== generation) return;
-      doc = { title: info.title, pages: info.pages, key, name, fileName: openingName ?? name };
+      doc = { title: info.title, pages: info.pages, key, name, fileName: openingName ?? name, shrunk: wasShrunk };
       kept = stored;
       slow = kept.size > 0;
       document.title = `${doc.title} — Mimick`;
@@ -535,6 +539,7 @@
       return;
     }
     if (mine !== generation) return;
+    shrunk = doc.shrunk;   // the same file, so the bottom bar still says it was shrunk
     openBytes(bytes.slice().buffer, name, key);
   }
 
@@ -575,7 +580,36 @@
       status(`${file.name} is not a file Mimick can open — a PDF, a Word (.docx), OpenDocument (.odt) or Rich Text (.rtf) document, an EPUB or FictionBook book, a PowerPoint (.pptx) or Impress (.odp) presentation, a web page, or a .md or .txt file.`);
       return;
     }
-    openBytes(await file.arrayBuffer(), file.name);
+    openPdf(file);
+  }
+
+  /* A big PDF made of photographs -- pages taken with a phone -- is brought
+   * down to 150 dpi before it opens (reader.shrink_images), so the page
+   * workers are not decoding tens of megabytes of pictures for every page. It
+   * keeps the original's key, so its notes, its recognised text and the place
+   * it was left all still find it. */
+  const SHRINK_FROM = 5_000_000;   // reader.SHRINK_FILES_FROM
+  let shrunk = null;               // { from, to } in bytes, for the document opening next
+  async function openPdf(file) {
+    const bytes = await file.arrayBuffer();
+    if (bytes.byteLength < SHRINK_FROM) { openBytes(bytes, file.name); return; }
+    const mine = ++generation;
+    status(pythonReady ? `Shrinking the photographs in ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+    laying(file.name, false, true);
+    const key = await Store.hash(bytes);
+    let smaller = null;
+    try {
+      smaller = await callWatching((done, total) => {
+        if (mine !== generation || !loading?.converting) return;
+        loading.converting = { done, total };
+        showLoading();
+      }, "shrink_images", new Uint8Array(bytes));
+    } catch {
+      // Not shrunk is still worth opening.
+    }
+    if (mine !== generation) return;
+    shrunk = smaller ? { from: bytes.byteLength, to: smaller.byteLength } : null;
+    openBytes(smaller ? smaller.slice().buffer : bytes, file.name, key);
   }
 
   /* Anything that is not already a PDF, laid out as one by the document worker
@@ -1163,7 +1197,9 @@
   /* The sentences are built -- perhaps none of them, which is not the same as
    * not yet: the reading order and the switches can still change that. */
   const built = () => doc?.sentences != null;
-  const pagesCount = () => `${doc.pages.length} page${doc.pages.length === 1 ? "" : "s"}`;
+  const megabytes = (bytes) => `${Math.max(1, Math.round(bytes / 1e6))} MB`;
+  const pagesCount = () => `${doc.pages.length} page${doc.pages.length === 1 ? "" : "s"}`
+    + (doc.shrunk ? ` (pictures shrunk to 150 dpi, ${megabytes(doc.shrunk.from)} → ${megabytes(doc.shrunk.to)})` : "");
   const NOTHING_SET = "Nothing here is set to be read — Reading ▾ → Show reading order to choose what is";
 
   function setReadable(on, why = null) {
