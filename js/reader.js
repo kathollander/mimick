@@ -381,8 +381,9 @@
     doc = null;
     setReadable(false);
     const t0 = performance.now();
-    const wasLightened = lightened;
+    const wasLightened = lightened, wasRecognised = recognised;
     lightened = null;
+    recognised = false;
     key ??= await Store.hash(buffer);
     if (mine !== generation) return;
     // Every worker needs its own copy; the document worker takes the original.
@@ -425,6 +426,7 @@
       $("title").textContent = "";
       return;
     }
+    let tried = new Set();           // pages whose words were recognised before
     try {
       const done = await sentences;
       if (mine !== generation) return;
@@ -432,20 +434,18 @@
       if (mine !== generation) return;
       if (restored) done.sentences = restored.sentences;
       Object.assign(doc, { sentences: done.sentences, words: done.words, hasFootnotes: done.has_footnotes,
-                           textless: done.textless ?? [] });
+                           textless: done.textless ?? [], partly: [] });
       // A scan whose text was recognised before: put it back, rather than asking again.
-      if (doc.textless.length) {
-        const found = await MimickOcr.stored(key);
+      // Not into the copy that has just had it put in, which is this same open again.
+      const found = await MimickOcr.stored(key);
+      if (mine !== generation) return;
+      if (!wasRecognised && found?.some(([, words]) => words.length)) {
+        if (await applyRecognised(found, "Putting back the text recognised in this scan last time…")) return;
         if (mine !== generation) return;
-        const missing = new Set(doc.textless);
-        if (found?.some(([page, words]) => missing.has(page) && words.length)) {
-          applyRecognised(found.filter(([page]) => missing.has(page)), "Putting back the text recognised in this scan last time…");
-          return;
-        }
-        // Pages already tried and found blank are not offered again.
-        const tried = new Set((found ?? []).map(([page]) => page));
-        doc.textless = doc.textless.filter((page) => !tried.has(page));
       }
+      // Pages already tried are not offered again, whether or not anything was found.
+      tried = new Set((found ?? []).map(([page]) => page));
+      doc.textless = doc.textless.filter((page) => !tried.has(page));
       const seconds = ((performance.now() - t0) / 1000).toFixed(1);
       const n = restored?.restored ?? 0;
       openedStatus = `${pagesCount()} · ${done.sentences} sentences to read · opened in ${seconds}s`
@@ -474,7 +474,14 @@
     showProgress();
     // After the open has finished, so a recognition that fails still leaves a
     // document properly open.
-    if (mine === generation && doc?.textless?.length) offerRecognising();
+    if (mine !== generation || !doc) return;
+    if (doc.textless.length) offerRecognising();
+    // Pages with some words and a picture that may hold more: only asked for,
+    // from the Reading menu, so found once the document is open rather than
+    // holding it up.
+    call("pages_partly_read").then((pages) => {
+      if (mine === generation && doc) doc.partly = pages.filter((page) => !tried.has(page));
+    }).catch(() => {});
   }
 
   // --- recognising text in a scan ---------------------------------------------------
@@ -503,12 +510,17 @@
                    + "and you can keep reading meanwhile";
     status(openedStatus);
     ask("ocr", "Recognise the text", `Read the words off ${n} pages, here in this browser — about ${minutes}. `
-        + "Done once: they are kept for next time.", recogniseText);
+        + "Done once: they are kept for next time.", () => recogniseText());
   }
 
-  async function recogniseText() {
-    if (!doc || ocr.running) return;
-    const mine = generation, { key, pages, textless } = doc;
+  /* The pages with no words, as a scan does for itself; from the Reading menu,
+   * those with only some as well (reader.pages_partly_read), which keep the
+   * words they have and gain the ones they lacked. */
+  const toRecognise = () => [...(doc?.textless ?? []), ...(doc?.partly ?? [])].sort((a, b) => a - b);
+  let recognised = false;          // the document opening next is this one with its recognised text put in
+  async function recogniseText(which = doc?.textless) {
+    if (!doc || ocr.running || !which?.length) return;
+    const mine = generation, { key, pages } = doc, textless = which;
     status(`Recognising text: getting ready…`);
     ask("ocr", "Stop", "Stop recognising text. Reading ▾ → Recognise text starts it again.", () => ocr.stop());
     let found;
@@ -522,12 +534,19 @@
       unask("ocr");
     }
     if (mine !== generation) return;
+    const some = doc.partly.some((page) => textless.includes(page));
+    if (some) {
+      try { found = await call("unread_words", found); } catch { /* add_text_layer leaves them out too */ }
+      if (mine !== generation) return;
+    }
     const count = found.reduce((n, [, words]) => n + words.length, 0);
-    if (!count) { status("No words could be recognised in this scan"); return; }
+    if (!count) { status(some ? "No more words could be recognised on these pages" : "No words could be recognised in this scan"); return; }
     const before = (await MimickOcr.stored(key)) ?? [];
     await MimickOcr.keep(key, [...before.filter(([page]) => !textless.includes(page)), ...found]);
-    applyRecognised(found, `Found ${count.toLocaleString()} words — putting them into the pages…`);
+    applyRecognised(found, `Found ${count.toLocaleString()} ${some ? "more " : ""}words — putting them into the pages…`);
   }
+  /* Whether the document was opened again with the words in: not when putting
+   * them in failed, or every one of them was on its page already. */
   async function applyRecognised(found, said) {
     const mine = generation, { key, name } = doc;
     status(said);
@@ -536,11 +555,13 @@
       bytes = await call("add_text_layer", found);
     } catch (err) {
       if (mine === generation) status(`Could not put the recognised text in: ${err.message.trim().split("\n").pop()}`);
-      return;
+      return false;
     }
-    if (mine !== generation) return;
+    if (mine !== generation || !bytes) return false;
     lightened = doc.lightened;   // the same file, so the bottom bar still says what was done to it
+    recognised = true;
     openBytes(bytes.slice().buffer, name, key);
+    return true;
   }
 
   const isText = (file) => /\.txt$/i.test(file.name) || file.type === "text/plain";
@@ -2142,7 +2163,7 @@
       { label: "Go to where the voice is", enabled: going && !!lit.made, run: goToVoice },
       "-",
       ocr.running ? { label: "Stop recognising text", run: () => ocr.stop() }
-        : { label: "Recognise text in this scan…", enabled: !!doc?.textless?.length, run: recogniseText },
+        : { label: "Recognise text in this scan…", enabled: toRecognise().length > 0, run: () => recogniseText(toRecognise()) },
       "-",
       ...sleepMenu(),
       "-",

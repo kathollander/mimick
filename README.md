@@ -70,7 +70,9 @@ progress.
 9. **A scan with no text?** Mimick reads the words off its pages as it opens,
    in the browser (a few seconds a page), and remembers them for next time. A
    long scan -- more than 20 pages -- asks first, with a button in the bottom
-   bar; **Reading ▾ → Recognise text in this scan** does the same.
+   bar; **Reading ▾ → Recognise text in this scan** does the same. A scan
+   that came with only some of its words is left alone until you choose that
+   menu entry, which adds the ones it lacked.
 10. **A name said wrong?** Select the word, right-click, **How to say…**, and
    write it the way it sounds ("Foucault" as *foo koh*). The list is under
    **Reading ▾ → How to say words…**.

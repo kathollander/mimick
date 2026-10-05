@@ -123,7 +123,7 @@ const CALLS = new Set(["select_range", "selection_text", "selection_boxes", "wor
                        "stickies", "sticky_add", "sticky_set", "sticky_remove", "read_sticky",
                        "snapshot", "restore", "notes_pdf", "notes_document", "repeats", "set_author", "set_reading",
                        "regions", "region_counts", "set_region_choices", "toggle_region", "reset_regions",
-                       "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf", "document_to_pdf", "add_text_layer",
+                       "convert_texts", "forget_alternate", "sentence_lengths", "find", "found_on", "text_to_pdf", "document_to_pdf", "add_text_layer", "pages_partly_read", "unread_words",
                        "first_sentence_from", "lighten_pdf"]);
 
 function call(py, { id, name, args = [] }) {

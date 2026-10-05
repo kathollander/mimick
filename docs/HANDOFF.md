@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 2 October (photographed PDFs lightened as they open, above); the paragraph that follows was
+last updated 4 October (recognising the rest of a partly recognised scan, below); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -35,7 +35,39 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Latest: photographed PDFs are lightened as they open (2 October)
+## Latest: a scan with only some of its words (4 October)
+
+Kat's ask: a reading with *some* recognisable text never tripped the
+recognising, and Reading ▾ → Recognise text in this scan… was greyed out,
+because it only ever counted pages with no words at all (`doc.textless`).
+
+- **`reader.pages_partly_read`**: pages with words *and* pictures covering a
+  tenth of the page or more (`_PICTURE_SHARE`). Asked for after the open has
+  finished (it costs about a millisecond a page), kept as `doc.partly`.
+- **Never by itself.** Opening recognises only `doc.textless`, as before. The
+  menu entry is live when either list has pages, and does both
+  (`toRecognise`).
+- **Only the words that were missing go in.** `reader.unread_words` drops any
+  recognised word that an existing word sits over the middle of;
+  `add_text_layer` does the same again, and answers nothing when no word is
+  left, so putting stored words back twice cannot double them.
+- **Putting back on open** no longer depends on a page being textless: any
+  stored words go in, except into the copy that has just had them put in
+  (`recognised`, set by `applyRecognised` as `lightened` is). Pages already
+  tried are not offered again; Forget this document starts over.
+- **New calls must be listed** in `CALLS` in `js/document-worker.js`, or the
+  page is told "reader.py has no … for the page" -- and a `.catch` hid that
+  for one run.
+- **Not looked at:** existing text that is *wrong* (a bad recognition by
+  someone else's scanner) is kept, not replaced. Pages whose missing words
+  are drawn as shapes rather than a picture are not found.
+- **Check:** `check_ocr`, section 5b. **Desktop: not done** (PARITY.md).
+- **`check_shrink` fails one step**, "the shrunk copy is kept…" (3 copies,
+  not 1), and fails the same way without this change: its Chrome profile
+  keeps the copies of earlier runs. Not fixed.
+- **Not pushed.**
+
+## Earlier: photographed PDFs are lightened as they open (2 October)
 
 Kat's ask: a 26-page chapter photographed with a phone (82 MB) made the reader
 struggle. Every page worker decoded the whole 12-megapixel JPEG for each page

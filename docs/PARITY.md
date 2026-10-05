@@ -75,6 +75,7 @@ Every feature of the desktop app, from its menus, key list and handoff. ✅ done
 ## For the desktop
 
 - ✅ **Recognise text in a scan (OCR)**: Tesseract reads each page, and the words go in as invisible text. Browser: `js/ocr.js`, `reader.add_text_layer`. Desktop (25 September): `mimick/ocr.py`, MuPDF's built-in Tesseract, needing `tesseract-ocr-eng`
+- ⬜ **Recognise the rest of a partly recognised scan** (4 October): pages with some words and a picture over a tenth of the page are not recognised by themselves, but Reading ▾ → Recognise text does them, adding only words no existing word sits over. Browser: `reader.pages_partly_read`, `reader.unread_words`, `doc.partly` in `js/reader.js`
 - ⬜ **Sleep timer** (Display → Stop reading): minutes, end of page, end of section; pauses between sentences. Browser: `sleepDue` in `js/reader.js`
 - ⬜ **How to say words** (a pronunciation list): a word as printed and a sound-alike, applied before the phonemizer, with the timings put back under the printed word so highlighting is unchanged. Browser: `js/pronounce.js`
 - ⬜ **Light theme** following the system, and Display → Theme (Night, the default / Day / Match the system). Browser: the token sets at the top of `reader.html`

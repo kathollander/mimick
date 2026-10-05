@@ -505,16 +505,65 @@ def pages_without_text() -> list[int]:
             if not document.page_words.get(number) and document.doc[number].get_images()]
 
 
-def add_text_layer(found: list) -> bytes:
+# A page can be a picture with only some of its words written in: a scan
+# with a library's stamp across the top, a slide that is a screenshot, pages
+# someone recognised badly. It is not recognised by itself, since it has text,
+# but Reading ▾ → Recognise text does it when asked, and only adds the words
+# that were not there already.
+_PICTURE_SHARE = 0.1     # of the page a picture covers, before it is worth reading
+
+
+def pages_partly_read() -> list[int]:
+    """Pages with words on them and a picture big enough to hold more."""
+    document = _open()
+    out = []
+    for number in range(document.page_count):
+        if not document.page_words.get(number):
+            continue
+        page = document.doc[number]
+        if not page.get_images():
+            continue
+        covered = 0.0
+        for picture in page.get_image_info():
+            box = pymupdf.Rect(picture["bbox"]) & page.rect
+            if not box.is_empty:
+                covered += box.get_area()
+        if covered >= _PICTURE_SHARE * page.rect.get_area():
+            out.append(number)
+    return out
+
+
+def _unread(page, words: list) -> list:
+    """Those of ``words`` that the page does not have already: none of its own
+    words sits over the middle of one."""
+    there = [pymupdf.Rect(word[:4]) for word in page.get_text("words")]
+    if not there:
+        return list(words)
+    return [word for word in words
+            if not any(box.contains(pymupdf.Point((word[1] + word[3]) / 2, (word[2] + word[4]) / 2))
+                       for box in there)]
+
+
+def unread_words(found: list) -> list:
+    """``found`` as ``add_text_layer`` takes it, without the words the pages
+    already have."""
+    doc = _open().doc
+    return [[int(number), [list(word) for word in _unread(doc.load_page(int(number)), words)]]
+            for number, words in found]
+
+
+def add_text_layer(found: list) -> bytes | None:
     """``found`` is ``[[page, [[text, x0, y0, x1, y1], ...]], ...]`` in PDF points,
-    a line's words sharing its top and bottom. Answers the PDF with the words in."""
+    a line's words sharing its top and bottom. Answers the PDF with the words in,
+    or nothing when every one of them was there already."""
     doc = _open().doc
     font = pymupdf.Font("helv")
     height_per_size = font.ascender - font.descender
+    added = 0
     for number, words in found:
         page = doc.load_page(int(number))
         derotate = page.derotation_matrix
-        for text, x0, y0, x1, y1 in words:
+        for text, x0, y0, x1, y1 in _unread(page, words):
             text = str(text).strip()
             if not text or x1 <= x0 or y1 <= y0:
                 continue
@@ -526,7 +575,8 @@ def add_text_layer(found: list) -> bytes:
             page.insert_text(start, text, fontsize=size, fontname="helv", render_mode=3,
                              rotate=page.rotation,
                              morph=(start, pymupdf.Matrix((x1 - x0) / width, 1)))
-    return doc.tobytes(garbage=3, deflate=True)
+            added += 1
+    return doc.tobytes(garbage=3, deflate=True) if added else None
 
 
 # -- finding text --------------------------------------------------------------
