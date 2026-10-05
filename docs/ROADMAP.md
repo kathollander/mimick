@@ -169,7 +169,9 @@ Then Kat makes the repository public and sends the link.
 - ✅ **OCR for scanned PDFs** -- done 17 September: Reading ▾ → Recognise text in
   this scan (it moved out of File ▾ the same night; this line said File ▾ until
   23 September, and cost a session). `js/ocr.js`, `vendor/tesseract` (6.8 MB, Apache-2.0),
-  `reader.add_text_layer`; kept per document, so it happens once.
+  `reader.add_text_layer`; kept per document, so it happens once. Since 4
+  October the same menu entry also takes a scan that came with only some of
+  its words, and adds the ones it lacked (`reader.pages_partly_read`).
   `tools/check_ocr.mjs`. Not yet: running ahead of the reading page by page,
   as planned below -- it reads every page first (about 2 s a page here). *Was:*
   **OCR for scanned PDFs** in the browser (`tesseract.js`), producing a text

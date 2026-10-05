@@ -67,6 +67,11 @@ because it only ever counted pages with no words at all (`doc.textless`).
   keeps the copies of earlier runs. Not fixed.
 - **Pushed and live 4 October** (`b417094`), with the two 2 October commits
   for photographed PDFs, which had not gone out.
+- **Next, if Kat asks:** she had not yet tried it on the reading that
+  prompted it when the session ended. If its own text turns out to be wrong
+  rather than missing, the answer is an option to replace a page's text, not
+  a change to `_unread`. The desktop's order of work is in
+  `../Mimick-linux/docs/ROADMAP.md`, under *OCR for scans*.
 
 ## Earlier: photographed PDFs are lightened as they open (2 October)
 
