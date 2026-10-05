@@ -65,7 +65,8 @@ because it only ever counted pages with no words at all (`doc.textless`).
 - **`check_shrink` fails one step**, "the shrunk copy is kept…" (3 copies,
   not 1), and fails the same way without this change: its Chrome profile
   keeps the copies of earlier runs. Not fixed.
-- **Not pushed.**
+- **Pushed and live 4 October** (`b417094`), with the two 2 October commits
+  for photographed PDFs, which had not gone out.
 
 ## Earlier: photographed PDFs are lightened as they open (2 October)
 
