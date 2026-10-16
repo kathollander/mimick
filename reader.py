@@ -15,8 +15,8 @@ from pathlib import Path
 
 import pymupdf
 
-from mimick.annotations import (MARKS, STICKY_COLOUR, STICKY_WIDTH, AnnotationStore, _write_range,
-                                sticky_sentences)
+from mimick.annotations import (MARKS, STICKY_COLOUR, STICKY_WIDTH, AnnotationStore, _write_name,
+                                _write_range, _write_rich_note, note_from_rich, sticky_sentences)
 from mimick import layout
 from mimick.convert import KINDS, document_to_pdf, text_to_pdf  # noqa: F401
 from mimick.document import Document, _merge_rects, align_marks
@@ -667,24 +667,28 @@ def annotations() -> list[dict]:
         return []
     return [{
         "xref": item.xref, "page": item.page, "rects": [_rect(r) for r in item.rects],
-        "text": item.text, "title": item.title, "note": item.note,
+        "text": item.text, "title": item.title, "note": item.note, "rich": item.rich, "name": item.name,
         "colour": [round(c, 3) for c in item.colour],
         "first": item.first_word, "last": item.last_word, "top": round(item.top, 2),
     } for item in _store.items]
 
 
 def annotation_add(first: int, last: int, colour: list, note: str = "", title: str = "",
-                   author: str = "") -> dict:
-    """Highlight words ``first`` to ``last``: the new one's xref, and the list."""
-    item = _live().add(first, last, tuple(colour), note=note, title=title, author=author)
+                   author: str = "", rich: str = "", name: str = "") -> dict:
+    """Highlight words ``first`` to ``last``: the new one's xref, and the list.
+    ``rich`` is its note formatted; ``name`` the one it had before (an undo),
+    so the sticky notes linked to it still are."""
+    item = _live().add(first, last, tuple(colour), note=note, title=title, author=author,
+                       rich=_given(rich) or "", name=_given(name) or "")
     return {"xref": item.xref if item else None, "annotations": annotations()}
 
 
-def annotation_set(xref: int, note: str, title: str, colour: list) -> list[dict]:
-    """Change a highlight's note, heading and colour."""
+def annotation_set(xref: int, note: str, title: str, colour: list, rich: str | None = None) -> list[dict]:
+    """Change a highlight's note, heading and colour. ``rich``, if given, is
+    the note formatted, and the plain note is made from it."""
     item = _item(xref)
     if item is not None:
-        _live().set_note(item, note, title)
+        _live().set_note(item, note, title, rich=_given(rich))
         if any(abs(a - b) >= 0.02 for a, b in zip(item.colour, colour)):
             _live().set_colour(item, tuple(colour))
     return annotations()
@@ -732,28 +736,47 @@ def stickies() -> list[dict]:
     return [{
         "xref": item.xref, "page": item.page, "rect": _rect(item.rect), "rich": item.rich,
         "text": item.text, "colour": [round(c, 3) for c in item.colour], "folded": item.folded,
-        "author": item.author, "top": round(item.top, 2),
+        "author": item.author, "top": round(item.top, 2), "kind": "sticky",
+        "title": item.title, "link": item.link, "name": item.name,
     } for item in _store.stickies]
 
 
 def sticky_add(page: int, x: float, y: float, rich: str = "", colour: list | None = None,
-               width: float = STICKY_WIDTH) -> dict:
-    """A new sticky note with its corner at ``x``, ``y``: its xref, and the list."""
+               width: float = STICKY_WIDTH, title: str = "", link: str = "", name: str = "") -> dict:
+    """A new sticky note with its corner at ``x``, ``y``: its xref, and the list.
+    ``link`` names the highlight it belongs to; ``name`` is the one it had
+    before (an undo)."""
     colour = _given(colour)
     item = _live().add_sticky(int(page), float(x), float(y), _given(rich) or "",
-                              tuple(colour) if colour else STICKY_COLOUR, float(width))
+                              tuple(colour) if colour else STICKY_COLOUR, float(_given(width) or STICKY_WIDTH),
+                              title=_given(title) or "", link=_given(link) or "", name=_given(name) or "")
     return {"xref": item.xref, "stickies": stickies()}
 
 
 def sticky_set(xref: int, rich: str | None = None, rect: list | None = None,
-               colour: list | None = None, folded: bool | None = None) -> list[dict]:
-    """Change a sticky note's words, place and size, colour or folding."""
+               colour: list | None = None, folded: bool | None = None, title: str | None = None,
+               link: str | None = None) -> list[dict]:
+    """Change a sticky note's words, place and size, colour, folding, title, or
+    the name of the highlight it is linked to ("" for none -- an undo; a new
+    link is made by ``sticky_link``, which can name the highlight first)."""
     item = _sticky(xref)
-    rich, rect, colour, folded = _given(rich), _given(rect), _given(colour), _given(folded)
+    rich, rect, colour, folded, title, link = (_given(rich), _given(rect), _given(colour), _given(folded),
+                                               _given(title), _given(link))
     if item is not None:
         _live().set_sticky(item, rich=rich, rect=list(rect) if rect is not None else None,
-                           colour=tuple(colour) if colour else None, folded=folded)
+                           colour=tuple(colour) if colour else None, folded=folded, title=title, link=link)
     return stickies()
+
+
+def sticky_link(xref: int, highlight: int | None = None) -> dict:
+    """Link a sticky note to the highlight with xref ``highlight``, or with
+    null, unlink it: both lists, since linking can give the highlight a name."""
+    item, highlight = _sticky(xref), _given(highlight)
+    if item is not None:
+        target = _item(int(highlight)) if highlight is not None else None
+        if highlight is None or target is not None:
+            _live().link_sticky(item, target)
+    return {"stickies": stickies(), "annotations": annotations()}
 
 
 def read_sticky(xref: int) -> int:
@@ -791,14 +814,20 @@ def restore(saved: list) -> list[dict]:
             x0, y0, x1, y1 = entry["rect"]
             item = store.add_sticky(int(entry["page"]), x0, y0, entry.get("rich") or "",
                                     tuple(entry.get("colour") or STICKY_COLOUR), x1 - x0,
-                                    author=entry.get("author") or "")
+                                    author=entry.get("author") or "", title=entry.get("title") or "",
+                                    link=entry.get("link") or "", name=entry.get("name") or "")
             store.set_sticky(item, rect=(x0, y0, x1, y1), folded=bool(entry.get("folded")))
             continue
         page = doc.load_page(int(entry["page"]))
         annot = page.add_highlight_annot(quads=[pymupdf.Rect(*r).quad for r in entry["rects"]])
         annot.set_colors(stroke=tuple(entry["colour"]))
-        annot.set_info(content=entry.get("note") or "", title=entry.get("author") or store.author,
+        note, rich = entry.get("note") or "", ""
+        if entry.get("rich"):
+            note, rich = note_from_rich(entry["rich"])
+        annot.set_info(content=note, title=entry.get("author") or store.author,
                        subject=entry.get("title") or "")
+        _write_rich_note(annot, note, rich)
+        _write_name(doc, annot.xref, entry.get("name") or "")
         annot.update()
         if int(entry.get("first", -1)) >= 0:
             _write_range(_open(), annot.xref, int(entry["first"]), int(entry["last"]))

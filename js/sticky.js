@@ -12,6 +12,11 @@
  * (js/notes.js), which lights up while a sticky has the cursor; the usual keys
  * work in the box itself.
  *
+ * A sticky can have a title (Kat, 15 October 2026), kept as the PDF's
+ * Subject and shown with a 📌 in its top edge, always in view once it has
+ * one; double-click the edge, or Give it a title… on its menu, to write it.
+ * It can also be linked to a highlight -- js/notes.js does that part.
+ *
  * Words on a sticky are in points on the page, so they grow and shrink with
  * the zoom like the document's own: a size is kept as `font-size: 18pt` and
  * shown as `calc(18 * var(--pt))`, where --pt is a point in pixels.
@@ -25,6 +30,10 @@
  *   sticky.addAtCaret()                        Ctrl+Alt+M
  *   sticky.focus(item) / remove(item) / menuItems(item)
  *   sticky.format(what, value)                 from the strip
+ *   sticky.editTitle(item)                     write or change its title
+ *   sticky.addLinked(page, x, y, xref, width)  a new one, linked to the highlight with that xref
+ *   sticky.setLink(item, name)                 relink by name ("" unlinks), with undo
+ *   sticky.pasteable(html)                     pasted HTML, cut down to what a note can hold
  */
 (function (root) {
   "use strict";
@@ -68,6 +77,37 @@
     return out.innerHTML;
   }
 
+  /* Run `command` on the editable `box` with the cursor kept at the same
+   * place in its words. Chrome's insertUnorderedList, on a line not yet in a
+   * paragraph, puts the cursor back at the line's start, so what was typed
+   * next went in front of it (15 October). */
+  function keepingCaret(box, command) {
+    const s = getSelection();
+    const offset = () => {
+      if (!s.rangeCount || !s.isCollapsed || !box.contains(s.anchorNode)) return null;
+      const before = document.createRange();
+      before.selectNodeContents(box);
+      before.setEnd(s.anchorNode, s.anchorOffset);
+      return before.toString().length;
+    };
+    const at = offset();
+    command();
+    // Left where it was (an empty line made a list item keeps it), it stays.
+    if (at === null || offset() === at) return;
+    const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    for (let node = walk.nextNode(), left = at; node; node = walk.nextNode()) {
+      if (left <= node.length) {
+        const here = document.createRange();
+        here.setStart(node, left);
+        here.collapse(true);
+        s.removeAllRanges();
+        s.addRange(here);
+        return;
+      }
+      left -= node.length;
+    }
+  }
+
   function create(ctx) {
     let list = [];
     const boxes = new Map();         // xref -> { root, text, shownRich }
@@ -108,7 +148,9 @@
                                    textContent: "×" });
       fold.setAttribute("aria-label", "Fold this sticky note");
       close.setAttribute("aria-label", "Delete this sticky note");
-      grip.append(fold, close);
+      const label = el("span", { className: "sticky-title" });
+      label.addEventListener("dblclick", (e) => { e.stopPropagation(); const now = find(box.xref); if (now) editTitle(now); });
+      grip.append(label, fold, close);
       const text = el("div", { className: "sticky-text", contentEditable: "true", spellcheck: true });
       text.setAttribute("role", "textbox");
       text.setAttribute("aria-multiline", "true");
@@ -117,7 +159,7 @@
       const tab = el("button", { type: "button", className: "sticky-tab" });
       tab.setAttribute("aria-label", "Open this sticky note");
       rootEl.append(grip, text, corner, tab);
-      box = { root: rootEl, text, shownRich: null, xref: item.xref };
+      box = { root: rootEl, text, label, shownRich: null, xref: item.xref };
       boxes.set(item.xref, box);
 
       fold.onclick = (e) => { e.stopPropagation(); setFolded(box.xref, true); };
@@ -159,7 +201,14 @@
       r.style.setProperty("--edge", darker(item.colour));
       r.classList.toggle("folded", !!item.folded);
       r.classList.toggle("picked", ctx.active() === item.xref);
-      r.querySelector(".sticky-tab").title = `Sticky note: ${flat(item.text).slice(0, 80) || "empty"} — click to open`;
+      r.classList.toggle("partner", ctx.partner(item));
+      r.classList.toggle("titled", !!item.title);
+      if (!box.label.querySelector("input")) {
+        box.label.textContent = item.title ? `📌 ${item.title}` : "";
+        box.label.title = item.title ? "Its title — double-click to change it" : "Double-click to give it a title";
+      }
+      r.querySelector(".sticky-tab").title = `Sticky note${item.title ? ` “${item.title}”` : ""}: `
+        + `${flat(item.text).slice(0, 80) || "empty"} — click to open`;
       if (box.shownRich !== item.rich && !(editing && editing.xref === item.xref)) {
         box.text.innerHTML = shown(item.rich);
         box.shownRich = item.rich;
@@ -193,7 +242,8 @@
     /* Make a sticky again from what was kept of it, as the same one. */
     async function make(snap, id) {
       const { xref, stickies } = await ctx.call("sticky_add", snap.page, snap.rect[0], snap.rect[1], snap.rich,
-                                                snap.colour, snap.rect[2] - snap.rect[0]);
+                                                snap.colour, snap.rect[2] - snap.rect[0], snap.title, snap.link,
+                                                snap.name);
       idOf.set(xref, id);
       xrefOf.set(id, xref);
       apply(stickies);
@@ -201,7 +251,8 @@
       return xref;
     }
     const snapOf = (item) => ({ page: item.page, rect: item.rect.slice(), rich: item.rich, colour: item.colour.slice(),
-                               folded: item.folded });
+                               folded: item.folded, title: item.title || "", link: item.link || "",
+                               name: item.name || "" });
 
     function rememberAdded(item) {
       const id = idFor(item.xref);
@@ -221,9 +272,9 @@
       const put = async (value) => {
         const now = live(id);
         if (!now) return;
-        const args = { rich: null, rect: null, colour: null };
+        const args = { rich: null, rect: null, colour: null, title: null, link: null };
         args[field] = value;
-        apply(await ctx.call("sticky_set", now.xref, args.rich, args.rect, args.colour, null));
+        apply(await ctx.call("sticky_set", now.xref, args.rich, args.rect, args.colour, null, args.title, args.link));
         const box = boxes.get(now.xref);
         if (box && field === "rich") box.shownRich = null;       // shown afresh, not as typed
       };
@@ -254,14 +305,28 @@
       add(spot.page, spot.x, spot.y);
     }
 
-    function add(page, x, y, toDrag = false) {
+    /* A new sticky, linked from the start to the highlight with xref `to`:
+     * Add a sticky note about this, on a highlight's menu. One undo step. */
+    function addLinked(page, x, y, to, width = null) {
+      if (!ctx.ready()) return;
+      add(page, x, y, false, to, width);
+    }
+
+    function add(page, x, y, toDrag = false, to = null, width = null) {
       ctx.change(async () => {
-        const { xref, stickies } = await ctx.call("sticky_add", page, x, y, "", ctx.colour());
+        const { xref, stickies } = await ctx.call("sticky_add", page, x, y, "", ctx.colour(), width);
         apply(stickies);
+        if (to !== null) {
+          // Linked by the worker, which names the highlight first if it must.
+          const back = await ctx.call("sticky_link", xref, to);
+          ctx.linked(back.annotations);
+          apply(back.stickies);
+        }
         const item = find(xref);
         if (!item) return;
         rememberAdded(item);
-        ctx.status(toDrag ? "Sticky note added — drag its top edge to move it, type in it, and Esc when you are done"
+        ctx.status(to !== null ? "Sticky note added, linked to the highlight — type, and Esc when you are done"
+                   : toDrag ? "Sticky note added — drag its top edge to move it, type in it, and Esc when you are done"
                           : "Sticky note added — type, and Esc when you are done. The strip's buttons format it");
         setTimeout(() => { const box = boxes.get(xref); if (box) { editing = null; focusBox(box, true); } });
       });
@@ -450,7 +515,7 @@
       document.execCommand("styleWithCSS", false, false);
       if (what === "bold" || what === "italic" || what === "underline") document.execCommand(what);
       else if (what === "strike") document.execCommand("strikeThrough");
-      else if (what === "list") document.execCommand("insertUnorderedList");
+      else if (what === "list") keepingCaret(box.text, () => document.execCommand("insertUnorderedList"));
       else if (what === "size") { setSize(Number(value)); return; }
       else if (what === "bigger" || what === "smaller") {
         const now = sizeHere();
@@ -488,7 +553,7 @@
     // --- moving and resizing ------------------------------------------------------
 
     function startDrag(e, box, kind) {
-      if (e.button !== 0 || e.target.closest("button")) return;
+      if (e.button !== 0 || e.target.closest("button, input")) return;
       e.preventDefault();
       e.stopPropagation();
       const item = find(box.xref);
@@ -533,11 +598,68 @@
       target.addEventListener("pointercancel", done);
     }
 
+    // --- the title -------------------------------------------------------------------
+
+    /* Its title, written in a box over its top edge: Enter or clicking away
+     * keeps it, Esc leaves it as it was, and an empty one takes it away. */
+    function editTitle(item) {
+      if (!item) return;
+      if (item.folded) { setFolded(item.xref, false); }
+      const box = boxes.get(item.xref);
+      if (!box || box.label.querySelector("input")) return;
+      const before = item.title || "";
+      const input = el("input", { type: "text", className: "sticky-title-input", value: before,
+                                  placeholder: "Title (optional)", maxLength: 120 });
+      input.setAttribute("aria-label", "Sticky note title");
+      box.label.replaceChildren(input);
+      box.root.classList.add("naming");
+      let done = false;
+      const end = (keep) => {
+        if (done) return;
+        done = true;
+        box.root.classList.remove("naming");
+        const after = input.value.trim();
+        box.label.textContent = (keep ? after : before) ? `📌 ${keep ? after : before}` : "";
+        if (!keep || after === before) return;
+        ctx.change(async () => {
+          const now = find(box.xref);
+          if (!now) return;
+          apply(await ctx.call("sticky_set", now.xref, null, null, null, null, after));
+          rememberChange(now, "title", before, after, after ? "Title" : "Title removal");
+          ctx.status(after ? `Sticky note titled “${after}”` : "Sticky note title taken off");
+        });
+      };
+      input.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") { e.preventDefault(); end(true); ctx.focusPage(); }
+        else if (e.key === "Escape") { e.preventDefault(); end(false); ctx.focusPage(); }
+      });
+      input.addEventListener("blur", () => end(true));
+      input.addEventListener("pointerdown", (e) => e.stopPropagation());
+      input.addEventListener("dblclick", (e) => e.stopPropagation());
+      ctx.pick(item);
+      setTimeout(() => { input.focus(); input.select(); });
+    }
+
+    // --- the highlight it is linked to --------------------------------------------
+
+    function setLink(item, name) {
+      const before = item.link || "";
+      if (before === name) return;
+      ctx.change(async () => {
+        apply(await ctx.call("sticky_set", item.xref, null, null, null, null, null, name));
+        const now = find(item.xref);
+        if (now) rememberChange(now, "link", before, name, name ? "Link" : "Unlinking");
+      });
+    }
+
     // --- menus ---------------------------------------------------------------------
 
     function menuItems(item) {
       return [
         { label: "Edit this sticky note", run: () => focus(item) },
+        { label: item.title ? "Change its title…" : "Give it a title…", run: () => editTitle(item) },
+        ...ctx.linkItems(item),
         { label: "Read this sticky note", enabled: ctx.canRead() && !!flat(item.text), run: () => ctx.readSticky(item) },
         { label: "Copy its words", enabled: !!flat(item.text), run: () => ctx.copyText(item.text, "Copied the sticky note") },
         "-",
@@ -561,8 +683,10 @@
     }
 
     return {
-      set, draw, at, placeAt, addOnScreen, addAtCaret, remove, focus, menuItems, format, formatState, finish,
-      SIZES,
+      set, draw, at, placeAt, addOnScreen, addAtCaret, addLinked, remove, focus, menuItems, format, formatState, finish,
+      editTitle, setLink, pasteable, SIZES,
+      /* An undo step for a change made elsewhere (notes.js links one). */
+      remember: (item, field, before, after, label) => rememberChange(item, field, before, after, label),
       clear() {
         editing = null; clearTimeout(commitTimer); range = null;
         idOf.clear(); xrefOf.clear();
@@ -576,5 +700,5 @@
     };
   }
 
-  root.MimickSticky = { create, SIZE };
+  root.MimickSticky = { create, SIZE, pasteable, keepingCaret };
 })(typeof self !== "undefined" ? self : globalThis);

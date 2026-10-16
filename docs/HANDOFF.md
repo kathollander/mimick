@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 4 October (recognising the rest of a partly recognised scan, below); the paragraph that follows was
+last updated 15 October (formatted notes, sticky titles and links, below); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -35,7 +35,61 @@ Since 17 September the browser version **is** Mimick:
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
 
-## Latest: a scan with only some of its words (4 October)
+## Latest: formatted notes, sticky titles, stickies linked to highlights (15 October)
+
+Kat's three asks, from her list. She said to build them as seen fit and
+change what turns out clunky, so every choice below is open to her.
+
+- **Bold, italics, underline, strikeout and lists in a highlight's note.**
+  The note editor's textarea is an editable box now, with a row of buttons
+  over it and Ctrl+B / I / U, Ctrl+Shift+X, Ctrl+Shift+8 (handled by hand, as
+  stickies' are, for Firefox). Kept in the PDF as the annotation's rich text
+  (RC) beside its plain Contents, the way stickies are: **Acrobat should show
+  the formatting** (not checked -- no Acrobat here; worth one look); Chrome,
+  Firefox, Okular and Preview show the plain words. A note with no formatting
+  writes no RC at all (`note_from_rich`). A plain note retyped in another
+  reader (Okular leaves the old RC behind) reads back as the retyped words.
+  The page always sends the note as HTML (`set` → `annotation_set(..., rich)`)
+  and the worker makes the plain words from it.
+- **A title on a sticky note**, kept as its Subject (as a highlight's heading
+  is). Shown with 📌 in the sticky's top edge -- which then stays in view --
+  and on its card ("📌 Sticky note" untitled). Written by double-clicking the
+  edge or the card's heading, or *Give it a title…* on its menu; Enter keeps,
+  Esc leaves it, empty takes it off; undoable. Other readers do not draw it on
+  the page (it is Mimick's chrome, not the box): Acrobat lists it with the
+  comment. Export notes heads the sticky "Sticky note: <title>".
+- **Linking a sticky to a highlight.** The sticky keeps the highlight's PDF
+  name (/NM) in a private key, `MimickLink`; every new highlight and sticky
+  gets a name `mimick-` + 12 hex, and a highlight named by MuPDF ("fitz-A0",
+  which repeats between sessions) is renamed before it is linked to. Names,
+  not xrefs, because `restore` remakes every annotation and undo remakes
+  them too; undo puts a highlight back under its old name, so its stickies
+  are linked again. Made by *Add a sticky note about this* (a highlight's
+  menu: the margin beside it if there are 100 points, else under it) or *Link
+  it to a highlight…* (a sticky's menu, then click a highlight or its card;
+  Esc or a click elsewhere stops). A linked sticky's card comes straight
+  after its highlight's (`everything`), set in with "↳" and "On “…”"; picking
+  either one lights the other (`partner`) and draws a dashed line between
+  them on the page. *Go to its highlight / sticky note*, *Unlink it*. A
+  deleted highlight leaves its stickies, unlinked in effect, until undone.
+  Not drawn in other readers: the one link that would be is a FreeText
+  callout arrow (the CL MuPDF adds and we strip) -- the option if Kat wants
+  the link visible in Acrobat.
+- **A bug found on the way, in stickies too:** Chrome's list command on a line
+  not yet in a paragraph put the cursor back at its start, so the next words
+  went in front. `MimickSticky.keepingCaret` puts it back.
+- **`isSticky` is `kind === "sticky"`** now (in `notes.js` and, as
+  `isinstance(Sticky)`, `notes_export._is_sticky`): both used to test for
+  `rich`, which highlights have now.
+- **Checks:** `tools/check_links.mjs` (new, 39 steps), desktop
+  `tools/check_links.py` (new, 36). Passing after the change: links, notes, sticky,
+  selecting, display, find, access, forget, tour, offline, reader, firefox
+  (sticky and tour timed out once in the full run, then passed alone); desktop
+  check_sticky, check_notes_export, check_sticky_window, check_find.
+- **Desktop:** shared code only (`972a649`, local, not pushed); its UI is
+  in PARITY.md. **Web: committed, not pushed** -- Kat's word first.
+
+## Earlier: a scan with only some of its words (4 October)
 
 Kat's ask: a reading with *some* recognisable text never tripped the
 recognising, and Reading ▾ → Recognise text in this scan… was greyed out,

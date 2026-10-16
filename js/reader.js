@@ -2598,6 +2598,7 @@
       return;
     }
     if (ctrl && e.altKey && !e.shiftKey && key === "m") { e.preventDefault(); notes.sticky.addAtCaret(); return; }
+    if (key === "Escape" && notes.linking) { notes.stopLinking(); return; }
     if (key === "Escape" && find.isOpen) { find.close(false); return; }
     if (key === "Escape") { anchor = null; setSelection(null); return; }
     if (key === "?" && !ctrl) { e.preventDefault(); $("keys-dialog").showModal(); return; }

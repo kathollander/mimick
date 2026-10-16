@@ -23,7 +23,13 @@
  * Sticky notes share all of this: the panel lists them among the highlights,
  * Ctrl+J / Ctrl+K and Ctrl+Z take them in turn, and they are kept, saved and
  * exported with the rest. A card, the panel or an undo step tells the two
- * apart by `kind`: a sticky's item has a `rich`.
+ * apart by `kind`: a sticky's item has `kind: "sticky"`.
+ *
+ * Since 15 October (Kat's asks): a highlight's note can be formatted (bold,
+ * italics, underline, strikeout, a list), kept in the PDF as its rich text
+ * beside the plain words; and a sticky note can be linked to a highlight. A
+ * linked sticky's card sits under its highlight's, picking either one lights
+ * the other up, and on the page a dashed line joins them while one is picked.
  */
 (function (root) {
   "use strict";
@@ -99,7 +105,9 @@
     let undoStack = [], redoStack = [];
     let work = Promise.resolve();
     // While the note editor is open, what its card and highlight show instead.
-    let drafting = null;         // { xref, note, title, colour }
+    let drafting = null;         // { xref, note, title, colour, html }
+    // A sticky note waiting for the highlight it is to be linked to.
+    let linking = null;          // its xref
 
     const settings = {
       get panel() { return ctx.recall("mimick-notes-panel") !== "0"; },
@@ -122,7 +130,8 @@
         catch { return COLOURS[0][1]; }
       },
     };
-    const isSticky = (item) => item != null && "rich" in item;
+    // Not "has rich text": a highlight's note can have that too, since 15 October.
+    const isSticky = (item) => item?.kind === "sticky";
 
     // --- the reader's own order, for All notes and Export notes ------------------
     // Kat asked to put notes in an order of her own by dragging (23 September).
@@ -131,8 +140,18 @@
     // xref can change when the notes are put back from the browser's store.
     const orderKey = (item) => (isSticky(item) ? `s${item.page}@${Math.round(item.rect[0])},${Math.round(item.rect[1])}`
       : item.first >= 0 ? `w${item.first}-${item.last}` : `p${item.page}@${Math.round(item.top)}`);
-    /* Highlights and sticky notes together, in page order, as the panel lists them. */
-    const everything = () => [...items, ...sticky.list].sort((a, b) => a.page - b.page || a.top - b.top);
+    /* Highlights and sticky notes together, in page order, as the panel lists
+     * them -- except that a sticky linked to a highlight comes straight after it. */
+    const byPlace = (a, b) => a.page - b.page || a.top - b.top;
+    function everything() {
+      const loose = [...items, ...sticky.list.filter((s) => !linkedHighlight(s))].sort(byPlace);
+      const out = [];
+      for (const item of loose) {
+        out.push(item);
+        if (!isSticky(item)) out.push(...stickiesOf(item).sort(byPlace));
+      }
+      return out;
+    }
     function savedOrder() {
       try { return JSON.parse(ctx.recall(`mimick-notes-order:${doc?.key}`) || "null"); } catch { return null; }
     }
@@ -164,6 +183,73 @@
     const activeItem = () => (active === null ? null : find(active));
     const activeSticky = () => (active === null ? null : sticky.list.find((s) => s.xref === active) ?? null);
 
+    // --- sticky notes linked to highlights ---------------------------------------
+    // A sticky names its highlight by the highlight's own PDF name, which
+    // survives saving and undo where xrefs do not (annotations.py).
+    const linkedHighlight = (s) => (s?.link ? items.find((h) => h.name === s.link) ?? null : null);
+    const stickiesOf = (h) => (h?.name ? sticky.list.filter((s) => s.link === h.name) : []);
+    /* Whether `item` is linked to the one picked out, either way round. */
+    function partner(item) {
+      const picked = active === null ? null : findAny(active);
+      if (!picked || !item || picked.xref === item.xref) return false;
+      if (isSticky(picked)) return !isSticky(item) && linkedHighlight(picked)?.xref === item.xref;
+      return isSticky(item) && linkedHighlight(item)?.xref === picked.xref;
+    }
+    function goTo(item) {
+      if (!item) return;
+      ctx.scrollToPoint(item.page, item.top);
+      active = null;
+      pick(item);
+    }
+
+    /* Link it to a highlight: the next highlight clicked, on the page or in
+     * the panel. Esc, or a click anywhere else, stops. */
+    function startLinking(s) {
+      linking = s.xref;
+      document.body.classList.add("linking");
+      ctx.status("Click the highlight this sticky note is about — on the page, or its card in the panel. Esc stops");
+    }
+    function stopLinking(quiet = false) {
+      if (linking === null) return;
+      linking = null;
+      document.body.classList.remove("linking");
+      if (!quiet) ctx.status("Not linked");
+    }
+    function linkTo(s, h) {
+      change(async () => {
+        const before = s.link || "";
+        const back = await ctx.call("sticky_link", s.xref, h.xref);
+        items = back.annotations;
+        sticky.set(back.stickies);
+        const now = sticky.list.find((x) => x.xref === s.xref);
+        if (now && now.link !== before) sticky.remember(now, "link", before, now.link, "Link");
+        active = s.xref;
+        ctx.status(`Sticky note linked to “${preview(h).slice(0, 60)}” — picking either one lights up the other`);
+      });
+    }
+    function linkItems(s) {
+      const h = linkedHighlight(s);
+      if (h) {
+        return [
+          { label: "Go to its highlight", run: () => goTo(h) },
+          { label: "Unlink it from its highlight", run: () => {
+            sticky.setLink(s, "");
+            ctx.status("Unlinked — the sticky note and the highlight both stay");
+          } },
+        ];
+      }
+      return [{ label: "Link it to a highlight…", enabled: items.length > 0, run: () => startLinking(s) }];
+    }
+    /* Add a sticky note about this: in the page's margin beside the
+     * highlight if there is room, or under it, linked to it from the start. */
+    function addStickyFor(h) {
+      if (!ready || !h.rects.length) return;
+      const [w] = doc.pages[h.page];
+      const right = Math.max(...h.rects.map((r) => r[2])), bottom = Math.max(...h.rects.map((r) => r[3]));
+      const room = w - right - 16;
+      if (room >= 100) sticky.addLinked(h.page, right + 10, h.rects[0][1], h.xref, Math.min(180, room));
+      else sticky.addLinked(h.page, h.rects[0][0], bottom + 6, h.xref);
+    }
     // --- talking to the document worker -------------------------------------
 
     /* Changes run one after another, in the order asked for. */
@@ -179,12 +265,16 @@
       return next;
     }
 
-    async function add(first, last, { colour: c, note = "", title = "" }) {
-      const { xref, annotations } = await ctx.call("annotation_add", first, last, c, note, title, settings.author);
+    async function add(first, last, { colour: c, note = "", title = "", rich = "", name = "" }) {
+      const { xref, annotations } = await ctx.call("annotation_add", first, last, c, note, title, settings.author,
+                                                   rich || "", name || "");
       items = annotations;
       return xref === null ? null : find(xref);
     }
-    async function set(xref, note, title, c) { items = await ctx.call("annotation_set", xref, note, title, c); }
+    /* `rich` is the note as HTML; the worker makes the plain words from it. */
+    async function set(xref, note, title, c, rich) {
+      items = await ctx.call("annotation_set", xref, note, title, c, rich ?? plainHtml(note));
+    }
     async function drop(xref) {
       items = await ctx.call("annotation_remove", xref);
       if (active === xref) active = null;
@@ -377,10 +467,10 @@
       sticky.draw(page, pageEl);
       for (const item of items) {
         if (item.page !== page) continue;
-        const look = shown(item), picked = item.xref === active;
+        const look = shown(item), picked = item.xref === active, linked = partner(item);
         for (const rect of item.rects) {
-          const box = el("div", { className: "hl annot" });
-          box.style.background = css(look.colour, picked ? 150 / 255 : 105 / 255);
+          const box = el("div", { className: "hl annot" + (linked ? " partner" : "") });
+          box.style.background = css(look.colour, picked || linked ? 150 / 255 : 105 / 255);
           ctx.placeBox(box, page, rect, 1);
           pageEl.append(box);
         }
@@ -397,6 +487,32 @@
           pageEl.append(badge);
         }
       }
+      // A dashed line between the one picked out and what it is linked to,
+      // where both are on this page.
+      const picked = active === null ? null : findAny(active);
+      const pairs = !picked ? [] : isSticky(picked) ? [[picked, linkedHighlight(picked)]]
+        : stickiesOf(picked).map((s) => [s, picked]);
+      for (const [s, h] of pairs) if (h && s.page === page && h.page === page) pageEl.append(linkLine(page, s, h));
+    }
+
+    /* From the sticky's nearest edge to the nearest point of the highlight's
+     * first line, in page points. */
+    function linkLine(page, s, h) {
+      const [w, ht] = doc.pages[page];
+      const [sx0, sy0, sx1, sy1] = s.rect, [hx0, hy0, hx1, hy1] = h.rects[0];
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const hx = clamp((sx0 + sx1) / 2, hx0, hx1), hy = clamp((sy0 + sy1) / 2, hy0, hy1);
+      const sx = clamp(hx, sx0, sx1), sy = clamp(hy, sy0, s.folded ? sy0 + 20 / ctx.zoom() : sy1);
+      const NS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "hl link-line");
+      svg.setAttribute("viewBox", `0 0 ${w} ${ht}`);
+      svg.setAttribute("preserveAspectRatio", "none");
+      const line = document.createElementNS(NS, "line");
+      Object.entries({ x1: sx, y1: sy, x2: hx, y2: hy }).forEach(([k, v]) => line.setAttribute(k, v));
+      line.setAttribute("stroke", css(s.colour.map((c) => c * 0.6)));
+      svg.append(line);
+      return svg;
     }
 
     function at(page, x, y) {
@@ -411,6 +527,11 @@
     }
 
     function pick(item) {
+      if (linking !== null) {
+        const s = sticky.list.find((x) => x.xref === linking);
+        if (s && item && !isSticky(item)) { stopLinking(true); linkTo(s, item); return; }
+        stopLinking();
+      }
       const xref = item ? item.xref : null;
       if (xref === active) return;
       active = xref;
@@ -446,27 +567,29 @@
       return items.find((i) => i.first <= span[0] && span[0] <= i.last) ?? null;
     }
 
+    // Put back with its name, a highlight is still the one its sticky notes
+    // are linked to.
     function rememberHighlight(item) {
       const span = [item.first, item.last], ref = [item.xref];
-      const { colour: c, note, title } = item;
+      const { colour: c, note, title, rich, name } = item;
       const thing = note || title ? "Note" : "Highlight";
       pushUndo(`${thing} removed`, `${thing} put back`,
         async () => { const now = live(span, ref); if (now) await drop(now.xref); },
-        async () => { const back = await add(span[0], span[1], { colour: c, note, title }); if (back) { ref[0] = back.xref; active = back.xref; } });
+        async () => { const back = await add(span[0], span[1], { colour: c, note, title, rich, name }); if (back) { ref[0] = back.xref; active = back.xref; } });
     }
 
     function rememberDeletion(item) {
       const span = [item.first, item.last], ref = [item.xref];
-      const { colour: c, note, title } = item;
+      const { colour: c, note, title, rich, name } = item;
       const thing = note || title ? "Note" : "Highlight";
       pushUndo(`${thing} put back`, `${thing} deleted again`,
-        async () => { const back = await add(span[0], span[1], { colour: c, note, title }); if (back) { ref[0] = back.xref; active = back.xref; } },
+        async () => { const back = await add(span[0], span[1], { colour: c, note, title, rich, name }); if (back) { ref[0] = back.xref; active = back.xref; } },
         async () => { const now = live(span, ref); if (now) await drop(now.xref); });
     }
 
     function rememberNoteChange(item, before, after) {
       const span = [item.first, item.last], ref = [item.xref];
-      const apply = async ([note, title, c]) => { const now = live(span, ref); if (now) await set(now.xref, note, title, c); };
+      const apply = async ([note, title, c, rich]) => { const now = live(span, ref); if (now) await set(now.xref, note, title, c, rich); };
       pushUndo("Note change undone", "Note change put back", () => apply(before), () => apply(after));
     }
 
@@ -509,6 +632,9 @@
       activeSticky,
       pick: (item) => { if (item && active !== item.xref) { active = item.xref; refreshAll(); } },
       formatChanged: () => showFormat(),
+      partner,
+      linkItems,
+      linked: (annotations) => { items = annotations; },
     });
 
     function highlight(withNote = false) {
@@ -584,6 +710,10 @@
         { label: "Read this passage", enabled: ctx.canRead() && item.first >= 0,
           run: () => ctx.readRange(item.first, item.last) },
         "-",
+        { label: "Add a sticky note about this", run: () => addStickyFor(item) },
+        ...(stickiesOf(item).length ? [{ label: stickiesOf(item).length === 1 ? "Go to its sticky note"
+          : `Go to its sticky notes (${stickiesOf(item).length})`, run: () => goTo(stickiesOf(item)[0]) }] : []),
+        "-",
         { label: "Delete this highlight", run: () => remove(item) },
       ];
     }
@@ -593,21 +723,99 @@
     const dialog = $("note-dialog");
     let editing = null, opening = false;
 
+    // The note is typed into an editable box, formatted by the row over it or
+    // the usual keys -- done here, not left to the browser: Firefox on Linux
+    // gives Ctrl+B to its bookmarks (29 September). The worker cleans what it
+    // is given down to the few tags a note can hold (annotations.clean_rich).
+    const noteText = $("note-text");
+    const escapeHtml = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const plainHtml = (text) => ((text || "").trim()
+      ? (text || "").split("\n").map((line) => `<p>${line ? escapeHtml(line) : "<br>"}</p>`).join("") : "");
+    // Sizes a note never has, but a pasted or older one might: as the card's own.
+    const richShown = (rich) => rich.replace(/font-size:\s*([\d.]+)pt/g, (m, n) => `font-size:${n / 11}em`);
+    const notePlain = () => noteText.innerText.replace(/\n\n/g, "\n").trim();
+    function caretToEnd(box) {
+      box.focus();
+      const end = document.createRange();
+      end.selectNodeContents(box);
+      end.collapse(false);
+      getSelection().removeAllRanges();
+      getSelection().addRange(end);
+    }
+
     function edit(item, { fresh = false } = {}) {
       if (!item || !ready) return;
-      const before = [item.note, item.title, item.colour];
+      const before = [item.note, item.title, item.colour, item.rich || plainHtml(item.note)];
       editing = { xref: item.xref, fresh, before, deleted: false };
       drafting = { xref: item.xref, note: item.note, title: item.title, colour: item.colour };
       active = item.xref;
       $("note-quote").textContent = `“${preview(item)}”`;
       $("note-title").value = item.title;
-      $("note-text").value = item.note;
+      // The worker's clean_rich made this, so it holds nothing but words and
+      // a few tags, and can be put in as it is.
+      noteText.innerHTML = item.rich ? richShown(item.rich) : plainHtml(item.note);
+      noteRange = null;
+      drafting.html = noteText.innerHTML;
       paintSwatches();
+      showNoteFormat();
       refreshAll();
       dialog.showModal();
       placeEditor();
-      $("note-text").focus();
+      caretToEnd(noteText);
     }
+
+    // Where the cursor was in the note, for a button that took the focus.
+    let noteRange = null;
+    function noteFormat(what) {
+      if (document.activeElement !== noteText) {
+        noteText.focus();
+        if (noteRange && noteText.contains(noteRange.startContainer)) {
+          getSelection().removeAllRanges();
+          getSelection().addRange(noteRange);
+        }
+      }
+      document.execCommand("styleWithCSS", false, false);
+      if (what === "strike") document.execCommand("strikeThrough");
+      else if (what === "list") MimickSticky.keepingCaret(noteText, () => document.execCommand("insertUnorderedList"));
+      else document.execCommand(what);
+      drafted();
+      showNoteFormat();
+    }
+    const NOTE_FORMATS = { bold: "bold", italic: "italic", underline: "underline", strike: "strikeThrough",
+                           list: "insertUnorderedList" };
+    function showNoteFormat() {
+      const inside = document.activeElement === noteText;
+      for (const button of $("note-format").querySelectorAll("[data-fmt]")) {
+        let on = false;
+        try { on = inside && document.queryCommandState(NOTE_FORMATS[button.dataset.fmt]); } catch { on = false; }
+        button.setAttribute("aria-pressed", on);
+      }
+      noteText.classList.toggle("empty", !noteText.textContent.trim() && !noteText.querySelector("li"));
+    }
+    for (const button of $("note-format").querySelectorAll("[data-fmt]")) {
+      // The cursor stays in the note: a press must not take the focus.
+      button.addEventListener("pointerdown", (e) => e.preventDefault());
+      button.addEventListener("mousedown", (e) => e.preventDefault());
+      button.onclick = () => noteFormat(button.dataset.fmt);
+    }
+    noteText.addEventListener("keydown", (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const what = ctrl && !e.altKey && (!e.shiftKey ? { KeyB: "bold", KeyI: "italic", KeyU: "underline" }[e.code]
+                                                      : { KeyX: "strike", Digit8: "list" }[e.code]);
+      if (what) { e.preventDefault(); e.stopPropagation(); noteFormat(what); }
+    });
+    noteText.addEventListener("paste", (e) => {
+      const html = e.clipboardData?.getData("text/html"), plain = e.clipboardData?.getData("text/plain");
+      e.preventDefault();
+      if (html) document.execCommand("insertHTML", false, MimickSticky.pasteable(html));
+      else if (plain) document.execCommand("insertText", false, plain);
+    });
+    document.addEventListener("selectionchange", () => {
+      if (!dialog.open) return;
+      const sel = getSelection();
+      if (sel.rangeCount && noteText.contains(sel.anchorNode)) noteRange = sel.getRangeAt(0).cloneRange();
+      showNoteFormat();
+    });
 
     /* Where the reader last dragged the editor to, kept within the window --
      * so the words being written about can stay in view beside it (Kat, 23
@@ -648,14 +856,14 @@
         dialog.classList.remove("dragging");
         const box = dialog.getBoundingClientRect();
         ctx.remember("mimick-note-box", JSON.stringify([Math.round(box.left), Math.round(box.top)]));
-        $("note-text").focus();
+        noteText.focus();
       };
       grip.addEventListener("pointerup", drop);
       grip.addEventListener("pointercancel", drop);
       grip.addEventListener("dblclick", () => {
         ctx.remember("mimick-note-box", "");
         placeEditor();
-        $("note-text").focus();
+        noteText.focus();
       });
       addEventListener("resize", () => { if (dialog.open && dialog.classList.contains("moved")) placeEditor(); });
     }
@@ -678,11 +886,14 @@
     }
 
     function drafted() {
-      drafting.note = $("note-text").value.trim();
+      if (!drafting) return;
+      drafting.note = notePlain();
+      drafting.html = noteText.innerHTML;
       drafting.title = $("note-title").value.trim();
+      showNoteFormat();
       refreshAll();
     }
-    $("note-text").addEventListener("input", drafted);
+    noteText.addEventListener("input", drafted);
     $("note-title").addEventListener("input", drafted);
     // Ctrl+Enter saves, since Enter itself belongs to the text box. Listened for
     // on the whole page, in case focus has wandered out of the editor.
@@ -717,9 +928,9 @@
           ctx.status("Highlight deleted");
           return;
         }
-        const after = [draft.note, draft.title, draft.colour];
-        await set(item.xref, ...after);
+        await set(item.xref, draft.note, draft.title, draft.colour, draft.html);
         const now = find(item.xref);
+        const after = now ? [now.note, now.title, now.colour, now.rich || plainHtml(now.note)] : job.before;
         if (job.fresh) {
           if (now) rememberHighlight(now);
         } else if (JSON.stringify(job.before) !== JSON.stringify(after)) {
@@ -757,19 +968,25 @@
 
     function stickyCard(item) {
       const picked = item.xref === active;
-      const node = el("div", { className: "note-card sticky-card" + (picked ? " picked" : "") + (item.folded ? " folded" : "") });
+      const on = linkedHighlight(item);
+      const node = el("div", { className: "note-card sticky-card" + (picked ? " picked" : "") + (item.folded ? " folded" : "")
+                                          + (on ? " attached" : "") + (partner(item) ? " partner" : "") });
       node.dataset.xref = item.xref;
       node.style.setProperty("--accent", css(item.colour));
       if (settings.all) {
         node.append(el("div", { className: "where", textContent: `Page ${item.page + 1}` }));
         draggable(node, item);
       }
-      node.append(el("div", { className: "heading", textContent: "Sticky note" }));
+      // 📌 tells a sticky's card from a note's at a glance (Kat, 15 October).
+      const heading = el("div", { className: "heading", textContent: `📌 ${item.title || "Sticky note"}` });
+      heading.title = "Double-click to give it a title";
+      heading.ondblclick = (e) => { e.stopPropagation(); ctx.scrollToPoint(item.page, item.top); setTimeout(() => sticky.editTitle(item)); };
+      node.append(heading);
+      if (on) node.append(el("div", { className: "on", textContent: `On “${preview(on).slice(0, 60)}”` }));
       const body = el("div", { className: "body rich" });
       // The worker's clean_rich made this, and it holds nothing but words, <p>,
       // <ul>, <li>, <b>, <i>, <u>, <s> and a font size -- so it can be shown.
-      body.innerHTML = flat(item.text) ? item.rich.replace(/font-size:\s*([\d.]+)pt/g, (m, n) => `font-size:${n / 11}em`)
-        : "<p><i>Empty</i></p>";
+      body.innerHTML = flat(item.text) ? richShown(item.rich) : "<p><i>Empty</i></p>";
       node.append(body);
       if (picked) {
         const badge = el("button", { className: "remove", type: "button", title: "Delete this sticky note", textContent: "×" });
@@ -785,7 +1002,7 @@
     function card(item) {
       if (isSticky(item)) return stickyCard(item);
       const look = shown(item), picked = item.xref === active;
-      const node = el("div", { className: "note-card" + (picked ? " picked" : "") });
+      const node = el("div", { className: "note-card" + (picked ? " picked" : "") + (partner(item) ? " partner" : "") });
       node.dataset.xref = item.xref;
       node.style.setProperty("--accent", css(look.colour));
       if (settings.all) {
@@ -793,8 +1010,14 @@
         draggable(node, item);
       }
       if (look.title) node.append(el("div", { className: "heading", textContent: look.title }));
-      node.append(look.note ? el("div", { className: "body", textContent: look.note })
-                            : el("div", { className: "body quote", textContent: preview(item) }));
+      // While the editor is open the card shows the plain words as typed;
+      // otherwise the note as saved, formatted if it is. clean_rich made it.
+      const formatted = item.rich && !(drafting && drafting.xref === item.xref);
+      const body = formatted ? el("div", { className: "body rich" })
+        : look.note ? el("div", { className: "body", textContent: look.note })
+        : el("div", { className: "body quote", textContent: preview(item) });
+      if (formatted) body.innerHTML = richShown(item.rich);
+      node.append(body);
       if (picked) {
         const badge = el("button", { className: "remove", type: "button", title: "Delete this highlight", textContent: "×" });
         badge.onclick = (e) => { e.stopPropagation(); remove(item); };
@@ -1245,6 +1468,8 @@
       get count() { return items.length + sticky.list.length; },
       get editing() { return dialog.open || styleDialog.open; },
       get opening() { return opening; },
+      get linking() { return linking !== null; },
+      stopLinking: () => stopLinking(),
     };
   }
 
