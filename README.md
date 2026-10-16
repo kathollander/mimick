@@ -46,7 +46,11 @@ progress.
 5. **Find text** with `Ctrl`+`F`; `Enter` goes to the next match.
 6. **Highlight** a selection with `Ctrl`+`H`, or highlight it and **write a
    note** with `Ctrl`+`M`. Notes appear beside the page (`Ctrl`+`B` shows or
-   hides them), and are kept in this browser as you work.
+   hides them), and are kept in this browser as you work. The buttons over a
+   note make words **bold**, *italic*, underlined, ~~struck out~~ or a bullet
+   list (`Ctrl`+`B`, `I`, `U`, `Ctrl`+`Shift`+`X`, `Ctrl`+`Shift`+`8`); a
+   saved copy keeps the formatting for Acrobat, and other readers show the
+   same words, plain.
    **Sticky notes** go anywhere on a page: **+ Add sticky** on the Highlight /
    Add note strip puts one on the page on screen, and the colour button beside
    it picks its colour (or `Ctrl`+`Alt`+`M`, or right-click → **Add a sticky
@@ -59,6 +63,13 @@ progress.
    carries it, Firefox, Chrome, Okular and Acrobat show it, formatting and all,
    and opening that copy in Mimick again gives it back to edit. Programs that
    edit only plain text (Okular) keep its words but not its bold or italics.
+   **A title**: double-click a sticky's top edge (or its card's heading) and
+   type one; it shows as 📌 *Title*, and Acrobat lists it with the comment.
+   **About a passage**: right-click a highlight → **Add a sticky note about
+   this**, or right-click a sticky → **Link it to a highlight…** and click the
+   highlight. Its card then sits under the highlight's, and picking either
+   one lights the other, with a dashed line between them on the page. The
+   link is kept in the PDF for Mimick; other readers show the two apart.
    **Display ▾ → Sticky notes** takes + Add sticky off the strip.
 7. **Save a copy** with `Ctrl`+`S`: the PDF with your highlights, notes and
    sticky notes in it, which other PDF readers can show. **File ▾ → Export

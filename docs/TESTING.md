@@ -12,6 +12,23 @@ python3 serve.py
 Tick what works, and write down anything that doesn't -- what you did, what you
 expected, what happened.
 
+## Formatted notes, sticky titles, linked stickies, 15 October — http://localhost:8731/reader.html
+
+Committed, not pushed. Open any PDF with some text.
+
+- [ ] Select a passage, `Ctrl`+`M`: the note has a row of buttons over it. Bold, italic, underline, strikeout and a bullet list each work, by button and by key (`Ctrl`+`B`/`I`/`U`, `Ctrl`+`Shift`+`X`, `Ctrl`+`Shift`+`8`)
+- [ ] Making a line a bullet list leaves the cursor where it was (it used to jump to the start of the line)
+- [ ] The card in the panel shows the formatting; `Ctrl`+`Z` takes the note back, `Ctrl`+`Y` puts it again
+- [ ] Double-click a sticky's top edge, type a title, Enter: it shows as 📌 *Title* on the sticky and its card. Esc instead leaves it as it was; emptying it takes it off
+- [ ] Right-click a highlight → **Add a sticky note about this**: the sticky lands beside it in the margin (or under it, on a full-width page), its card right under the highlight's, with "On "…""
+- [ ] Right-click another sticky → **Link it to a highlight…**, click a highlight: linked. Esc in the middle stops without linking
+- [ ] Clicking either one of a pair lights the other, with a dashed line between them on the page
+- [ ] **Go to its highlight / Go to its sticky note** and **Unlink it** do what they say
+- [ ] Delete a linked highlight: the sticky stays. `Ctrl`+`Z`: the highlight is back, and linked again
+- [ ] Does the linking feel clunky? What would you rather it did?
+- [ ] `Ctrl`+`S`, then open the copy in **Acrobat**: is the note's bold/italic shown? Is the sticky's title listed with the comment? (Not checked here -- no Acrobat on this machine)
+- [ ] Open that copy in Mimick again: formatting, titles and links all come back
+
 ## The voice's download, 20 September — https://kathollander.github.io/mimick/reader.html
 
 Only once the 20 September work is pushed; it is committed but not deployed.
