@@ -14,7 +14,7 @@ expected, what happened.
 
 ## Formatted notes, sticky titles, linked stickies, 15 October — http://localhost:8731/reader.html
 
-Committed, not pushed. Open any PDF with some text.
+Live since 16 October (here and on the site). Open any PDF with some text. Notes made on localhost stay on localhost: the live site keeps its own, so to carry them over, Save a copy and open that.
 
 - [ ] Select a passage, `Ctrl`+`M`: the note has a row of buttons over it. Bold, italic, underline, strikeout and a bullet list each work, by button and by key (`Ctrl`+`B`/`I`/`U`, `Ctrl`+`Shift`+`X`, `Ctrl`+`Shift`+`8`)
 - [ ] Making a line a bullet list leaves the cursor where it was (it used to jump to the start of the line)

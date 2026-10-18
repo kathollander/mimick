@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 15 October (formatted notes, sticky titles and links, below); the paragraph that follows was
+last updated 16 October (formatted notes, sticky titles and links, below -- pushed and live); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -86,8 +86,16 @@ change what turns out clunky, so every choice below is open to her.
   selecting, display, find, access, forget, tour, offline, reader, firefox
   (sticky and tour timed out once in the full run, then passed alone); desktop
   check_sticky, check_notes_export, check_sticky_window, check_find.
-- **Desktop:** shared code only (`972a649`, local, not pushed); its UI is
-  in PARITY.md. **Web: committed, not pushed** -- Kat's word first.
+- **Desktop:** shared code only (`972a649`, pushed 16 October); its UI is
+  in PARITY.md. **Web: pushed and live 16 October** (`e531183`), at Kat's
+  word; she knows there are things still to fix.
+- **Localhost and the live site keep separate notes.** Kat linked stickies on
+  localhost, then saw no links on the live site and took it for a bug: the
+  notes live in the browser's storage (`js/notes-store.js`), which is per
+  site, so `localhost:8731` and `kathollander.github.io` never share them.
+  Save a copy carries them across in the PDF. Before calling a localhost/live
+  difference a bug, compare the live files with HEAD (all 16 matched) and
+  rule this out, then the stale cached copy (Help → Update Mimick).
 
 ## Earlier: a scan with only some of its words (4 October)
 
