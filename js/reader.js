@@ -433,6 +433,7 @@
       loading = null;
       showLoading();
       $("empty").hidden = false;
+      showReopen();
       document.title = "Mimick";
       $("title").textContent = "";
       return;
@@ -801,7 +802,7 @@
       openFile(await MimickRecent.file(id));
     } catch (err) {
       status(`Could not open ${name}: ${err.message}`);
-      if (!/not allowed/.test(err.message)) MimickRecent.remove(id);
+      if (!/not allowed/.test(err.message)) { MimickRecent.remove(id); showReopen(); }
     }
   }
   /* The sample the tour runs on: Poe's "The Raven", four pages, which comes
@@ -815,7 +816,19 @@
     await openBytes(await response.arrayBuffer(), "The Raven (sample)", "sample:raven");
   }
 
-  MimickRecent.load();
+  /* Reopen <the last file>, on the empty page: a new tab starts empty, which
+   * felt like losing the document (Kat, 16 October). A click, because the
+   * browser may ask for permission to read the file again. Chromium only:
+   * elsewhere there is no Open recent to take it from. */
+  function showReopen() {
+    const last = MimickRecent.list()[0];
+    $("reopen-last").hidden = !last;
+    $("open-empty").classList.toggle("primary", !last);
+    if (!last) return;
+    $("reopen-last").textContent = `Reopen ${last.name}`;
+    $("reopen-last").onclick = () => openRecent(last.id, last.name);
+  }
+  MimickRecent.load().then(showReopen);
   $("open-empty").onclick = chooseFile;
   $("file").onchange = () => { openFile($("file").files[0]); $("file").value = ""; };
 
@@ -1119,6 +1132,7 @@
     $("total").textContent = "of —";
     for (const id of ["prev", "next", "page"]) $(id).disabled = true;
     $("empty").hidden = false;
+    showReopen();
   }
 
   function askForget() {
@@ -2285,7 +2299,7 @@
     return [
       { label: "Open recent", enabled: false },
       ...files.map(({ id, name }) => ({ label: name, indent: true, run: () => openRecent(id, name) })),
-      { label: "Clear recent files", indent: true, run: () => { MimickRecent.clear(); status("Recent files cleared"); } },
+      { label: "Clear recent files", indent: true, run: () => { MimickRecent.clear(); showReopen(); status("Recent files cleared"); } },
       "-",
     ];
   };

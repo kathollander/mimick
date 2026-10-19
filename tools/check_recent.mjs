@@ -8,8 +8,9 @@
  * into the site's private file system (navigator.storage), and their handles
  * given to MimickRecent as a real open would. Checks File ▾ lists them newest
  * first, that choosing one opens it (and moves it to the top), that the list
- * survives a reload, that a file since deleted says so and leaves the list, and
- * that Clear recent files empties it. Needs no voice.
+ * survives a reload, that a new tab offers to reopen the last file, that a file
+ * since deleted says so and leaves the list, and that Clear recent files
+ * empties it. Needs no voice.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -57,6 +58,15 @@ labels = await fileMenu();
 check("the list is kept over a reload", labels?.[2] === "sample.pdf" && labels?.[3] === "test-paper.pdf", labels);
 await r.key("Escape");
 
+// Reopen the last file, on the empty page of a new tab (16 October).
+const reopen = () => ev(`document.getElementById("reopen-last").hidden ? null : document.getElementById("reopen-last").textContent`);
+check("a new tab offers to reopen the last file", await reopen() === "Reopen sample.pdf", await reopen());
+await r.click(await r.centre("#reopen-last"));
+await wait(`!document.getElementById("play").disabled`, 60000).catch(() => {});
+check("…which opens it", (await ev(`document.getElementById("title").textContent`)) === "sample",
+      await ev(`document.getElementById("title").textContent`));
+await r.load();
+
 await ev(`navigator.storage.getDirectory().then((dir) => dir.removeEntry("test-paper.pdf"))`);
 await fileMenu();
 await r.menu("test-paper.pdf"); await sleep(1000);
@@ -69,5 +79,6 @@ await r.menu("Clear recent files"); await sleep(300);
 labels = await fileMenu();
 check("Clear recent files empties it", !labels?.includes("Open recent") && !labels?.includes("sample.pdf"), labels);
 await r.key("Escape");
+check("…and the empty page no longer offers to reopen one", await reopen() === null, await reopen());
 await ev(`navigator.storage.getDirectory().then((dir) => dir.removeEntry("sample.pdf"))`);
 r.finish();
