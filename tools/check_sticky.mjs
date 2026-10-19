@@ -18,7 +18,8 @@ import { CTRL, SHIFT, root, startReader } from "./cdp.mjs";
 
 const ALT = 1;
 const SAMPLE = path.join(root, "sample/test-paper.pdf");
-const PYTHON = path.join(root, "../Mimick-linux/.venv/bin/python");
+// Any Python with PyMuPDF will do, to read the saved copy: MIMICK_PYTHON says which.
+const PYTHON = process.env.MIMICK_PYTHON || path.join(root, "../Mimick-linux/.venv/bin/python");
 const r = await startReader("check-sticky");
 const { ev, wait, sleep, check, t } = r;
 await r.load();

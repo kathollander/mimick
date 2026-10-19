@@ -14,8 +14,9 @@ again (Kat, 29 September 2026).
 A highlight's note can be formatted too, kept the same way as a sticky's: the
 PDF's rich-text copy (RC) beside its plain one, which Acrobat shows and every
 other reader falls back from. A sticky can have a title (the PDF's Subject,
-as a highlight's heading is) and be linked to a highlight: it names the
-highlight's /NM in a private key, which other readers ignore (Kat, 15 October).
+as a highlight's heading is) and be linked to highlights: it names each
+highlight's /NM in a private key, which other readers ignore (Kat, 15 October;
+more than one highlight since 19 October).
 """
 
 from __future__ import annotations
@@ -45,9 +46,10 @@ DEFAULT_COLOUR = COLOURS[0][1]
 _RANGE_KEY = "MimickRange"
 _RANGE_PREFIX = "mimick-range:"      # how older files stored it
 
-# A sticky linked to a highlight names it here: the highlight's /NM, the PDF's
-# own name for an annotation, which survives saving where object numbers do
-# not. Names Mimick gives start with this.
+# A sticky linked to highlights names them here: each highlight's /NM, the
+# PDF's own name for an annotation, which survives saving where object numbers
+# do not, separated by spaces. Names Mimick gives start with this, and have no
+# spaces in them; a highlight named otherwise is renamed before it is linked.
 _LINK_KEY = "MimickLink"
 _NAME_PREFIX = "mimick-"
 
@@ -159,12 +161,17 @@ class Sticky:
     author: str = ""
     xref: int = 0
     title: str = ""                    # optional, the PDF's Subject, as a highlight's heading
-    link: str = ""                     # the name of the highlight it belongs to, or ""
+    link: str = ""                     # the names of the highlights it belongs to, space-separated, or ""
     name: str = ""                     # its own /NM
 
     @property
     def top(self) -> float:
         return self.rect[1]
+
+    @property
+    def links(self) -> list[str]:
+        """The names of the highlights it is linked to, in the order linked."""
+        return self.link.split()
 
     @property
     def text(self) -> str:
@@ -904,28 +911,43 @@ class AnnotationStore:
     # -- links between sticky notes and highlights ------------------------------
 
     def link_sticky(self, item: Sticky, target: Annotation | None) -> None:
-        """Link a sticky note to a highlight, or with None, unlink it. A
-        highlight without a name of its own -- one MuPDF named "fitz-A0", which
-        another can share -- is given one first."""
+        """Link a sticky note to one more highlight, or with None, unlink it
+        from all of them. A highlight without a name of its own -- one MuPDF
+        named "fitz-A0", which another can share, or one another program named
+        with a space in it -- is given one first."""
         if target is None:
             self.set_sticky(item, link="")
             return
-        if not target.name.startswith(_NAME_PREFIX) or self._name_taken(target.name, target.xref):
+        if (not target.name.startswith(_NAME_PREFIX) or any(c.isspace() for c in target.name)
+                or self._name_taken(target.name, target.xref)):
             target.name = self._name_free("")
             _write_name(self._document.doc, target.xref, target.name)
-        self.set_sticky(item, link=target.name)
+        if target.name not in item.links:
+            self.set_sticky(item, link=" ".join([*item.links, target.name]))
+
+    def unlink_sticky(self, item: Sticky, target: Annotation | str) -> None:
+        """Unlink a sticky note from one highlight (or a highlight's name, for
+        one since deleted), keeping its other links."""
+        name = target if isinstance(target, str) else target.name
+        if name in item.links:
+            self.set_sticky(item, link=" ".join(n for n in item.links if n != name))
+
+    def linked_marks(self, item: Sticky) -> list[Annotation]:
+        """The highlights a sticky note is linked to that are still there, in
+        the order linked."""
+        by_name = {mark.name: mark for mark in self.items if mark.name}
+        return [by_name[name] for name in item.links if name in by_name]
 
     def linked_to(self, item: Sticky) -> Annotation | None:
-        """The highlight a sticky note is linked to, if it is still there."""
-        if not item.link:
-            return None
-        return next((mark for mark in self.items if mark.name == item.link), None)
+        """The first highlight a sticky note is linked to, if any is still there."""
+        marks = self.linked_marks(item)
+        return marks[0] if marks else None
 
     def stickies_of(self, mark: Annotation) -> list[Sticky]:
         """The sticky notes linked to a highlight."""
         if not mark.name:
             return []
-        return [item for item in self.stickies if item.link == mark.name]
+        return [item for item in self.stickies if mark.name in item.links]
 
     def _name_taken(self, name: str, xref: int = 0) -> bool:
         return any(other.name == name and other.xref != xref for other in [*self.items, *self.stickies])

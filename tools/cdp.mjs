@@ -84,11 +84,22 @@ export async function startReader(name, { port = 8731 } = {}) {
   const mouse = (type, [x, y], extra = {}) => t.send("Input.dispatchMouseEvent",
     { type, x, y, button: "left", buttons: type === "mouseReleased" ? 0 : 1, clickCount: 1, ...extra });
   const problems = [];
+  // A load after making notes leaves a page that asks first (beforeunload,
+  // since 19 October): r.load says yes. check_panel answers it itself.
+  let leaving = false;
+  t.on((m) => {
+    if (leaving && m.method === "Page.javascriptDialogOpening" && m.params.type === "beforeunload") {
+      t.send("Page.handleJavaScriptDialog", { accept: true });
+    }
+  });
 
   const r = {
     t, ev, wait, errors, downloads, sleep,
     async load(query = "") {
+      await t.send("Page.enable");
+      leaving = true;
       await t.send("Page.navigate", { url: `http://localhost:${port}/reader.html${query}` });
+      leaving = false;
       await sleep(2500);
       await wait(`/Ready/.test(document.getElementById("status")?.textContent || "")`);
     },

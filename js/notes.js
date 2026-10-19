@@ -106,8 +106,10 @@
     let work = Promise.resolve();
     // While the note editor is open, what its card and highlight show instead.
     let drafting = null;         // { xref, note, title, colour, html }
-    // A sticky note waiting for the highlight it is to be linked to.
-    let linking = null;          // its xref
+    // Linking, waiting for its other end: a sticky note's "Link it to a
+    // highlight…" waits for a highlight, a highlight's "Link a sticky note to
+    // this…" for a sticky.
+    let linking = null;          // { xref, want: "highlight" | "sticky" }
 
     const settings = {
       get panel() { return ctx.recall("mimick-notes-panel") !== "0"; },
@@ -144,11 +146,11 @@
      * them -- except that a sticky linked to a highlight comes straight after it. */
     const byPlace = (a, b) => a.page - b.page || a.top - b.top;
     function everything() {
-      const loose = [...items, ...sticky.list.filter((s) => !linkedHighlight(s))].sort(byPlace);
+      const loose = [...items, ...sticky.list.filter((s) => !homeOf(s))].sort(byPlace);
       const out = [];
       for (const item of loose) {
         out.push(item);
-        if (!isSticky(item)) out.push(...stickiesOf(item).sort(byPlace));
+        if (!isSticky(item)) out.push(...stickiesOf(item).filter((s) => homeOf(s) === item).sort(byPlace));
       }
       return out;
     }
@@ -184,16 +186,21 @@
     const activeSticky = () => (active === null ? null : sticky.list.find((s) => s.xref === active) ?? null);
 
     // --- sticky notes linked to highlights ---------------------------------------
-    // A sticky names its highlight by the highlight's own PDF name, which
-    // survives saving and undo where xrefs do not (annotations.py).
-    const linkedHighlight = (s) => (s?.link ? items.find((h) => h.name === s.link) ?? null : null);
-    const stickiesOf = (h) => (h?.name ? sticky.list.filter((s) => s.link === h.name) : []);
+    // A sticky names its highlights by their own PDF names, space-separated,
+    // which survive saving and undo where xrefs do not (annotations.py). One
+    // sticky can be on several highlights (Kat, 16 October).
+    const linkNames = (s) => (s?.link || "").split(/\s+/).filter(Boolean);
+    /* The highlights a sticky is linked to that are still there, in the order linked. */
+    const linkedHighlights = (s) => linkNames(s).map((n) => items.find((h) => h.name === n)).filter(Boolean);
+    /* The one whose card it follows in the panel: the first in the document. */
+    const homeOf = (s) => linkedHighlights(s).sort(byPlace)[0] ?? null;
+    const stickiesOf = (h) => (h?.name ? sticky.list.filter((s) => linkNames(s).includes(h.name)) : []);
     /* Whether `item` is linked to the one picked out, either way round. */
     function partner(item) {
       const picked = active === null ? null : findAny(active);
-      if (!picked || !item || picked.xref === item.xref) return false;
-      if (isSticky(picked)) return !isSticky(item) && linkedHighlight(picked)?.xref === item.xref;
-      return isSticky(item) && linkedHighlight(item)?.xref === picked.xref;
+      if (!picked || !item || picked.xref === item.xref || isSticky(picked) === isSticky(item)) return false;
+      const [s, h] = isSticky(picked) ? [picked, item] : [item, picked];
+      return linkedHighlights(s).includes(h);
     }
     function goTo(item) {
       if (!item) return;
@@ -203,11 +210,22 @@
     }
 
     /* Link it to a highlight: the next highlight clicked, on the page or in
-     * the panel. Esc, or a click anywhere else, stops. */
-    function startLinking(s) {
-      linking = s.xref;
+     * the panel -- or from a highlight, the next sticky note. Esc, or a click
+     * anywhere else, stops. */
+    function startLinking(item) {
+      const fromSticky = isSticky(item);
+      linking = { xref: item.xref, want: fromSticky ? "highlight" : "sticky" };
       document.body.classList.add("linking");
-      ctx.status("Click the highlight this sticky note is about — on the page, or its card in the panel. Esc stops");
+      ctx.status(fromSticky ? "Click a highlight this sticky note is about — on the page, or its card in the panel. Esc stops"
+                            : "Click the sticky note to link to this highlight — on the page, or its card in the panel. Esc stops");
+    }
+    /* A sticky note picked while a highlight waits for one: link them. */
+    function linkHere(xref) {
+      if (linking?.want !== "sticky") return false;
+      const h = find(linking.xref), s = sticky.list.find((x) => x.xref === xref);
+      stopLinking(true);
+      if (h && s) linkTo(s, h);
+      return !!(h && s);
     }
     function stopLinking(quiet = false) {
       if (linking === null) return;
@@ -216,6 +234,10 @@
       if (!quiet) ctx.status("Not linked");
     }
     function linkTo(s, h) {
+      if (linkNames(s).includes(h.name)) {
+        ctx.status("That sticky note is already linked to that highlight");
+        return;
+      }
       change(async () => {
         const before = s.link || "";
         const back = await ctx.call("sticky_link", s.xref, h.xref);
@@ -224,21 +246,32 @@
         const now = sticky.list.find((x) => x.xref === s.xref);
         if (now && now.link !== before) sticky.remember(now, "link", before, now.link, "Link");
         active = s.xref;
-        ctx.status(`Sticky note linked to “${preview(h).slice(0, 60)}” — picking either one lights up the other`);
+        const more = now ? linkedHighlights(now).length - 1 : 0;
+        ctx.status(`Sticky note linked to “${preview(h).slice(0, 60)}”${more ? ` — and ${plural(more, "other highlight")}` : ""}`
+                   + " — picking either one lights up the other");
       });
     }
+    /* A sticky's menu: go to and unlink each highlight, and link another. */
     function linkItems(s) {
-      const h = linkedHighlight(s);
-      if (h) {
-        return [
-          { label: "Go to its highlight", run: () => goTo(h) },
-          { label: "Unlink it from its highlight", run: () => {
-            sticky.setLink(s, "");
-            ctx.status("Unlinked — the sticky note and the highlight both stay");
-          } },
-        ];
+      const on = linkedHighlights(s);
+      const unlink = (h) => {
+        sticky.setLink(s, linkNames(s).filter((n) => n !== h.name).join(" "));
+        ctx.status("Unlinked — the sticky note and the highlight both stay");
+      };
+      const out = [];
+      if (on.length === 1) {
+        out.push({ label: "Go to its highlight", run: () => goTo(on[0]) },
+                 { label: "Unlink it from its highlight", run: () => unlink(on[0]) });
+      } else if (on.length) {
+        const quote = (h) => `“${preview(h).slice(0, 40)}${preview(h).length > 40 ? "…" : ""}”`;
+        out.push({ label: "Go to its highlight", enabled: false },
+                 ...on.map((h) => ({ label: quote(h), indent: true, run: () => goTo(h) })),
+                 { label: "Unlink it from", enabled: false },
+                 ...on.map((h) => ({ label: quote(h), indent: true, run: () => unlink(h) })));
       }
-      return [{ label: "Link it to a highlight…", enabled: items.length > 0, run: () => startLinking(s) }];
+      out.push({ label: on.length ? "Link it to another highlight…" : "Link it to a highlight…",
+                 enabled: items.length > on.length, run: () => startLinking(s) });
+      return out;
     }
     /* Add a sticky note about this: in the page's margin beside the
      * highlight if there is room, or under it, linked to it from the start. */
@@ -496,7 +529,7 @@
       // A dashed line between the one picked out and what it is linked to,
       // where both are on this page.
       const picked = active === null ? null : findAny(active);
-      const pairs = !picked ? [] : isSticky(picked) ? [[picked, linkedHighlight(picked)]]
+      const pairs = !picked ? [] : isSticky(picked) ? linkedHighlights(picked).map((h) => [picked, h])
         : stickiesOf(picked).map((s) => [s, picked]);
       for (const [s, h] of pairs) if (h && s.page === page && h.page === page) pageEl.append(linkLine(page, s, h));
     }
@@ -534,8 +567,12 @@
 
     function pick(item) {
       if (linking !== null) {
-        const s = sticky.list.find((x) => x.xref === linking);
-        if (s && item && !isSticky(item)) { stopLinking(true); linkTo(s, item); return; }
+        const from = findAny(linking.xref);
+        if (from && item && isSticky(item) === (linking.want === "sticky")) {
+          stopLinking(true);
+          if (isSticky(item)) linkTo(item, from); else linkTo(from, item);
+          return;
+        }
         stopLinking();
       }
       const xref = item ? item.xref : null;
@@ -637,6 +674,7 @@
       active: () => active,
       activeSticky,
       pick: (item) => { if (item && active !== item.xref) { active = item.xref; refreshAll(); } },
+      linkHere,
       formatChanged: () => showFormat(),
       partner,
       linkItems,
@@ -717,6 +755,8 @@
           run: () => ctx.readRange(item.first, item.last) },
         "-",
         { label: "Add a sticky note about this", run: () => addStickyFor(item) },
+        { label: "Link a sticky note to this…", enabled: sticky.list.some((s) => !stickiesOf(item).includes(s)),
+          run: () => startLinking(item) },
         ...(stickiesOf(item).length ? [{ label: stickiesOf(item).length === 1 ? "Go to its sticky note"
           : `Go to its sticky notes (${stickiesOf(item).length})`, run: () => goTo(stickiesOf(item)[0]) }] : []),
         "-",
@@ -974,7 +1014,7 @@
 
     function stickyCard(item) {
       const picked = item.xref === active;
-      const on = linkedHighlight(item);
+      const linked = linkedHighlights(item), on = linked[0] ?? null;
       const node = el("div", { className: "note-card sticky-card" + (picked ? " picked" : "") + (item.folded ? " folded" : "")
                                           + (on ? " attached" : "") + (partner(item) ? " partner" : "") });
       node.dataset.xref = item.xref;
@@ -988,7 +1028,10 @@
       heading.title = "Double-click to give it a title";
       heading.ondblclick = (e) => { e.stopPropagation(); ctx.scrollToPoint(item.page, item.top); setTimeout(() => sticky.editTitle(item)); };
       node.append(heading);
-      if (on) node.append(el("div", { className: "on", textContent: `On “${preview(on).slice(0, 60)}”` }));
+      if (on) {
+        const more = linked.length > 1 ? ` and ${linked.length - 1} more` : "";
+        node.append(el("div", { className: "on", textContent: `On “${preview(on).slice(0, 60)}”${more}` }));
+      }
       const body = el("div", { className: "body rich" });
       // The worker's clean_rich made this, and it holds nothing but words, <p>,
       // <ul>, <li>, <b>, <i>, <u>, <s> and a font size -- so it can be shown.

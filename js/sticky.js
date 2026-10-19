@@ -165,6 +165,11 @@
       fold.onclick = (e) => { e.stopPropagation(); setFolded(box.xref, true); };
       close.onclick = (e) => { e.stopPropagation(); const now = find(box.xref); if (now) remove(now); };
       tab.onclick = (e) => { e.stopPropagation(); setFolded(box.xref, false, true); };
+      // Picking a sticky for a highlight's Link a sticky note to this…: the
+      // first press anywhere on it links, rather than typing or dragging.
+      rootEl.addEventListener("pointerdown", (e) => {
+        if (ctx.linkHere(box.xref)) { e.preventDefault(); e.stopPropagation(); }
+      }, true);
       grip.addEventListener("pointerdown", (e) => startDrag(e, box, "move"));
       corner.addEventListener("pointerdown", (e) => startDrag(e, box, "size"));
       rootEl.addEventListener("contextmenu", (e) => {

@@ -17,6 +17,8 @@ import { execFileSync } from "node:child_process";
 import { CTRL, SHIFT, root, startReader } from "./cdp.mjs";
 
 const SAMPLE = path.join(root, "sample/test-paper.pdf");
+// Any Python with PyMuPDF will do, to read the saved copy: MIMICK_PYTHON says which.
+const PYTHON = process.env.MIMICK_PYTHON || path.join(root, "../Mimick-linux/.venv/bin/python");
 const r = await startReader("check-notes");
 const { ev, wait, sleep, check } = r;
 await r.load();
@@ -175,7 +177,7 @@ for (let i = 0; i < 40 && !file; i++) {
 }
 check("Ctrl+S downloads a copy named (notes)", file === "test-paper (notes).pdf", file);
 if (file) {
-  const found = execFileSync(path.join(root, "../Mimick-linux/.venv/bin/python"), ["-c", `
+  const found = execFileSync(PYTHON, ["-c", `
 import pymupdf, sys
 d = pymupdf.open(sys.argv[1])
 print(sorted((a.info["subject"], a.info["content"]) for p in d for a in p.annots()))`, path.join(r.downloads, file)]).toString().trim();
@@ -194,7 +196,7 @@ let docx = null;
 for (let i = 0; i < 60 && !docx; i++) { await sleep(250); docx = fs.readdirSync(r.downloads).find((f) => f.endsWith(".docx")); }
 check("…and exports a Word document", docx === "test-paper (notes).docx", fs.readdirSync(r.downloads));
 if (docx) {
-  const inside = execFileSync(path.join(root, "../Mimick-linux/.venv/bin/python"), ["-c", `
+  const inside = execFileSync(PYTHON, ["-c", `
 import zipfile, sys, re
 z = zipfile.ZipFile(sys.argv[1])
 print(" ".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", z.read("word/document.xml").decode())))`, path.join(r.downloads, docx)]).toString();

@@ -20,7 +20,8 @@ import { CTRL, root, startReader } from "./cdp.mjs";
 
 const ALT = 1;
 const SAMPLE = path.join(root, "sample/test-paper.pdf");
-const PYTHON = path.join(root, "../Mimick-linux/.venv/bin/python");
+// Any Python with PyMuPDF will do, to read the saved copy: MIMICK_PYTHON says which.
+const PYTHON = process.env.MIMICK_PYTHON || path.join(root, "../Mimick-linux/.venv/bin/python");
 const r = await startReader("check-links");
 const { ev, wait, sleep, check } = r;
 await r.load();
@@ -148,7 +149,7 @@ s = await state();
 check("Unlink it: its card is on its own again", s.cards.find((c) => c.sticky) && !s.cards.find((c) => c.sticky).attached, s.cards);
 await r.rightClick(await r.centre("#cards .sticky-card"));
 await r.menu("Link it to a highlight…"); await sleep(300);
-check("Link it to a highlight… asks for a click", /Click the highlight/.test((await state()).status), (await state()).status);
+check("Link it to a highlight… asks for a click", /Click a highlight/.test((await state()).status), (await state()).status);
 await ev(`document.getElementById("view").focus()`);
 await r.key("Escape"); await sleep(300);
 check("…and Esc stops", /Not linked/.test((await state()).status) && !await ev(`document.body.classList.contains("linking")`),

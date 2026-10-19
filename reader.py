@@ -769,8 +769,10 @@ def sticky_set(xref: int, rich: str | None = None, rect: list | None = None,
 
 
 def sticky_link(xref: int, highlight: int | None = None) -> dict:
-    """Link a sticky note to the highlight with xref ``highlight``, or with
-    null, unlink it: both lists, since linking can give the highlight a name."""
+    """Link a sticky note to one more highlight, the one with xref
+    ``highlight``, or with null, unlink it from all: both lists, since linking
+    can give the highlight a name. One link is taken off by ``sticky_set``
+    with the names left."""
     item, highlight = _sticky(xref), _given(highlight)
     if item is not None:
         target = _item(int(highlight)) if highlight is not None else None
