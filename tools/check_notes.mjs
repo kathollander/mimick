@@ -359,15 +359,19 @@ await r.key("z", CTRL); await sleep(6000);
 check("…after which a change brings none", await ev(`document.getElementById("status-do").hidden`));
 await ev(`localStorage.removeItem("mimick-save-reminder-minutes"); localStorage.removeItem("mimick-save-reminder")`);
 
-// 13. All notes: every card, in an order of the reader's own, dragged.
-const cardsNow = () => ev(`JSON.stringify([...document.querySelectorAll("#cards .note-card")].map((c) => c.textContent))`).then(JSON.parse);
-await r.click(await r.centre("#notes-all")); await sleep(500);
-const allCards = await cardsNow();
-check("All notes lists every highlight, with its page", allCards.length >= 2 && allCards.every((t) => /^Page \d+/.test(t))
-      && await ev(`document.getElementById("notes-all").getAttribute("aria-pressed") === "true"`), allCards);
-// A drag, as the browser sends it: the last card dropped on the top half of the first.
+// 13. My own order, in Export notes (the panel's All notes until 19 October):
+// every note as a row, dragged.
+const rowsNow = () => ev(`JSON.stringify([...document.querySelectorAll("#export-list .order-row")].map((c) => c.textContent))`).then(JSON.parse);
+const openExport = async () => { await r.click(await r.centre("#file-menu")); await sleep(300); await r.menu("Export notes…"); await sleep(300); };
+await openExport();
+check("Export notes offers page order, by colour, and my own", await ev(`[...document.querySelectorAll('input[name="export-order"]')].map((i) => i.value).join()`) === "page,colour,own"
+      && await ev(`document.getElementById("export-list").hidden`));
+await r.click(await r.centre('input[name="export-order"][value="own"]')); await sleep(300);
+const allRows = await rowsNow();
+check("My own order lists every note, with its page", allRows.length >= 2 && allRows.every((t) => /^p\. \d+/.test(t)), allRows);
+// A drag, as the browser sends it: the last row dropped on the top half of the first.
 await ev(`(() => {
-  const cards = [...document.querySelectorAll("#cards .note-card")], from = cards.at(-1), to = cards[0];
+  const rows = [...document.querySelectorAll("#export-list .order-row")], from = rows.at(-1), to = rows[0];
   const data = new DataTransfer(), box = to.getBoundingClientRect();
   const at = { bubbles: true, cancelable: true, dataTransfer: data, clientX: box.left + 10, clientY: box.top + 3 };
   from.dispatchEvent(new DragEvent("dragstart", at));
@@ -376,28 +380,26 @@ await ev(`(() => {
   from.dispatchEvent(new DragEvent("dragend", at));
 })()`);
 await sleep(500);
-const reordered = await cardsNow();
-check("dragging the last card onto the first puts it first", reordered[0] === allCards.at(-1) && reordered.length === allCards.length, reordered);
-check("…and says Export notes will follow", /Export notes will follow this order/.test(await r.status()), await r.status());
+const reordered = await rowsNow();
+check("dragging the last row onto the first puts it first", reordered[0] === allRows.at(-1) && reordered.length === allRows.length, reordered);
 for (const f of fs.readdirSync(r.downloads)) fs.unlinkSync(path.join(r.downloads, f));
 await ev(`delete window.showSaveFilePicker; delete Window.prototype.showSaveFilePicker`);
-await r.click(await r.centre("#file-menu")); await sleep(300);
-await r.menu("Export notes…");
 await r.click(await r.centre('input[name="export-kind"][value="md"]'));
 await r.click(await r.centre("#export-go"));
 await sleep(2000);
 const exported = await ev(`document.getElementById("status-file").href`).then((href) => ev(`fetch(${JSON.stringify(href)}).then((r) => r.text())`));
 const firstQuoted = (exported.match(/^> “(.+)$/m) || [])[1] ?? "";
-// A card shows the note; the export quotes the passage -- so compare their pages.
-check("…and Export notes does", (firstQuoted.match(/\(p\. (\d+)\)$/) || [])[1] === (reordered[0].match(/^Page (\d+)/) || [])[1],
+check("…and the export follows it", (firstQuoted.match(/\(p\. (\d+)\)$/) || [])[1] === (reordered[0].match(/^p\. (\d+)/) || [])[1],
       [firstQuoted, reordered[0]]);
 await r.load();
 await r.openPdf(SAMPLE);
 await wait(`!document.getElementById("markup-highlight").disabled`);
 await sleep(800);
-check("the order is kept when the document is opened again", JSON.stringify(await cardsNow()) === JSON.stringify(reordered), await cardsNow());
-await r.click(await r.centre("#notes-menu"));
-await r.menu("Put notes back in page order"); await sleep(400);
-check("Notes ▾ puts them back in page order", JSON.stringify(await cardsNow()) === JSON.stringify(allCards), await cardsNow());
-await r.click(await r.centre("#notes-all")); await sleep(300);
+await openExport();
+check("the order, and the choice of it, are kept when the document is opened again",
+      await ev(`document.querySelector('input[name="export-order"]:checked').value`) === "own"
+      && JSON.stringify(await rowsNow()) === JSON.stringify(reordered), await rowsNow());
+await r.click(await r.centre('input[name="export-order"][value="page"]')); await sleep(300);
+check("Page order hides the list", await ev(`document.getElementById("export-list").hidden`));
+await r.key("Escape"); await sleep(300);
 r.finish();

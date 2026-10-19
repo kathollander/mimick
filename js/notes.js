@@ -123,7 +123,11 @@
       get font() { return ctx.recall("mimick-note-font") || ""; },
       get size() { const s = Number(ctx.recall("mimick-note-size")); return s >= 6 && s <= 24 ? s : 9; },
       get author() { return ctx.recall("mimick-author") || ""; },
-      get all() { return ctx.recall("mimick-panel-all") === "1"; },
+      // Show by colour: the colours turned off in the panel, by name (Kat, 16 October).
+      get hiddenColours() {
+        try { const h = JSON.parse(ctx.recall("mimick-panel-hidden-colours") || "[]"); return Array.isArray(h) ? h : []; }
+        catch { return []; }
+      },
       get stickies() { return ctx.recall("mimick-panel-sticky") !== "0"; },
       // Display ▾ → Sticky notes: + Add sticky and its formatting row on the strip.
       get sticky() { return ctx.recall("mimick-sticky") !== "0"; },
@@ -135,7 +139,9 @@
     // Not "has rich text": a highlight's note can have that too, since 15 October.
     const isSticky = (item) => item?.kind === "sticky";
 
-    // --- the reader's own order, for All notes and Export notes ------------------
+    // --- the reader's own order, for Export notes ------------------------------
+    // (Dragged in the panel's All notes until 19 October; in the Export notes
+    // window since, at Kat's word.)
     // Kat asked to put notes in an order of her own by dragging (23 September).
     // Kept per document, by a key that survives reopening -- the words a
     // highlight covers, or for one made elsewhere, where it sits -- since an
@@ -145,6 +151,17 @@
     /* Highlights and sticky notes together, in page order, as the panel lists
      * them -- except that a sticky linked to a highlight comes straight after it. */
     const byPlace = (a, b) => a.page - b.page || a.top - b.top;
+    /* The name of the colour it is in: Mimick's own, or "Other" for one made
+     * elsewhere in a colour of its own. */
+    function colourName(item) {
+      // Loose enough that another program's yellow (Acrobat's is purer) counts as yellow.
+      let best = "Other", near = 0.4;
+      for (const [name, value] of COLOURS) {
+        const d = Math.max(...value.map((v, i) => Math.abs(v - (item.colour?.[i] ?? 0))));
+        if (d < near) { best = name; near = d; }
+      }
+      return best;
+    }
     function everything() {
       const loose = [...items, ...sticky.list.filter((s) => !homeOf(s))].sort(byPlace);
       const out = [];
@@ -173,6 +190,18 @@
       return ranked.sort((a, b) => a[1] - b[1]).map(([item]) => item);
     }
     const customOrder = () => Array.isArray(savedOrder()) && savedOrder().length > 0;
+    /* Yellow, green, blue, pink, then any other, each in page order; a sticky
+     * linked to a highlight stays after it. */
+    function inColourOrder() {
+      const rank = (item) => { const k = COLOURS.findIndex(([name]) => name === colourName(item)); return k < 0 ? COLOURS.length : k; };
+      const groups = [];
+      for (const item of everything()) {
+        if (isSticky(item) && homeOf(item) && groups.length) groups.at(-1).push(item);
+        else groups.push([item]);
+      }
+      return groups.map((g, i) => [g, i]).sort((a, b) => rank(a[0][0]) - rank(b[0][0]) || a[1] - b[1]).flatMap(([g]) => g);
+    }
+    const inOrder = (how) => (how === "colour" ? inColourOrder() : how === "own" ? ordered() : everything());
     function setOrder(list) {
       if (!doc) return;
       ctx.remember(`mimick-notes-order:${doc.key}`, list ? JSON.stringify(list.map(orderKey)) : "");
@@ -424,7 +453,35 @@
       if (chosen) chosen.checked = true;
       $("export-count").textContent = `${plural(items.length, "highlight")}, ${items.filter((i) => flat(i.note)).length} with notes`
         + (sticky.list.length ? `, ${plural(sticky.list.length, "sticky note")}` : "");
+      // The order chosen last; for a document put in an order of its own
+      // before 19 October, that order.
+      const how = ["page", "colour", "own"].includes(ctx.recall("mimick-export-order")) ? ctx.recall("mimick-export-order")
+        : customOrder() ? "own" : "page";
+      dialog.querySelector(`input[name="export-order"][value="${how}"]`).checked = true;
+      showOrderList();
       dialog.showModal();
+    }
+    const exportOrder = () => $("export-dialog").querySelector('input[name="export-order"]:checked')?.value || "page";
+    /* My own order: every note as a row, to drag into place. */
+    function showOrderList() {
+      const list = $("export-list");
+      list.hidden = exportOrder() !== "own";
+      if (list.hidden) return;
+      const scroll = list.scrollTop;
+      list.replaceChildren(...ordered().map((item) => {
+        const row = el("div", { className: "order-row" });
+        row.style.setProperty("--accent", css(item.colour));
+        const words = isSticky(item) ? `📌 ${item.title || flat(item.text) || "Sticky note"}`
+          : [item.title, flat(item.note), `“${preview(item)}”`].filter(Boolean)[0];
+        row.title = "Drag to move it";
+        row.append(el("span", { className: "at", textContent: `p. ${item.page + 1}` }), el("span", { className: "words", textContent: words }));
+        draggable(row, item);
+        return row;
+      }));
+      list.scrollTop = scroll;
+    }
+    for (const radio of $("export-dialog").querySelectorAll('input[name="export-order"]')) {
+      radio.addEventListener("change", () => { ctx.remember("mimick-export-order", exportOrder()); showOrderList(); });
     }
 
     async function exportAs(kind) {
@@ -435,9 +492,9 @@
       const mine = ctx.generation();
       try {
         const saved = await saveFile(ctx.offer, `${stem} (notes).${kind}`, type, description, "." + kind, async () => {
-          // The reader's own order, highlights and sticky notes together, each
-          // with the section it is in.
-          const entries = ordered().map((item) => [isSticky(item) ? "s" : "h",
+          // The order chosen in the window, highlights and sticky notes
+          // together, each with the section it is in.
+          const entries = inOrder(exportOrder()).map((item) => [isSticky(item) ? "s" : "h",
             isSticky(item) ? sticky.list.indexOf(item) : items.indexOf(item), ctx.sectionAt?.(item.page, item.top) ?? null]);
           const job = work.then(() => ctx.call("notes_document", kind, doc.title, doc.name, [], null, entries));
           work = job.catch(() => {});
@@ -1002,14 +1059,30 @@
       const size = Math.max(6, Math.min(40, settings.size * ctx.zoom()));
       cards.style.fontSize = size + "pt";
       cards.style.fontFamily = settings.font ? `"${settings.font}", system-ui, sans-serif` : "";
-      const wanted = (i) => (isSticky(i) ? settings.stickies
-        : drafting?.xref === i.xref || (i.note ? settings.written : settings.quotes));
-      cards.classList.toggle("all", settings.all);
-      const onPage = settings.all ? ordered().filter(wanted)
+      const hidden = settings.hiddenColours;
+      const wanted = (i) => drafting?.xref === i.xref
+        || ((isSticky(i) ? settings.stickies : i.note ? settings.written : settings.quotes) && !hidden.includes(colourName(i)));
+      // Find in notes: the whole document's notes with the words, wherever they are.
+      const query = searching();
+      cards.classList.toggle("searching", !!query);
+      const onPage = query ? everything().filter((i) => wanted(i) && matches(i, query))
         : everything().filter((i) => pages.includes(i.page) && wanted(i));
       for (const item of onPage) cards.append(card(item));
+      if (query && !onPage.length) cards.append(el("div", { className: "none", textContent: `No notes with “${$("notes-find").value.trim()}”` }));
       cards.scrollTop = scroll;
       connect();
+    }
+
+    /* What is typed in Find in notes, as it is matched, or "". */
+    const searching = () => flat($("notes-find").value).toLowerCase();
+    /* Whether a note has the words: its title, its note, the passage, a sticky's words. */
+    function matches(item, query) {
+      const words = isSticky(item) ? [item.title, item.text] : [item.title, item.note, item.text];
+      return words.some((w) => flat(w).toLowerCase().includes(query));
+    }
+    /* A found card's page, since it may be pages from what is on screen. */
+    function wherePage(node, item) {
+      if (searching()) node.append(el("div", { className: "where", textContent: `Page ${item.page + 1}` }));
     }
 
     function stickyCard(item) {
@@ -1019,10 +1092,7 @@
                                           + (on ? " attached" : "") + (partner(item) ? " partner" : "") });
       node.dataset.xref = item.xref;
       node.style.setProperty("--accent", css(item.colour));
-      if (settings.all) {
-        node.append(el("div", { className: "where", textContent: `Page ${item.page + 1}` }));
-        draggable(node, item);
-      }
+      wherePage(node, item);
       // 📌 tells a sticky's card from a note's at a glance (Kat, 15 October).
       const heading = el("div", { className: "heading", textContent: `📌 ${item.title || "Sticky note"}` });
       heading.title = "Double-click to give it a title";
@@ -1054,10 +1124,7 @@
       const node = el("div", { className: "note-card" + (picked ? " picked" : "") + (partner(item) ? " partner" : "") });
       node.dataset.xref = item.xref;
       node.style.setProperty("--accent", css(look.colour));
-      if (settings.all) {
-        node.append(el("div", { className: "where", textContent: `Page ${item.page + 1}` }));
-        draggable(node, item);
-      }
+      wherePage(node, item);
       if (look.title) node.append(el("div", { className: "heading", textContent: look.title }));
       // While the editor is open the card shows the plain words as typed;
       // otherwise the note as saved, formatted if it is. clean_rich made it.
@@ -1074,16 +1141,16 @@
       }
       node.onclick = () => {
         pick(item);
-        // In All notes the card may be pages away from what is on screen.
-        if (settings.all) ctx.scrollToPoint(item.page, item.top);
+        // A found card may be pages away from what is on screen.
+        if (searching()) ctx.scrollToPoint(item.page, item.top);
       };
       node.ondblclick = () => edit(item);
       node.oncontextmenu = (e) => { e.preventDefault(); pick(item); ctx.showMenu(e.clientX, e.clientY, menuItems(item)); };
       return node;
     }
 
-    /* All notes: a card dragged onto another goes before or after it,
-     * whichever half it was dropped on, and that order is kept. */
+    /* My own order, in Export notes: a row dragged onto another goes before
+     * or after it, whichever half it was dropped on, and that order is kept. */
     let dragged = null;
     function draggable(node, item) {
       node.draggable = true;
@@ -1095,7 +1162,7 @@
       });
       node.addEventListener("dragend", () => {
         dragged = null;
-        for (const n of $("cards").children) n.classList.remove("dragging", "drop-before", "drop-after");
+        for (const n of $("export-list").children) n.classList.remove("dragging", "drop-before", "drop-after");
       });
       const half = (e) => { const b = node.getBoundingClientRect(); return e.clientY < b.top + b.height / 2 ? "before" : "after"; };
       node.addEventListener("dragover", (e) => {
@@ -1113,7 +1180,7 @@
         const list = ordered().filter((i) => i !== moving);
         list.splice(list.indexOf(item) + (where === "after" ? 1 : 0), 0, moving);
         setOrder(list);
-        ctx.status("Moved — Export notes will follow this order. Notes ▾ → Put notes back in page order undoes it");
+        showOrderList();
       });
     }
 
@@ -1121,7 +1188,7 @@
     function connect() {
       const svg = $("connectors");
       svg.replaceChildren();
-      if (!doc || !settings.panel || settings.all) return;
+      if (!doc || !settings.panel || searching()) return;
       const main = svg.getBoundingClientRect(), cards = $("cards").getBoundingClientRect();
       const viewBox = ctx.view.getBoundingClientRect();
       for (const node of $("cards").children) {
@@ -1145,7 +1212,7 @@
 
     function pageShown() {
       if (!settings.panel) return;
-      if (ctx.pagesShown().join() !== panelPages) renderCards();
+      if (ctx.pagesShown().join() !== panelPages && !searching()) renderCards();
       else connect();
     }
 
@@ -1159,7 +1226,7 @@
       const stuck = sticky.list.length;
       $("filter-sticky").textContent = `Sticky${stuck ? "  " + stuck : ""}`;
       $("filter-sticky").setAttribute("aria-pressed", settings.stickies);
-      $("notes-all").setAttribute("aria-pressed", settings.all);
+      showColourChips();
       for (const id of ["prev-note", "next-note"]) $(id).disabled = !(items.length + stuck);
       $("note-count").textContent = [items.length ? plural(items.length, "note") : "", stuck ? plural(stuck, "sticky") : ""]
         .filter(Boolean).join(" · ");
@@ -1181,12 +1248,52 @@
     $("filter-quotes").onclick = () => { ctx.remember("mimick-panel-quotes", settings.quotes ? "0" : "1"); refreshAll(); };
     $("filter-notes").onclick = () => { ctx.remember("mimick-panel-notes", settings.written ? "0" : "1"); refreshAll(); };
     $("filter-sticky").onclick = () => { ctx.remember("mimick-panel-sticky", settings.stickies ? "0" : "1"); refreshAll(); };
-    $("notes-all").onclick = () => {
-      ctx.remember("mimick-panel-all", settings.all ? "0" : "1");
-      refreshAll();
-      ctx.status(settings.all ? "Every note in the document — drag a card to put them in your own order"
-                              : "The notes of the pages on screen, beside their highlights");
-    };
+
+    /* Show by colour: a toggle for each colour that has a highlight or sticky
+     * in it, lit while shown, as the chips beside it are. */
+    let chipsShown = "";
+    function showColourChips() {
+      const box = $("filter-colours");
+      const used = new Set([...items, ...sticky.list].map(colourName));
+      const names = [...COLOURS.map(([name]) => name), "Other"].filter((n) => used.has(n));
+      const hidden = settings.hiddenColours;
+      // Kept when nothing changed, so a chip keeps the focus it was clicked with.
+      const now = names.map((n) => n + (hidden.includes(n) ? "-" : "+")).join();
+      if (now === chipsShown) return;
+      chipsShown = now;
+      box.replaceChildren(...names.map((name) => {
+        const shownNow = !hidden.includes(name);
+        const value = COLOURS.find(([n]) => n === name)?.[1];
+        const chip = el("button", { type: "button", className: "colour-chip",
+                                    title: `${name}: ${shownNow ? "shown — click to hide" : "hidden — click to show"}` });
+        chip.setAttribute("aria-label", name);
+        chip.setAttribute("aria-pressed", shownNow);
+        chip.style.setProperty("--swatch", value ? css(value) : "var(--dim)");
+        chip.onclick = () => {
+          const next = shownNow ? [...hidden, name] : hidden.filter((n) => n !== name);
+          ctx.remember("mimick-panel-hidden-colours", JSON.stringify(next));
+          refreshAll();
+          ctx.status(`${name} ${shownNow ? "hidden from" : "shown in"} the notes panel`);
+        };
+        return chip;
+      }));
+    }
+
+    $("notes-find").addEventListener("input", () => {
+      renderCards();
+      const query = searching();
+      if (query) {
+        const found = $("cards").querySelectorAll(".note-card").length;
+        ctx.status(found ? `${plural(found, "note")} with “${$("notes-find").value.trim()}”` : "No notes have those words");
+      }
+    });
+    $("notes-find").addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      if ($("notes-find").value) { $("notes-find").value = ""; renderCards(); }
+      else ctx.focusPage();
+    });
     $("prev-note").onclick = () => step(-1);
     $("next-note").onclick = () => step(1);
     $("note-style").onclick = () => chooseStyle();
@@ -1455,10 +1562,6 @@
         "-",
         { label: "Save a copy with your notes (PDF)…", keys: "Ctrl+S", enabled: ready, run: download },
         { label: "Export notes…", enabled: ready && items.length + sticky.list.length > 0, run: exportNotes },
-        { label: "Put notes back in page order", enabled: ready && customOrder(), run: () => {
-          setOrder(null);
-          ctx.status("Notes are in page order again");
-        } },
         { label: "Note appearance…", run: chooseStyle },
         { label: `Remind me to save every ${REMIND_MINUTES} minutes`, checked: remindOn(), run: () => {
           ctx.remember("mimick-save-reminder", remindOn() ? "0" : "1");

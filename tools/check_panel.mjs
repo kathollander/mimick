@@ -4,6 +4,8 @@
  *      after Save a copy it does not.
  *   2. A highlight's menu links a sticky note that is already there, and one
  *      sticky note can be linked to several highlights.
+ *   3. Find in notes, beside the heading; show by colour; no All notes; the
+ *      previous / next arrows big enough to hit.
  *
  * Needs serve.py on 8731. `node tools/check_panel.mjs`
  */
@@ -114,5 +116,48 @@ const quote = labels[labels.indexOf("(off) Unlink it from") + 1];
 await menuNth(quote, 1); await sleep(800);
 k = await links();
 check("unlinking one keeps the other", /^On “/.test(k.cards[0]?.on) && !/more/.test(k.cards[0].on), k);
+
+// --- 3. Find in notes, show by colour ------------------------------------------------
+
+const panel = () => ev(`JSON.stringify({
+  cards: [...document.querySelectorAll("#cards .note-card")].map((c) => c.textContent),
+  none: document.querySelector("#cards .none")?.textContent ?? "",
+  chips: [...document.querySelectorAll("#filter-colours .colour-chip")].map((c) => [c.getAttribute("aria-label"), c.getAttribute("aria-pressed")]),
+  status: document.getElementById("status").textContent })`).then(JSON.parse);
+check("All notes is gone from the panel", await ev(`!document.getElementById("notes-all")`));
+check("the previous / next arrows are bigger", await ev(`document.getElementById("next-note").getBoundingClientRect().width`) >= 40);
+check("Find in notes sits beside the heading", await ev(`(() => { const h = document.querySelector("#notes h2").getBoundingClientRect(),
+  f = document.getElementById("notes-find").getBoundingClientRect(); return Math.abs(h.top + h.height / 2 - (f.top + f.height / 2)) < 6 && f.left > h.right; })()`));
+let p = await panel();
+const before = p.cards.length;
+await r.click(await r.centre("#notes-find"));
+await r.type("group");
+await sleep(400);
+p = await panel();
+check("typing shows only the notes with those words, with their page", p.cards.length === 1 && /^Page 1in our group said/.test(p.cards[0]), p);
+check("…and says how many", /1 note with “group”/.test(p.status), p.status);
+await ev(`(() => { const f = document.getElementById("notes-find"); f.value = ""; })()`);
+await r.type("already");
+await sleep(400);
+p = await panel();
+check("…from the whole document, not just the pages on screen", p.cards.length === 1 && /^Page 2/.test(p.cards[0]), p);
+await r.type(" zebra");
+await sleep(400);
+p = await panel();
+check("no match says so", p.cards.length === 0 && /No notes with “already zebra”/.test(p.none), p);
+await r.key("Escape"); await sleep(300);
+p = await panel();
+check("Esc clears it, and the panel is as it was", p.cards.length === before && await ev(`document.getElementById("notes-find").value === ""`), p);
+
+check("a toggle for each colour in use, all lit", p.chips.length >= 1 && p.chips.every(([, on]) => on === "true"), p.chips);
+const [first] = p.chips[0];
+await r.click(await r.centre("#filter-colours .colour-chip")); await sleep(400);
+const hiddenOne = await panel();
+check(`tapping ${first} hides its notes from the panel`, hiddenOne.cards.length < before
+      && hiddenOne.chips[0][1] === "false" && new RegExp(`${first} hidden`).test(hiddenOne.status), hiddenOne);
+check("…but not from the page", await ev(`document.querySelectorAll(".page .hl.annot").length`) > 0);
+await r.click(await r.centre("#filter-colours .colour-chip")); await sleep(400);
+p = await panel();
+check("tapping it again shows them", p.cards.length === before && p.chips[0][1] === "true", p);
 
 r.finish();

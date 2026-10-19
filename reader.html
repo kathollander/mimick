@@ -227,11 +227,18 @@
   .row { display: flex; gap: 6px; align-items: center; }
   .row .grow { flex: 1; }
   .chip { flex: 1; background: transparent; color: var(--dim); font-size: 12px; white-space: pre; }
-  /* Four chips since sticky notes: All notes goes to a line of its own rather
-     than pushing the panel wider than its column. */
-  .notes-head .row:has(.chip) { flex-wrap: wrap; }
-  .notes-head .row:has(.chip) .grow { display: none; }
-  #notes-all { flex-basis: 100%; }
+  /* Find in notes, beside the heading (Kat, 16 October). */
+  #notes .panel-title h2 { flex: none; }
+  #notes-find { flex: 1; width: 0; min-width: 0; font-size: 12px; padding: 3px 7px; }
+  /* Show by colour: one round toggle a colour in use, lit while shown. */
+  #filter-colours { flex-wrap: wrap; gap: 5px; }
+  #filter-colours:empty { display: none; }
+  .colour-chip { width: 26px; height: 22px; padding: 0; border-radius: 11px; display: grid; place-items: center;
+                 background: transparent; font-size: 10px; color: var(--dim); }
+  .colour-chip::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--swatch);
+                         opacity: .35; }
+  .colour-chip[aria-pressed="true"] { border-color: var(--accent); }
+  .colour-chip[aria-pressed="true"]::before { opacity: 1; }
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   #cards { overflow-y: auto; padding: 8px 18px; display: flex; flex-direction: column; gap: 8px; line-height: 1.3; }
   .note-card { position: relative; background: var(--panel); border-radius: 7px; padding: 10px 10px 10px 13px;
@@ -240,12 +247,9 @@
                   background: var(--accent); }
   .note-card.picked { background: var(--panel-hi); border-color: var(--accent); padding-right: 30px; }
   .note-card .heading { font-weight: 700; margin-bottom: 2px; }
-  /* All notes: every card, in the reader's own order, dragged to change it. */
-  #cards.all .note-card { cursor: grab; }
-  #cards.all .note-card .where { font-size: 85%; color: var(--dim); margin-bottom: 2px; }
-  #cards.all .note-card.dragging { opacity: .4; }
-  #cards.all .note-card.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
-  #cards.all .note-card.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
+  /* Found in notes: cards from anywhere in the document, with their page. */
+  #cards.searching .note-card .where { font-size: 85%; color: var(--dim); margin-bottom: 2px; }
+  #cards .none { color: var(--dim); font-style: italic; }
   .notes-head .row .grow { flex: 1; }
   /* Previous / next note: big enough to hit without looking (Kat, 16 October). */
   button.note-step { width: 44px; padding: 0 0 3px; font-size: 24px; line-height: 1.1; }
@@ -387,6 +391,17 @@
   #repeats-list button span { color: var(--dim); font-size: 12px; }
   #export-dialog .kinds { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
   #export-dialog .kinds label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  #export-dialog legend { padding: 0; margin-bottom: 6px; font-weight: 600; }
+  /* My own order: the notes as rows, dragged into place (was the panel's All notes). */
+  #export-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; max-width: 420px;
+                 border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
+  #export-list .order-row { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; border-radius: 4px;
+                            background: var(--panel); cursor: grab; border-left: 3px solid var(--accent); }
+  #export-list .order-row .at { color: var(--dim); font-size: 11px; flex: none; }
+  #export-list .order-row .words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #export-list .order-row.dragging { opacity: .4; }
+  #export-list .order-row.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
+  #export-list .order-row.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
   .long { width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
   .long .scroll { overflow-y: auto; max-height: calc(100vh - 160px); padding-right: 6px; }
   .long h2 { font-size: 13px; margin: 14px 0 4px; }
@@ -610,15 +625,16 @@
   <div class="notes-head">
     <div class="panel-title">
       <h2>Notes</h2>
+      <input id="notes-find" type="search" placeholder="Find in notes" aria-label="Find in notes" autocomplete="off"
+             title="Show only the notes with these words, from the whole document — Esc clears it">
       <button id="notes-hide" class="square panel-hide" title="Hide the notes panel  (Ctrl+B)" aria-label="Hide the notes panel">›</button>
     </div>
     <div class="row">
       <button id="filter-quotes" class="chip" aria-pressed="true" title="Show passages you highlighted without writing anything">Highlights</button>
       <button id="filter-notes" class="chip" aria-pressed="true" title="Show the ones you wrote a note on">Notes</button>
       <button id="filter-sticky" class="chip" aria-pressed="true" title="Show your sticky notes">Sticky</button>
-      <span class="grow"></span>
-      <button id="notes-all" class="chip" aria-pressed="false" title="Every note in the document, in an order you can change by dragging — Export notes follows it">All notes</button>
     </div>
+    <div id="filter-colours" class="row" role="group" aria-label="Show by colour"></div>
     <div id="markup-panel">
       <div id="markup" data-home="panel">
         <span id="markup-grip" title="Drag to move these buttons — the top or bottom of the page, the notes panel, or loose over the page">⋯</span>
@@ -814,6 +830,13 @@
       <label><input type="radio" name="export-kind" value="pdf"> PDF <span class="dim">.pdf — to print or read anywhere</span></label>
       <label><input type="radio" name="export-kind" value="md"> Markdown text <span class="dim">.md — plain text, for Obsidian or pasting</span></label>
     </fieldset>
+    <fieldset class="kinds" id="export-order">
+      <legend>In what order</legend>
+      <label><input type="radio" name="export-order" value="page"> Page order</label>
+      <label><input type="radio" name="export-order" value="colour"> By colour <span class="dim">— yellow, green, blue, pink, each in page order</span></label>
+      <label><input type="radio" name="export-order" value="own"> My own order <span class="dim">— drag the notes below</span></label>
+    </fieldset>
+    <div id="export-list" hidden></div>
     <div class="buttons">
       <button value="cancel">Cancel</button>
       <button id="export-go" class="primary" value="export">Export</button>
