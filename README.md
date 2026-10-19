@@ -46,7 +46,11 @@ progress.
 5. **Find text** with `Ctrl`+`F`; `Enter` goes to the next match.
 6. **Highlight** a selection with `Ctrl`+`H`, or highlight it and **write a
    note** with `Ctrl`+`M`. Notes appear beside the page (`Ctrl`+`B` shows or
-   hides them), and are kept in this browser as you work. The buttons over a
+   hides them), and are kept in this browser as you work. **Find in notes**,
+   beside the panel's heading, shows the notes with those words from the whole
+   document. The **Highlights**, **Notes** and **Sticky** buttons, and a round
+   button for each colour in use, choose what the panel shows: lit is shown,
+   tap to hide. The buttons over a
    note make words **bold**, *italic*, underlined, ~~struck out~~ or a bullet
    list (`Ctrl`+`B`, `I`, `U`, `Ctrl`+`Shift`+`X`, `Ctrl`+`Shift`+`8`); a
    saved copy keeps the formatting for Acrobat, and other readers show the
@@ -66,14 +70,19 @@ progress.
    **A title**: double-click a sticky's top edge (or its card's heading) and
    type one; it shows as 📌 *Title*, and Acrobat lists it with the comment.
    **About a passage**: right-click a highlight → **Add a sticky note about
-   this**, or right-click a sticky → **Link it to a highlight…** and click the
-   highlight. Its card then sits under the highlight's, and picking either
-   one lights the other, with a dashed line between them on the page. The
-   link is kept in the PDF for Mimick; other readers show the two apart.
+   this**, or **Link a sticky note to this…** and click a sticky that is
+   already there; or right-click a sticky → **Link it to a highlight…** and
+   click the highlight. A sticky can be linked to several highlights, for an
+   idea spread over different places. Its card sits under the first
+   highlight's, and picking it lights each of them, with a dashed line to
+   each on the page. The link is kept in the PDF for Mimick; other readers
+   show them apart.
    **Display ▾ → Sticky notes** takes + Add sticky off the strip.
 7. **Save a copy** with `Ctrl`+`S`: the PDF with your highlights, notes and
-   sticky notes in it, which other PDF readers can show. **File ▾ → Export
-   notes** gives you just the notes, as text you can paste anywhere.
+   sticky notes in it, which other PDF readers can show. Leaving the page
+   with notes not yet saved to a file asks first. **File ▾ → Export notes**
+   gives you just the notes, as text you can paste anywhere, in page order,
+   by colour, or an order of your own made by dragging them in that window.
 8. **Contents**: a PDF with bookmarks lists them on the left; click one to go
    there. The **‹** at the top of that panel, and the **›** on the notes
    panel, put them away; a tab on the edge of the page brings each back (`F9`

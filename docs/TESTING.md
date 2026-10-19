@@ -12,6 +12,22 @@ python3 serve.py
 Tick what works, and write down anything that doesn't -- what you did, what you
 expected, what happened.
 
+## Kat's list of 16 October — http://localhost:8731/reader.html
+
+Built 19 October, not pushed. Open any PDF with some text.
+
+- [ ] Open Mimick in a **new tab**: the bar says "Starting Mimick…" and, after a moment, that it starts from the copy on this computer with nothing downloaded. Does that read true? (Only a first visit, or one after an update, says "Downloading Mimick…")
+- [ ] The empty page offers **Reopen <your last file>** (Chrome, Brave, Edge; not Firefox). One click opens it at your place, with its notes. The browser may ask to allow reading the file
+- [ ] Make a highlight, then close the tab: the browser asks whether to leave. Save a copy first (`Ctrl`+`S`), then close: it doesn't ask
+- [ ] The **‹ ›** note arrows are big enough to hit easily
+- [ ] **Find in notes**, beside "Notes": typing shows only the notes with those words, from the whole document, each with its page; clicking one goes there. Esc clears it
+- [ ] Below Highlights / Notes / Sticky, a round button for each colour in use: tapping one hides that colour's notes from the panel (not from the page); tapping again brings them back
+- [ ] **All notes** is gone. **File ▾ → Export notes** asks the order: page order, by colour, or **My own order**, which shows the notes to drag into place. An order you made before is kept
+- [ ] Right-click a highlight → **Link a sticky note to this…**, then click a sticky that is already there (on the page or its card): linked
+- [ ] Link the same sticky to a second highlight: its card says "On "…" and 1 more"; picking it lights both, with a line to each
+- [ ] Right-click that sticky: **Go to** and **Unlink it from** list each highlight; unlinking one keeps the other
+- [ ] Does any of it feel clunky? What would you rather it did?
+
 ## Formatted notes, sticky titles, linked stickies, 15 October — http://localhost:8731/reader.html
 
 Live since 16 October (here and on the site). Open any PDF with some text. Notes made on localhost stay on localhost: the live site keeps its own, so to carry them over, Save a copy and open that.
@@ -113,7 +129,7 @@ has been dragged; a 598-page scanned book took 258s to open, and now takes 35s
 (`HANDOFF.md`, **Next**). The 212-page curriculum opens in about 11s.
 
 **Opening**
-- [x] The page says "Getting ready…", then "Ready" within about 10 seconds
+- [x] The page says "Getting ready…" ("Starting Mimick…" since 19 October), then "Ready" within about 10 seconds
 - [x] **Open…** opens a PDF of your own
 - [x] `Ctrl`+`O` does the same
 - [x] Dragging a PDF onto the page opens it (the page gets a blue outline while you drag)
