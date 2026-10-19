@@ -41,7 +41,9 @@
     const self = {
       busy: false, dead: false, openedFor: 0,
       step: null,          // how far Python has got: "python", "pdf", "ready", or "failed"
-      bytes: 0, fetching: 0,   // how much of Python it has downloaded, and files still coming (js/download-count.js)
+      // How much of Python it has read, the files still coming, and how many of
+      // those come over the network rather than from the cache (js/download-count.js).
+      bytes: 0, fetching: 0, downloading: 0,
       /* `onProgress(done, total)`, if given, hears how far a long job has got
        * before the answer comes. It is not the answer, so it never settles. */
       ask(message, transfer = [], onProgress = null) {
@@ -58,6 +60,7 @@
       if (data.type === "downloaded") {
         self.bytes = data.bytes;
         self.fetching = data.open;
+        self.downloading = data.downloading ?? 0;
         downloadedMore(data.bytes);
         return;
       }
@@ -248,6 +251,10 @@
   }
   let barPhase = "", barShown = 0, barTarget = 0, barCreep = 0, barSince = performance.now(), barTimer = 0;
   let mostBytes = 0, bytesSince = performance.now();
+  // Whether any of this start came over the network. After the first visit
+  // nothing does: a new tab starts its own Pythons from the copy sw.js keeps,
+  // which Kat took for a download every time (16 October).
+  let downloadedHere = false;
   let voiceKeep = { busy: false, loaded: 0, total: 1 };   // MimickVoicePicker.watchDefault
 
   /* The workers share the browser's cache, so each one's count is how far the
@@ -270,25 +277,29 @@
     let phase = "", label = "", target = 0, detail = "", creep = 0.2;
     if (starting) {
       phase = "start";
-      label = loading ? `Getting ready, then opening ${loading.name}…` : "Getting Mimick ready…";
+      label = loading ? `Starting Mimick, then opening ${loading.name}…` : "Starting Mimick…";
       const got = Math.min(1, mostBytes / DOWNLOAD_BYTES);
       target = Math.max(DOWNLOAD_SHARE * got, (share(reading) + Math.max(...pool.map(share))) / 2);
       creep = 0.04;
       const now = performance.now();
       // Between its downloads Python is starting, not downloading; and from the
-      // cache a download is over in a moment. Only a real one is worth naming.
-      const fetching = [reading, ...pool].some((w) => !w.dead && w.fetching > 0);
-      if (fetching && got < 1 && now - barSince > 1500) {
+      // cache nothing is downloaded at all. Only a real download is named one.
+      const downloading = [reading, ...pool].some((w) => !w.dead && w.downloading > 0);
+      if (downloading) downloadedHere = true;
+      if (downloading && got < 1 && now - barSince > 1500) {
         if (!loading) label = "Downloading Mimick…";
         detail = `${Math.round(mostBytes / 1e6)} of ${Math.round(DOWNLOAD_BYTES / 1e6)} MB. `
-          + "The first visit downloads this once; after that, Mimick starts in seconds.";
+          + "Only the first visit downloads this; after that, Mimick starts from the copy kept on this computer.";
         if (now - bytesSince > 20000) {
           detail = `Nothing has arrived for ${Math.round((now - bytesSince) / 1000)} seconds, at `
             + `${Math.round(mostBytes / 1e6)} of ${Math.round(DOWNLOAD_BYTES / 1e6)} MB. `
             + "Check the connection; reloading the page keeps the files that finished.";
         }
-      } else if (now - barSince > 8000) {
-        detail = "Starting Python in the browser. The first time takes longest.";
+      } else if (downloadedHere) {
+        if (now - barSince > 8000) detail = "Starting Python in the browser. The first time takes longest.";
+      } else if (now - barSince > 1500) {
+        detail = "Each new tab starts its own Python and PDF tools, from the copy kept on this computer "
+          + "— nothing is downloaded. It takes about ten seconds.";
       }
     } else if (loading?.converting) {
       // Laying the file out as a PDF: the half of the wait that used to show
@@ -358,7 +369,7 @@
     ocr.stop();
     withdraw();
     unask();
-    status(pythonReady ? `Opening ${name}…` : `Getting ready, then opening ${name}…`);
+    status(pythonReady ? `Opening ${name}…` : `Starting Mimick, then opening ${name}…`);
     // A file that was laid out first keeps that bar rather than starting a
     // second one: the reader chose one file and should see one bar.
     const laidOut = loading?.converting ? loading : null;
@@ -630,7 +641,7 @@
       return;
     }
     if (bytes.byteLength >= SHRINK_FROM) {
-      status(pythonReady ? `Shrinking the photographs in ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+      status(pythonReady ? `Shrinking the photographs in ${file.name}…` : `Starting Mimick, then opening ${file.name}…`);
       laying(file.name, false, true);
     }
     let light = null;
@@ -707,7 +718,7 @@
   async function openDocument(file, kind) {
     const bytes = await file.arrayBuffer();
     const mine = ++generation;
-    status(pythonReady ? `Laying out ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+    status(pythonReady ? `Laying out ${file.name}…` : `Starting Mimick, then opening ${file.name}…`);
     laying(file.name, SLIDE_KINDS.has(kind));
     const stem = file.name.replace(/\.[^.]+$/, "");
     let pdf;
@@ -733,7 +744,7 @@
   async function openText(file) {
     const bytes = await file.arrayBuffer();
     const mine = ++generation;
-    status(pythonReady ? `Laying out ${file.name}…` : `Getting ready, then opening ${file.name}…`);
+    status(pythonReady ? `Laying out ${file.name}…` : `Starting Mimick, then opening ${file.name}…`);
     laying(file.name, false);
     const text = decodeText(bytes);
     const stem = file.name.replace(/\.txt$/i, "");

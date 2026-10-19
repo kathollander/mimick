@@ -28,7 +28,7 @@
 "use strict";
 
 // --- made by tools/stamp_offline.py; do not edit by hand ----------------------
-const VERSION = "77d12b7782fd8dc7";
+const VERSION = "b0f517163152930c";
 const FILES = [
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -169,10 +169,13 @@ self.addEventListener("message", (event) => {
 // settles once each is kept (or could not be).
 const fetching = new Map();
 
-/* The headers that make the page cross-origin isolated. */
-function isolated(response) {
+/* The headers that make the page cross-origin isolated. One answered from
+ * the cache says so (X-Mimick-From), so the start-up bar can tell starting
+ * from this computer's copy from downloading (js/download-count.js). */
+function isolated(response, cached = false) {
   if (response.status === 0) return response;      // opaque: nothing can be added
   const headers = new Headers(response.headers);
+  if (cached) headers.set("X-Mimick-From", "cache");
   headers.set("Cross-Origin-Embedder-Policy", "require-corp");
   headers.set("Cross-Origin-Resource-Policy", "cross-origin");
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
@@ -201,11 +204,11 @@ self.addEventListener("fetch", (event) => {
         if (fresh.ok) return isolated(fresh);
       } catch { /* the server is not there: fall back on the copy */ }
       const kept = await cache.match(key);
-      if (kept) return isolated(kept);
+      if (kept) return isolated(kept, true);
       return isolated(await fetch(url.href));
     }
     const kept = await cache.match(key);
-    if (kept) return isolated(kept);
+    if (kept) return isolated(kept, true);
     // A file of this version not cached yet (the second stage still going):
     // keep it as it passes. On a first visit every Python worker asks for the
     // same 18 MB at once, and Firefox would download it once for each -- four
@@ -222,6 +225,7 @@ self.addEventListener("fetch", (event) => {
       return isolated(await response);
     }
     await keeping;
-    return isolated((await cache.match(key)) ?? await fetch(url.href));
+    const now = await cache.match(key);
+    return now ? isolated(now, true) : isolated(await fetch(url.href));
   })());
 });

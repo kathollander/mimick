@@ -247,6 +247,8 @@
   #cards.all .note-card.drop-before { box-shadow: 0 -3px 0 0 var(--accent); }
   #cards.all .note-card.drop-after { box-shadow: 0 3px 0 0 var(--accent); }
   .notes-head .row .grow { flex: 1; }
+  /* Previous / next note: big enough to hit without looking (Kat, 16 October). */
+  button.note-step { width: 44px; padding: 0 0 3px; font-size: 24px; line-height: 1.1; }
   .note-card .quote { color: var(--dim); font-style: italic; }
   .note-card .remove { top: 6px; right: 6px; width: 18px; height: 18px; background: none; border: 0; color: var(--dim); }
   .note-card .remove:hover { color: var(--text); background: var(--hover); }
@@ -599,7 +601,7 @@
   </div>
 </div>
 <div id="loading" role="status" aria-live="polite">
-  <div id="loading-label">Getting Mimick ready…</div>
+  <div id="loading-label">Starting Mimick…</div>
   <div id="loading-track"><div id="loading-fill"></div></div>
   <div id="loading-detail"></div>
 </div>
@@ -641,8 +643,8 @@
     </div>
     <div class="row">
       <span class="grow"></span>
-      <button id="prev-note" class="square" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
-      <button id="next-note" class="square" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
+      <button id="prev-note" class="square note-step" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
+      <button id="next-note" class="square note-step" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
       <button id="note-style" class="square" aria-label="Note appearance" title="How notes look — typeface and size">⚙</button>
     </div>
   </div>
@@ -1036,7 +1038,7 @@
 <div id="menu" role="menu" hidden></div>
 
 <footer class="bar">
-  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="status" class="dim">Getting ready…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
+  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="status" class="dim">Starting Mimick…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
   <div class="centre">
     <button id="prev" class="square" aria-label="Previous page" title="Previous page  (Page Up)" disabled>‹</button>
     <input id="page" type="number" aria-label="Page number" min="1" value="1" title="Jump to page" disabled>

@@ -14,7 +14,7 @@
  *                                          and the text cursor
  * Messages out:
  *   { type: "loading", step }   "python", then "pdf", while Python starts
- *   { type: "downloaded", bytes, open }   how much of Python it has downloaded so far,
+ *   { type: "downloaded", bytes, open, downloading }   how much of Python it has read so far,
  *       and how many of its files are still coming in
  *   { type: "ready", loadMs }
  *   { type: "opened", id, title, pages: [[w, h] in points], sentences, words, textless, openMs }
@@ -38,7 +38,7 @@ importScripts("download-count.js", "../vendor/pyodide/pyodide.js", "python.js");
 
 const base = new URL("../", self.location.href).href;
 const started = performance.now();
-const counted = countDownloads((bytes, open) => self.postMessage({ type: "downloaded", bytes, open }));
+const counted = countDownloads((bytes, open, downloading) => self.postMessage({ type: "downloaded", bytes, open, downloading }));
 const python = MimickPython.loadReadingPython({
   loadPyodide,
   readText: async (p) => {

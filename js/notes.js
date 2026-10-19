@@ -306,6 +306,12 @@
               + "Notes ▾ → Remind me to save turns these reminders off.", download);
     }
     setInterval(remindIfDue, 5000);
+    // Closing the tab or reloading with changes not yet in a file: the
+    // browser asks first, in its own words. The notes are kept in the browser
+    // either way; this is for the file (Kat, 16 October).
+    window.addEventListener("beforeunload", (e) => {
+      if (doc && ready && changedAt !== null) { e.preventDefault(); e.returnValue = ""; }
+    });
     function scheduleSave() {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(save, SAVE_AFTER_MS);
