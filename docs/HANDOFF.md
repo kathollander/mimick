@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 16 October (formatted notes, sticky titles and links, below -- pushed and live); the paragraph that follows was
+last updated 19 October (Kat's list of 16 October, below -- built, not pushed); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -34,6 +34,72 @@ Since 17 September the browser version **is** Mimick:
 
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
+
+## Latest: Kat's list of 16 October (19 October)
+
+Her list is in `MIMICK ADD NOTES.txt` (untracked; never commit it). All built,
+**not pushed** -- push only on her word. Her answers on 19 October shaped it:
+All notes out of the panel with the order moved to Export notes; "link from
+the highlight" means linking a sticky that already exists; the leave-the-page
+question only for work not yet in a file; a Reopen button on a new tab.
+
+- **The start-up bar** (`a9ff97e`). A new tab never downloads Mimick again:
+  it starts four Pythons from the copy `sw.js` keeps, ~7--10 s. But the bar
+  counted bytes read *from the cache* as a download and, past 1.5 s, said
+  "Downloading Mimick… 14 of 30 MB. The first visit downloads this once" --
+  which is what Kat saw in every new tab. `sw.js` now marks its cached
+  answers `X-Mimick-From: cache`; `download-count.js` counts network fetches
+  apart (`downloading`); the bar says "Starting Mimick…" and, on a start with
+  no download, "Each new tab starts its own Python and PDF tools, from the
+  copy kept on this computer — nothing is downloaded." Measured with
+  `reader.html?release` in a fresh profile: first visit says Downloading,
+  the next two never do.
+- **Leaving with notes not in a file asks** (`beforeunload` in `notes.js`,
+  keyed on `changedAt`, the 15-minute reminder's own flag). The browser
+  writes the words. **Checks:** `r.load` in `tools/cdp.mjs` now enables the
+  Page domain and accepts that question, or every check that reloads after
+  making notes hangs.
+- **Bigger ‹ › note arrows** (`button.note-step`, 44 px).
+- **One sticky, several highlights** (desktop `af7ae45`, ported). `MimickLink`
+  holds the names, space-separated; Mimick's names have no spaces and a
+  highlight named with one is renamed before linking, so one-link files read
+  as before. Shared: `Sticky.links`, `link_sticky` adds, `unlink_sticky`,
+  `linked_marks`; `linked_to` is now the first. Web: `linkedHighlights`,
+  `homeOf` (the card follows the first highlight in the document), a line to
+  each, the card says "On “…” and N more", the sticky's menu goes to /
+  unlinks each. Unlinking one is `sticky.setLink` with the names left (one
+  undo); no new worker call.
+- **Link a sticky note to this…** on a highlight's menu: `linking` is now
+  `{ xref, want }`; a press anywhere on a sticky box links it (`linkHere`, a
+  capturing pointerdown in `sticky.js`), as does its card.
+- **Find in notes** beside the panel's heading (`#notes-find`, `searching()`,
+  `matches()`): the whole document's notes with the words, each with its
+  page; no connector lines while searching. **Show by colour**:
+  `#filter-colours`, a toggle per colour in use (`colourName`, nearest of
+  `COLOURS` within 0.4, else "Other" -- 0.15 called Acrobat's yellow Other),
+  kept as `mimick-panel-hidden-colours`. Panel only; the page still shows all.
+  The input needs `width: 0` or its default width pushes the panel 21 px past
+  the window.
+- **All notes is gone** (`cffb72f`). Export notes asks **Page order / By
+  colour / My own order** (`mimick-export-order`; a document already in an
+  order of its own defaults to it), and My own order shows the rows to drag
+  (`showOrderList`, the old `draggable`). The saved order key is unchanged.
+  The rows' page label is `.at`: `.page` is the PDF pages' class and drew
+  "Drawing this page…" in it.
+- **Reopen <file>** on the empty page (`52f8c15`, `showReopen` in
+  `reader.js`), from Open recent; Chromium only.
+- **Checks:** `tools/check_panel.mjs` (new, 28 steps); check_notes section 13
+  rewritten for the Export window; check_recent gains Reopen. Passing after
+  the change: panel, notes, links, sticky, display, find, access, tour,
+  offline, recent, firefox (tour timed out once, then passed alone); desktop
+  check_links, check_sticky, check_notes_export.
+- **The desktop's venv is broken**: the system Python is 3.14 now and
+  `Mimick-linux/.venv` was built on 3.13, which is gone, so `import pymupdf`
+  fails -- the desktop app likely does not start, and the web checks that
+  read a saved copy with it failed. They take `MIMICK_PYTHON` now; any Python
+  with PyMuPDF 1.28.2 will do (a scratch venv was used). Rebuilding the venv
+  (`./install.sh` in `Mimick-linux`) is Kat's call.
+- **Desktop:** only the shared code. Its UI for all of this is in PARITY.md.
 
 ## Latest: formatted notes, sticky titles, stickies linked to highlights (15 October)
 
