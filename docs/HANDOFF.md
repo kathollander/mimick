@@ -1,7 +1,7 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 19 October (Kat's list of 16 October, below -- built, not pushed); the paragraph that follows was
+last updated 20 October (Kat's critiques of 19 October, below -- built, not pushed); the paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
@@ -34,6 +34,50 @@ Since 17 September the browser version **is** Mimick:
 
 Pages serves the bundled voice gzipped, so a download's `content-length` is not
 its real size; `js/voices.js` allows for that.
+
+## Latest: Kat's critiques of 19 October (20 October)
+
+Worked out with her in a Claude Doc first ("Mimick: Kat's 19 Oct critiques,
+v2", then
+built. **Not pushed** -- push only on her word. The list of 16 October below is
+not pushed either.
+
+- **Three movable pieces** (`54ea0ca`). The strip is now `#piece-mark`
+  (Add note, Highlight, colour), `#piece-sticky`, `#piece-format`, each with
+  its own `.grip` and place, `mimick-place-<name>` / `mimick-point-<name>`;
+  the old `mimick-markup-place` is read once as everyone's start. Places:
+  `panel`, `contents` (`#markup-contents`), `top-left|middle|right`,
+  `bottom-…` (slots inside `#markup-top` / `#markup-bottom`, a 1fr auto 1fr
+  grid), `float`. Columns are drop places only while open; over a column only
+  the outer 28 px are the bars. A piece in the contents column hides with it,
+  or stands in at the top left for a document with no contents. Label "Drag and
+  drop here." (her words). **Double-click is counted by hand** (`lastTap`): the
+  piece is reparented on pointerdown, so the browser never fires click or
+  dblclick on the grip.
+- **Panel header** as her picture: `#colour-row` holds all four colour
+  toggles (unused = disabled, off; Other only when present) and ‹ › ⚙.
+- **The file is the truth** (`86e5d7e`). Open always shows the file's own
+  annotations; `js/notes-store.js` is only a recovery copy, written while
+  `changedAt !== null`, deleted by `savedToFile()` (Save a copy and Export
+  notes), by Discard, by 7 days (`RECOVER_DAYS`, `prune` at start-up), or by a
+  deliberate close: `pagehide` writes the key into localStorage
+  `mimick-closed-on-purpose`, and the next open deletes instead of asking. A
+  crash leaves no mark, so `offerRecovery` asks (`#recover-dialog`, Esc does
+  nothing), naming only what differs from the file. `#unsaved` in the status
+  bar shows her sentence while work is not in a file.
+  **Checks:** `r.crashReload()` (reload, then remove the mark) and
+  `r.recover("recover"|"discard")` in `tools/cdp.mjs`. Any check that reloads
+  and expects notes back must use them.
+- **Firefox's storage prompt** is explained in the status bar first
+  (`keepDefault(explain)`, only when `permissions.query` says "prompt").
+- **Panels close with ✕, open with ‹ / ›** (no word on the edge tab).
+- **Waiting on Kat** (doc, Open questions): document colours (§10: use the
+  document's colours, fill to four with ours minus any family already there,
+  a dot each, usable for highlight / note / sticky; ⚙ to Display ▾);
+  whether Export notes should count as saved; whether the bottom bar stays a
+  drop place.
+- Passing: notes, panel, sticky, links, recent, tour, offline, firefox,
+  contents, display.
 
 ## Latest: Kat's list of 16 October (19 October)
 
