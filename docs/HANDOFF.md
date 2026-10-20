@@ -71,11 +71,26 @@ not pushed either.
 - **Firefox's storage prompt** is explained in the status bar first
   (`keepDefault(explain)`, only when `permissions.query` says "prompt").
 - **Panels close with ✕, open with ‹ / ›** (no word on the edge tab).
-- **Waiting on Kat** (doc, Open questions): document colours (§10: use the
-  document's colours, fill to four with ours minus any family already there,
-  a dot each, usable for highlight / note / sticky; ⚙ to Display ▾);
-  whether Export notes should count as saved; whether the bottom bar stays a
-  drop place.
+- **Next, all decided by Kat (20 October, in the doc):**
+  1. **Default places:** a new browser starts with all three pieces across the
+     top: Highlighting then Sticky at the top left, Text formatting top middle
+     (her screenshot in the doc). Today they start in the notes panel.
+  2. **Order within a place is the reader's:** dropping a piece before or
+     after another in the same place puts it there (today the order is fixed
+     mark, sticky, format in `mount`). Keep it per place.
+  3. **Only Save a copy counts as saved.** Export notes no longer calls
+     `savedToFile()`: the warning, the beforeunload question and the recovery
+     copy stay until the PDF is saved. check_notes' order step relies on
+     Export clearing it -- revisit that step.
+  4. **⚙ moves to Display ▾ → Note appearance…**; it leaves `#colour-row`.
+  5. **Document colours (§10):** a plain PDF has our four. A PDF with
+     highlight colours of its own uses those, one dot each (a colour we lack,
+     such as purple, gets its own dot); if fewer than four, ours fill to four,
+     skipping any family already there (any yellow counts as yellow). The row
+     wraps when long. Every dot is usable to highlight, write a note and make
+     a sticky: the highlight colour menu and the sticky colour menu both list
+     them. `colourName`/`COLOURS` in notes.js are where the four live.
+  6. Bottom bar stays a drop place.
 - Passing: notes, panel, sticky, links, recent, tour, offline, firefox,
   contents, display.
 
