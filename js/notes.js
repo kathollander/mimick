@@ -47,6 +47,8 @@
   // Mimick says so (Kat, 23 September). They are kept in the browser as they
   // are made, but a browser's storage can be cleared; a file cannot.
   const REMIND_MINUTES = 15;
+  // A recovery copy not recovered within a week is let go (Kat, 20 October).
+  const RECOVER_DAYS = 7;
   const SNAP_MARGIN = 56;        // how near an edge a dropped piece counts as aimed at it
   const REMOVE_SIZE = 18;        // the little x, in pixels
   // The editing tools come in three pieces, each moved by its own ⋯ (Kat, 19
@@ -355,8 +357,25 @@
     }
 
     // --- keeping them ---------------------------------------------------------
+    // The file is what counts (Kat, 20 October): opening a PDF shows the notes
+    // in it, the same on any computer. The browser keeps a recovery copy only
+    // while there is work not yet saved to a file, for a crash or a browser
+    // that quits unexpectedly. Saving to a file deletes it; closing the tab
+    // or the browser on purpose, after the browser's warning, lets it go.
 
-    let saveTimer = 0, keptAt = null, keepFailed = false;
+    let saveTimer = 0, keptAt = null, savedAt = null, keepFailed = false;
+    let recovering = null;       // { key, kept, mine } while the recovery question is open
+    // Documents closed on purpose with work unsaved, by key: their recovery
+    // copies are deleted, not offered, when they are next opened. Written as
+    // the page goes, which only a deliberate close or reload lives to do.
+    const CLOSED = "mimick-closed-on-purpose";
+    function closedOnPurpose() {
+      try { const list = JSON.parse(ctx.recall(CLOSED) || "[]"); return Array.isArray(list) ? list : []; } catch { return []; }
+    }
+    window.addEventListener("pagehide", () => {
+      if (!doc || changedAt === null) return;
+      ctx.remember(CLOSED, JSON.stringify([...closedOnPurpose().filter((k) => k !== doc.key), doc.key].slice(-20)));
+    });
 
     // --- the reminder to save to a file -------------------------------------------
     // From the first change after the last Save a copy or Export notes: every
@@ -366,8 +385,16 @@
     const remindOn = () => ctx.recall("mimick-save-reminder") !== "0";
     // A check can make the wait shorter; nothing a reader sees sets this.
     const remindMs = () => (Number(ctx.recall("mimick-save-reminder-minutes")) || REMIND_MINUTES) * 60000;
-    function unsaved() { changedAt ??= Date.now(); }
-    function savedToFile() { changedAt = remindedAt = null; ctx.unask("save"); }
+    function unsaved() { changedAt ??= Date.now(); showKept(); }
+    function savedToFile() {
+      changedAt = remindedAt = null;
+      ctx.unask("save");
+      clearTimeout(saveTimer);
+      if (doc) MimickNotesStore.remove(doc.key);
+      keptAt = null;
+      savedAt = new Date();
+      showKept();
+    }
     function remindIfDue() {
       if (!doc || !ready || changedAt === null || !remindOn()) return;
       const now = Date.now(), wait = remindMs();
@@ -375,24 +402,23 @@
       remindedAt = now;
       const minutes = Math.max(1, Math.round((now - changedAt) / 60000));
       ctx.status(`Your newest highlights and notes have gone ${minutes === 1 ? "a minute" : minutes + " minutes"} without being saved `
-                 + "to a file. They are kept in this browser, but a file is safer.");
+                 + "to a file. Closing this tab will lose them.");
       ctx.ask("save", "Save a copy now", "Save the PDF with your highlights and notes in it (Ctrl+S). "
               + "Notes ▾ → Remind me to save turns these reminders off.", download);
     }
     setInterval(remindIfDue, 5000);
     // Closing the tab or reloading with changes not yet in a file: the
-    // browser asks first, in its own words. The notes are kept in the browser
-    // either way; this is for the file (Kat, 16 October).
+    // browser asks first, in its own words -- a page cannot give it any (Kat,
+    // 16 October). Mimick's own words are in the status bar meanwhile.
     window.addEventListener("beforeunload", (e) => {
       if (doc && ready && changedAt !== null) { e.preventDefault(); e.returnValue = ""; }
     });
     function scheduleSave() {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(save, SAVE_AFTER_MS);
-      showKept("Keeping…");
     }
     async function save() {
-      if (!doc || !ready) return;
+      if (!doc || !ready || changedAt === null) return;
       const mine = ctx.generation(), key = doc.key, title = doc.title;
       const job = work.then(() => ctx.call("snapshot"));
       work = job.catch(() => {});
@@ -402,15 +428,19 @@
       if (mine !== ctx.generation()) return;
       keepFailed = !ok;
       keptAt = ok ? new Date() : null;
-      if (!ok) ctx.status("Your notes could not be kept in this browser — use Save a copy to keep them");
+      if (!ok) ctx.status("No recovery copy could be kept in this browser — use Save a copy to keep your work");
       showKept();
     }
     function showKept(text) {
-      const label = $("notes-kept");
-      label.textContent = text ?? (keepFailed ? "Not kept — save a copy"
-        : keptAt ? `Kept in this browser · ${keptAt.toTimeString().slice(0, 5)}` : "");
-      label.title = "Your highlights and notes are kept in this browser, and come back when you open "
-                  + "this PDF again. Save a copy to keep them anywhere else.";
+      const label = $("notes-kept"), open = doc && changedAt !== null;
+      const time = (d) => d.toTimeString().slice(0, 5);
+      label.textContent = text ?? (!open ? (savedAt ? `Saved to a file · ${time(savedAt)}` : "")
+        : keepFailed ? "Not saved to a file, and no recovery copy"
+        : `Not saved to a file${keptAt ? ` · recovery copy ${time(keptAt)}` : ""}`);
+      label.title = "Your work counts once it is in a file: Save a copy (Ctrl+S) or Export notes. Until then this "
+                  + "browser keeps a recovery copy, in case it closes unexpectedly.";
+      // In the status bar, while there is work not in a file (Kat, 20 October).
+      $("unsaved").hidden = !open;
     }
 
     /* Save a copy of the PDF with the highlights and notes in it. Where the
@@ -535,14 +565,16 @@
     async function open(opened) {
       doc = opened;
       ready = false;
-      items = []; active = null; undoStack = []; redoStack = []; keptAt = null; keepFailed = false;
+      items = []; active = null; undoStack = []; redoStack = []; keptAt = savedAt = null; keepFailed = false;
       changedAt = remindedAt = null;
+      showKept();
       const mine = ctx.generation();
       const kept = await MimickNotesStore.get(doc.key);
       if (mine !== ctx.generation()) return;
       try {
         await ctx.call("set_author", settings.author);
-        items = kept ? await ctx.call("restore", kept.annotations) : await ctx.call("annotations");
+        // The file's own notes, always; a recovery copy is only offered.
+        items = await ctx.call("annotations");
         sticky.set(await ctx.call("stickies"));
       } catch (err) {
         if (mine === ctx.generation()) ctx.status("This document's highlights cannot be read: " + err.message);
@@ -550,15 +582,71 @@
       }
       if (mine !== ctx.generation()) return;
       ready = true;
-      if (kept) { keptAt = new Date(kept.saved); showKept(); }
       refreshAll();
-      const stickies = sticky.list.length;
-      if (kept && (items.length || stickies)) {
-        const what = [items.length ? plural(items.length, "highlight") : "", stickies ? plural(stickies, "sticky note") : ""]
-          .filter(Boolean).join(" and ");
-        ctx.status(`Your ${what} from last time ${items.length + stickies === 1 ? "is" : "are"} back`);
-      }
+      if (kept) offerRecovery(kept, mine);
     }
+
+    /* A recovery copy found as a document opens: work that never reached a
+     * file. Closed on purpose, it goes; the same as the file, it goes;
+     * otherwise Mimick asks (Kat, 20 October). Copies kept before then were
+     * kept whether or not they were saved, so they are asked about once. */
+    async function offerRecovery(kept, mine) {
+      const key = doc.key, closed = closedOnPurpose();
+      if (closed.includes(key)) ctx.remember(CLOSED, JSON.stringify(closed.filter((k) => k !== key)));
+      if (closed.includes(key) || !(Date.now() - kept.saved < RECOVER_DAYS * 864e5)) {
+        MimickNotesStore.remove(key);
+        return;
+      }
+      const job = work.then(() => ctx.call("snapshot"));
+      work = job.catch(() => {});
+      const now = await job.catch(() => null);
+      if (mine !== ctx.generation()) return;
+      // What it has that the file does not, and what it took away: the copy
+      // is the whole document's notes, the file's own among them.
+      const all = kept.annotations || [], file = now ?? [];
+      const inFile = new Set(file.map((a) => JSON.stringify(a))), names = new Set(all.map((a) => a.name ?? a.xref));
+      const added = all.filter((a) => !inFile.has(JSON.stringify(a)));
+      const gone = file.filter((a) => !names.has(a.name ?? a.xref)).length;
+      if (now && !added.length && !gone) { MimickNotesStore.remove(key); return; }
+      const stuck = added.filter((a) => a.kind === "sticky").length, marks = added.length - stuck;
+      const kinds = [marks ? plural(marks, "highlight") : "", stuck ? plural(stuck, "sticky note") : ""].filter(Boolean).join(" and ");
+      const what = [kinds && `${kinds} added or changed`, gone ? `${plural(gone, "note")} deleted` : ""]
+        .filter(Boolean).join(", ") || "changes";
+      $("recover-what").textContent = what;
+      $("recover-when").textContent = new Date(kept.saved).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      recovering = { key, kept, mine, what };
+      recoverDialog.returnValue = "";
+      recoverDialog.showModal();
+      $("recover-go").focus();
+    }
+    const recoverDialog = $("recover-dialog");
+    // One of the two buttons, not Esc: a key pressed by chance must not decide it.
+    recoverDialog.addEventListener("cancel", (e) => e.preventDefault());
+    recoverDialog.addEventListener("close", async () => {
+      const r = recovering;
+      recovering = null;
+      if (!r || r.mine !== ctx.generation()) return;
+      if (recoverDialog.returnValue !== "recover") {
+        MimickNotesStore.remove(r.key);
+        ctx.status("Discarded — this document shows what its file holds");
+        return;
+      }
+      try {
+        const job = work.then(() => ctx.call("restore", r.kept.annotations));
+        work = job.catch(() => {});
+        items = await job;
+        sticky.set(await ctx.call("stickies"));
+      } catch (err) {
+        if (r.mine === ctx.generation()) ctx.status("The unsaved work could not be recovered: " + err.message);
+        return;
+      }
+      if (r.mine !== ctx.generation()) return;
+      undoStack = []; redoStack = [];
+      keptAt = new Date(r.kept.saved);
+      unsaved();
+      refreshAll();
+      ctx.status(`Recovered: ${r.what}. Not saved to a file yet — Save a copy (Ctrl+S) to keep them.`);
+    });
 
     function close() {
       clearTimeout(saveTimer);
@@ -1669,7 +1757,7 @@
           ctx.remember("mimick-save-reminder", remindOn() ? "0" : "1");
           if (!remindOn()) ctx.unask("save");
           ctx.status(remindOn() ? `Mimick will remind you to save a copy when your notes have gone ${REMIND_MINUTES} minutes without one`
-                                : "No more reminders to save — your notes are still kept in this browser as you go");
+                                : "No more reminders to save — the status bar still says when your work is not in a file");
         } },
       ];
     }
@@ -1699,6 +1787,7 @@
     $("notes-tab").onclick = () => setPanel(true);
     arrange();
     refreshControls();
+    MimickNotesStore.prune(RECOVER_DAYS * 864e5);
 
     return {
       COLOURS,

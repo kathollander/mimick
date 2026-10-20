@@ -103,6 +103,20 @@ export async function startReader(name, { port = 8731 } = {}) {
       await sleep(2500);
       await wait(`/Ready/.test(document.getElementById("status")?.textContent || "")`);
     },
+    /* A reload as after a crash: the page goes without the mark a deliberate
+     * close leaves (js/notes.js, "closed on purpose"), so a recovery copy is
+     * offered when the document opens again. */
+    async crashReload() {
+      await r.load();
+      await ev(`localStorage.removeItem("mimick-closed-on-purpose")`);
+    },
+    /* Answer the recovery question: "recover" or "discard". */
+    async recover(answer = "recover") {
+      await wait(`document.getElementById("recover-dialog").open`, 30000);
+      await sleep(200);
+      await ev(`document.getElementById("recover-${answer === "recover" ? "go" : "discard"}").click()`);
+      await sleep(800);
+    },
     async reset() {
       await ev(`localStorage.clear()`);
       await ev(`new Promise((ok) => { const q = indexedDB.deleteDatabase("mimick-notes"); q.onsuccess = q.onerror = q.onblocked = ok; })`);

@@ -1,7 +1,8 @@
 /* Kat's list of 16 October: the notes panel and leaving the page.
  *
  *   1. Leaving the page with highlights not yet saved to a file asks first;
- *      after Save a copy it does not.
+ *      after Save a copy it does not. A file opens with its own notes; the
+ *      browser's copy is only for recovering from a crash (Kat, 20 October).
  *   2. A highlight's menu links a sticky note that is already there, and one
  *      sticky note can be linked to several highlights.
  *   3. Find in notes, beside the heading; show by colour; no All notes; the
@@ -9,6 +10,7 @@
  *
  * Needs serve.py on 8731. `node tools/check_panel.mjs`
  */
+import fs from "node:fs";
 import path from "node:path";
 import { CTRL, root, startReader } from "./cdp.mjs";
 
@@ -45,10 +47,41 @@ await ev(`delete window.showSaveFilePicker; delete Window.prototype.showSaveFile
 await r.key("s", CTRL);
 await wait(`/Saved|Sent/.test(document.getElementById("status").textContent)`, 20000);
 check("after Save a copy, leaving does not ask", await tryLeaving() === null, dialogs);
-// It left: back, to the same document, whose highlight comes back from the browser.
+// It left. The file opens as the file is: the highlight went into the copy.
+const cards = () => ev(`document.querySelectorAll("#cards .note-card").length`);
+const asked = () => ev(`document.getElementById("recover-dialog").open`);
 await r.load();
 await r.openPdf(SAMPLE);
+await wait(`!document.getElementById("markup-highlight").disabled`); await sleep(1500);
+check("the same file opens with its own notes, nothing from the browser", await cards() === 0 && !await asked(), await cards());
+const copy = fs.readdirSync(r.downloads).filter((f) => f.endsWith(".pdf"))
+  .map((f) => path.join(r.downloads, f)).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0];
+await r.openPdf(copy);
 await wait(`!document.getElementById("markup-highlight").disabled && document.querySelectorAll("#cards .note-card").length === 1`);
+check("…and the saved copy opens with the highlight", true);
+check("…saved, so the status bar has no warning", await ev(`document.getElementById("unsaved").hidden`));
+// Unsaved work, then a deliberate reload: the browser asked, so it is let go.
+await r.drag(await r.at(160, 275), await r.at(250, 275));
+await r.key("h", CTRL); await sleep(1500);
+check("a new highlight brings the status bar's warning", await ev(`!document.getElementById("unsaved").hidden`));
+await r.load();
+await r.openPdf(copy);
+await wait(`!document.getElementById("markup-highlight").disabled`); await sleep(1500);
+check("closed on purpose, the unsaved highlight is gone, and nothing is asked", await cards() === 1 && !await asked(), await cards());
+// The same after a crash: asked, and Discard gives the file as it is.
+await r.drag(await r.at(160, 275), await r.at(250, 275));
+await r.key("h", CTRL); await sleep(1500);
+await r.crashReload();
+await r.openPdf(copy);
+check("after a crash, opening it asks whether to recover", await wait(`document.getElementById("recover-dialog").open`, 30000)
+      && /1 highlight|2 highlights/.test(await ev(`document.getElementById("recover-what").textContent`)),
+      await ev(`document.getElementById("recover-what").textContent`));
+await r.recover("discard");
+check("…Discard opens it as its file has it", await cards() === 1 && /Discarded/.test(await ev(`document.getElementById("status").textContent`)));
+await r.load();
+await r.openPdf(copy);
+await wait(`!document.getElementById("markup-highlight").disabled`); await sleep(1500);
+check("…and the copy is gone: not asked again", !await asked());
 
 // --- 2. Linking from a highlight; one sticky, two highlights ----------------------
 

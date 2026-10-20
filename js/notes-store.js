@@ -1,15 +1,16 @@
-/* Highlights and notes, kept in the browser between visits (IndexedDB).
+/* A recovery copy of highlights and notes not yet saved to a file (IndexedDB).
  *
- * The browser's companion file. The desktop never writes into the PDF you
- * opened, and writes your notes to "<name> (notes).pdf" beside it; a tab has no
- * "beside", so the notes are kept here instead, against a hash of the PDF's
- * bytes, and put back whenever that same PDF is opened again. "Download a copy"
- * is how they leave the browser, as a PDF with real annotations in it.
+ * The file is what counts (Kat, 20 October): a PDF opens with the notes in it,
+ * the same on any computer, and Save a copy or Export notes is how work is
+ * kept. Until then js/notes.js keeps a copy here, against a hash of the PDF's
+ * bytes, so a crash or a browser that quits unexpectedly loses nothing: opening
+ * that PDF again asks whether to recover it. Saving to a file deletes it, and
+ * so does closing the tab on purpose, Discard, or seven days unopened.
  *
  * What is kept is reader.snapshot(): plain data, a few hundred bytes a
  * highlight -- not the PDF, which for a scanned book would be a hundred
- * megabytes a save. Unlike the pages in js/page-store.js, notes are never
- * thrown away to make room; they are the reader's own work.
+ * megabytes a save. Unlike the pages in js/page-store.js, it is never thrown
+ * away to make room; it is the reader's own work.
  *
  * Storage can be refused (a private window, blocked site data). Then get gives
  * nothing back and put says it failed, and the reader says so.
@@ -71,7 +72,26 @@
     }
   }
 
-  const api = { get, put, remove };
+  /* Delete every copy kept longer ago than maxAge (ms). */
+  async function prune(maxAge) {
+    const store = await db();
+    if (!store) return;
+    try {
+      const tx = store.transaction("documents", "readwrite");
+      const cursor = tx.objectStore("documents").openCursor();
+      await new Promise((resolve, reject) => {
+        cursor.onsuccess = () => {
+          const at = cursor.result;
+          if (!at) { resolve(); return; }
+          if (!(Date.now() - (at.value?.saved ?? 0) < maxAge)) at.delete();
+          at.continue();
+        };
+        cursor.onerror = () => reject(cursor.error);
+      });
+    } catch { /* kept as it was */ }
+  }
+
+  const api = { get, put, remove, prune };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.MimickNotesStore = api;
 })(typeof self !== "undefined" ? self : globalThis);

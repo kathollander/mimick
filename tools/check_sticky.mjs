@@ -156,12 +156,14 @@ await r.key("y", CTRL); await sleep(1000);
 s = await state();
 check("…and Ctrl+Y puts that one back as it was, not empty", s.boxes.length === 1 && /<b>bold<\/b>/.test(s.boxes[0].html), s.boxes);
 
-// 8. A reload brings it back.
-await r.load();
+// 8. Recovered after a crash.
+await sleep(1200);                       // the recovery copy is kept a moment after the last change
+await r.crashReload();
 await r.openPdf(SAMPLE);
+await r.recover();
 await wait(`document.querySelectorAll(".page .sticky").length === 1`, 20000).catch(() => {});
 s = await state();
-check("after a reload, the sticky note is back, formatting and all",
+check("after a crash and Recover, the sticky note is back, formatting and all",
       s.boxes.length === 1 && /<b>bold<\/b>/.test(s.boxes[0].html) && /calc\(18/.test(s.boxes[0].html), s.boxes);
 
 // 8b. Find looks in sticky notes too, and lights the note.

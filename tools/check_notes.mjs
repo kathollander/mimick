@@ -152,18 +152,19 @@ check("with two pages on screen, the column has the notes of both",
       s.cards.some((c) => c.includes("Knowledge")) && s.cards.some((c) => c.includes("Already in the file")), s.cards);
 await ev(`document.getElementById("view").scrollTop = 0`); await sleep(800);
 
-// 8. Kept in the browser: reload and open the same PDF again.
-await wait(`/Kept in this browser/.test(document.getElementById("notes-kept").textContent)`, 10000);
-check("the panel says they are kept", true);
-await r.load();
+// 8. A recovery copy in the browser, until the work is in a file (Kat, 20
+// October): after a crash, opening the same PDF again offers it back.
+await wait(`/recovery copy \\d/.test(document.getElementById("notes-kept").textContent)`, 10000);
+check("the panel and the status bar say the work is not in a file", /^Not saved to a file/.test((await state()).kept)
+      && await ev(`!document.getElementById("unsaved").hidden && /Export your work before closing this tab/.test(document.getElementById("unsaved").textContent)`));
+await r.crashReload();
 await r.openPdf(SAMPLE);
+await r.recover();
 await wait(`!document.getElementById("markup-highlight").disabled`);
 await sleep(500);
 s = await state();
-// "…from last time are back" and the pages' own "3 pages · … opened in" race
-// for the status line (about one run in three); either may be showing.
-check("after a reload, the highlights come back", s.onPage === 1 && s.notes === "Notes  2"
-      && /from last time are back|opened in/.test(s.status), [s.onPage, s.notes, s.status]);
+check("after a crash, Recover brings the highlights back, still unsaved", s.onPage === 1 && s.notes === "Notes  2"
+      && /^Recovered: 1 highlight added or changed/.test(s.status) && await ev(`!document.getElementById("unsaved").hidden`), [s.onPage, s.notes, s.status]);
 
 // 9. Save a copy. Headless Chrome has no save window to answer, so take the
 // download every browser without showSaveFilePicker takes.
@@ -414,8 +415,14 @@ const exported = await ev(`document.getElementById("status-file").href`).then((h
 const firstQuoted = (exported.match(/^> “(.+)$/m) || [])[1] ?? "";
 check("…and the export follows it", (firstQuoted.match(/\(p\. (\d+)\)$/) || [])[1] === (reordered[0].match(/^p\. (\d+)/) || [])[1],
       [firstQuoted, reordered[0]]);
-await r.load();
+// Exported, so the work counts as saved and no recovery copy is left: a redo
+// (of the highlight 10b undid) and an undo make it unsaved again, with the same
+// notes, to come back after a crash.
+await ev(`document.getElementById("view").focus()`);
+await r.key("y", CTRL); await sleep(600); await r.key("z", CTRL); await sleep(1500);
+await r.crashReload();
 await r.openPdf(SAMPLE);
+await r.recover();
 await wait(`!document.getElementById("markup-highlight").disabled`);
 await sleep(800);
 await openExport();

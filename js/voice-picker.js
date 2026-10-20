@@ -229,14 +229,30 @@
     }
   }
 
+  /* Whether the browser will put a question to the reader when asked to keep
+   * Mimick's storage: Firefox does; Chromium browsers decide by themselves. */
+  async function willPrompt() {
+    if (!/Firefox\//.test(navigator.userAgent)) return false;
+    try { return (await navigator.permissions.query({ name: "persistent-storage" })).state === "prompt"; } catch { return false; }
+  }
+
   let keeping = null;
-  function keepDefault() {
+  /* explain(text): said just before the browser's own question, if it asks
+   * one, so the reader knows what it means (Kat, 20 October). */
+  function keepDefault(explain = null) {
     return keeping ??= (async () => {
       // Asked, never waited on: Firefox answers only once the reader has
       // clicked through a prompt, and until then the voice never loaded -- the
       // page sat at "Getting the voice ready…" (found 24 September). Keeping
       // the voice does not need the answer; it only makes it harder to evict.
-      try { navigator.storage?.persist?.().catch(() => {}); } catch { /* the browser decides */ }
+      try {
+        if (explain && await willPrompt()) {
+          explain(`Your browser may ask to let Mimick store data on this computer. Allowing it keeps Mimick and its voice `
+                  + `(about ${Math.round(KEEP_BYTES / 1e6)} MB) from being cleared when space runs low. Nothing is uploaded, `
+                  + "and No is fine: they are then downloaded again if the browser clears them.");
+        }
+        navigator.storage?.persist?.().catch(() => {});
+      } catch { /* the browser decides */ }
       let engine = 0;
       try {
         await keepEngine((n) => tell({ loaded: engine += n }));

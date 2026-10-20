@@ -42,7 +42,7 @@
       panel.hidden = !on;
       tab.hidden = !loaded || on;
       tab.disabled = !has();
-      tab.title = has() ? "Show the table of contents  (F9)"
+      tab.title = has() ? "Open the table of contents  (F9)"
         : "This document has no table of contents (bookmarks) of its own";
       if (changed) ctx.relayout();
     }

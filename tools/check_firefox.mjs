@@ -98,11 +98,16 @@ try {
   const after = await js(`return document.querySelectorAll(".hl.annot").length`);
   check("Ctrl+A, Ctrl+H highlights the page", after > before, [before, after]);
   await sleep(1500);
+  // As after a crash: the reload goes without the mark a deliberate close
+  // leaves, so opening the file again offers the unsaved highlight back.
   await wd("POST", "/refresh", {});
   await wait(`return /Ready/.test(document.getElementById("status").textContent)`, 120000);
+  await js(`localStorage.removeItem("mimick-closed-on-purpose")`);
   await openFile(path.join(root, "sample/test-paper.pdf"));
+  await wait(`return document.getElementById("recover-dialog").open`, 30000);
+  await js(`document.getElementById("recover-go").click()`);
   await wait(`return document.querySelectorAll(".hl.annot").length > 1`, 20000);
-  check("…and the highlight comes back after a reload", (await js(`return document.querySelectorAll(".hl.annot").length`)) === after);
+  check("…and the highlight comes back after a crash, on Recover", (await js(`return document.querySelectorAll(".hl.annot").length`)) === after);
 
   await click("#view");
   await keys([CTRL, "s"]);

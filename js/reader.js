@@ -100,7 +100,7 @@
     // Python is loaded, and kept as it came. Next the default voice and its
     // engine, which ship with the app -- always one voice, offline too -- and
     // only then the rest of the offline copy, so the two do not share a slow line.
-    MimickVoicePicker.keepDefault().then((kept) => {
+    MimickVoicePicker.keepDefault(status).then((kept) => {
       if (kept) fillVoices();
       MimickOffline.complete();
     });

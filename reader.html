@@ -97,6 +97,8 @@
   #status { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #status-file { flex-shrink: 0; white-space: nowrap; padding-left: 10px; }
   #status-do { flex-shrink: 0; white-space: nowrap; margin-left: 10px; padding: 1px 10px; font-size: 12px; }
+  #unsaved { flex-shrink: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+             padding-right: 10px; margin-right: 10px; border-right: 1px solid var(--border); color: var(--text); font-weight: 600; }
   #reading-time { flex-shrink: 0; white-space: nowrap; padding-right: 10px; border-right: 1px solid var(--border); cursor: default; }
 
   button, input, select { font: inherit; color: var(--text); background: var(--panel-hi);
@@ -207,9 +209,10 @@
   .toc-link:disabled { background: none; color: var(--dim); }
   .toc-row.current .toc-link { color: var(--strong); font-weight: 600; }
   .toc-page { flex: none; padding: 0 6px 0 4px; font-size: 11px; font-variant-numeric: tabular-nums; }
-  /* The tabs on the page's edges that bring a hidden panel back. */
-  .edge-tab { position: absolute; z-index: 4; top: 64px; padding: 10px 4px; writing-mode: vertical-rl;
-              background: var(--panel); color: var(--dim); border: 1px solid var(--border); font-size: 12px;
+  /* The tabs on the page's edges that bring a closed panel back: an arrow the
+     way it opens, as an open panel's ✕ closes it (Kat, 20 October). */
+  .edge-tab { position: absolute; z-index: 4; top: 64px; padding: 14px 6px; line-height: 1;
+              background: var(--panel); color: var(--dim); border: 1px solid var(--border); font-size: 18px;
               box-shadow: 0 2px 8px var(--shadow); }
   .edge-tab:hover:not(:disabled) { color: var(--text); background: var(--hover); }
   .edge-tab:disabled { background: var(--panel); opacity: .6; }
@@ -608,13 +611,13 @@
 <aside id="contents" aria-label="Table of contents" hidden>
   <div class="contents-head panel-title">
     <h2>Contents</h2>
-    <button id="contents-hide" class="square panel-hide" title="Hide the contents  (F9)" aria-label="Hide the contents">‹</button>
+    <button id="contents-hide" class="square panel-hide" title="Close the contents  (F9)" aria-label="Close the contents">✕</button>
   </div>
   <div id="markup-contents" class="dock"></div>
   <div id="contents-list" role="tree" aria-label="Table of contents"></div>
 </aside>
-<button id="contents-tab" class="edge-tab" hidden>Contents</button>
-<button id="notes-tab" class="edge-tab" title="Show the notes panel  (Ctrl+B)" hidden>Notes</button>
+<button id="contents-tab" class="edge-tab" aria-label="Open the contents" hidden>›</button>
+<button id="notes-tab" class="edge-tab" title="Open the notes panel  (Ctrl+B)" aria-label="Open the notes panel" hidden>‹</button>
 <div id="view" tabindex="0">
   <div id="pages"></div>
   <div id="empty">
@@ -642,7 +645,7 @@
       <h2>Notes</h2>
       <input id="notes-find" type="search" placeholder="Find in notes" aria-label="Find in notes" autocomplete="off"
              title="Show only the notes with these words, from the whole document — Esc clears it">
-      <button id="notes-hide" class="square panel-hide" title="Hide the notes panel  (Ctrl+B)" aria-label="Hide the notes panel">›</button>
+      <button id="notes-hide" class="square panel-hide" title="Close the notes panel  (Ctrl+B)" aria-label="Close the notes panel">✕</button>
     </div>
     <div class="row">
       <button id="filter-quotes" class="chip" aria-pressed="true" title="Show passages you highlighted without writing anything">Highlights</button>
@@ -865,6 +868,19 @@
   </form>
 </dialog>
 
+<dialog id="recover-dialog" aria-label="Recover unsaved work">
+  <form method="dialog">
+    <h2 style="font-size:15px; margin:0 0 10px">Recover unsaved work?</h2>
+    <p style="max-width:420px">Mimick closed before your work on this document was saved to a file. This browser kept a
+      recovery copy from <span id="recover-when"></span>: <b id="recover-what"></b>.</p>
+    <p class="dim" style="max-width:420px">Recover puts it back as unsaved work, to save with Save a copy. Discard opens the
+      document as its file has it, and deletes the copy.</p>
+    <div class="buttons">
+      <button id="recover-discard" value="discard">Discard</button>
+      <button id="recover-go" class="primary" value="recover">Recover</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="forget-dialog" aria-label="Forget this document">
   <form method="dialog">
     <h2 style="font-size:15px; margin:0 0 10px">Forget this document?</h2>
@@ -975,7 +991,7 @@
       <h2>Files</h2>
       <table>
         <tr><td>Ctrl+O</td><td>Open a PDF, a document, a book, a presentation, a web page or a text file</td></tr>
-        <tr><td>Ctrl+S</td><td>Save a copy of the PDF with your notes in it — they are also kept in this browser as you work</td></tr>
+        <tr><td>Ctrl+S</td><td>Save a copy of the PDF with your notes in it — until then they are only a recovery copy in this browser</td></tr>
         <tr><td>File ▾ → Export notes</td><td>Your highlights and notes as a document of their own: Word, OpenDocument, PDF or Markdown</td></tr>
       </table>
       <h2>Showing and hiding</h2>
@@ -1004,8 +1020,7 @@
       <p><b>Find your way</b><br>A document's table of contents sits beside it (F9), and Ctrl+F finds any text.</p>
       <p><b>Say it right</b><br>Teach the voice how to say a name or a term: select it, right-click, How to say.</p>
       <p><b>Read at your speed</b><br>From 0.75× to 4×, changed at any moment.</p>
-      <p><b>Highlight and annotate</b><br>Four colours, notes beside the page in bold, italics or lists, and sticky notes with titles, tied to the passage they are about. They are kept in this browser, and
-        Save a copy gives you the PDF with them in it, as regular PDF annotations other readers can see, and
+      <p><b>Highlight and annotate</b><br>Four colours, notes beside the page in bold, italics or lists, and sticky notes with titles, tied to the passage they are about. Save a copy gives you the PDF with them in it, as regular PDF annotations other readers can see, and
         Export notes gives you them as a document of their own — Word, OpenDocument, PDF or Markdown.</p>
       <p><b>Take it with you</b><br>Convert a document, some pages of it or a passage to an MP3.</p>
       <p><b>Keeps your place</b><br>Come back to a document and pick up where you left off, at the same page and zoom.
@@ -1084,7 +1099,7 @@
 <div id="menu" role="menu" hidden></div>
 
 <footer class="bar">
-  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="status" class="dim">Starting Mimick…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
+  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="unsaved" hidden title="Save a copy (Ctrl+S) or Export notes to keep your highlights and notes">Not saved to a file. Export your work before closing this tab, or your changes will be lost.</span><span id="status" class="dim">Starting Mimick…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
   <div class="centre">
     <button id="prev" class="square" aria-label="Previous page" title="Previous page  (Page Up)" disabled>‹</button>
     <input id="page" type="number" aria-label="Page number" min="1" value="1" title="Jump to page" disabled>

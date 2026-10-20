@@ -171,14 +171,15 @@ s = await state();
 check("…and Ctrl+Z puts the highlight back, linked again", s.cards.find((c) => c.sticky)?.attached
       && /<b>this<\/b>/.test(s.cards.find((c) => !c.sticky && /Read this/.test(c.text))?.html), s.cards);
 
-// 7. A reload brings it all back.
-await sleep(1200);                       // kept in the browser a moment after the last change
-await r.load();
+// 7. Recovered after a crash, all of it.
+await sleep(1200);                       // the recovery copy is kept a moment after the last change
+await r.crashReload();
 await r.openPdf(SAMPLE);
+await r.recover();
 await wait(`document.querySelectorAll(".page .sticky").length === 1`, 20000).catch(() => {});
 await sleep(800);
 s = await state();
-check("after a reload: the formatted note, the title and the link", s.boxes[0]?.title === "📌 Question"
+check("after a crash and Recover: the formatted note, the title and the link", s.boxes[0]?.title === "📌 Question"
       && s.cards.find((c) => c.sticky)?.attached
       && /<b>this<\/b>/.test(s.cards.find((c) => !c.sticky && /Read this/.test(c.text))?.html), s.cards);
 
