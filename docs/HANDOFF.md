@@ -1,7 +1,17 @@
 # Handoff
 
 Where the browser version stands, for a fresh session. Written 16 September 2026;
-last updated 20 October (Kat's critiques of 19 October, below -- built, not pushed); the paragraph that follows was
+last updated 20 October, end of day.
+
+**Start here (20 October):** Kat's critiques of 19 October and her Next list
+are all built (`4a0cdd3`), every check passing, **nothing pushed** -- the list
+of 16 October isn't pushed either; push only on her word. Next is her answers
+to three small questions at the end of the Claude Doc ("Three small things for
+you": read it
+with `sinceRev` 1205 first. `MIMICK ADD NOTES.txt` and the screenshot in this
+folder are Kat's, untracked: never commit them.
+
+The paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
 download. Each session that worked on it ended cleanly: tree committed, the
