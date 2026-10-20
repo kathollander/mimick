@@ -71,28 +71,35 @@ not pushed either.
 - **Firefox's storage prompt** is explained in the status bar first
   (`keepDefault(explain)`, only when `permissions.query` says "prompt").
 - **Panels close with ✕, open with ‹ / ›** (no word on the edge tab).
-- **Next, all decided by Kat (20 October, in the doc):**
-  1. **Default places:** a new browser starts with all three pieces across the
-     top: Highlighting then Sticky at the top left, Text formatting top middle
-     (her screenshot in the doc). Today they start in the notes panel.
-  2. **Order within a place is the reader's:** dropping a piece before or
-     after another in the same place puts it there (today the order is fixed
-     mark, sticky, format in `mount`). Keep it per place.
-  3. **Only Save a copy counts as saved.** Export notes no longer calls
-     `savedToFile()`: the warning, the beforeunload question and the recovery
-     copy stay until the PDF is saved. check_notes' order step relies on
-     Export clearing it -- revisit that step.
-  4. **⚙ moves to Display ▾ → Note appearance…**; it leaves `#colour-row`.
-  5. **Document colours (§10):** a plain PDF has our four. A PDF with
-     highlight colours of its own uses those, one dot each (a colour we lack,
-     such as purple, gets its own dot); if fewer than four, ours fill to four,
-     skipping any family already there (any yellow counts as yellow). The row
-     wraps when long. Every dot is usable to highlight, write a note and make
-     a sticky: the highlight colour menu and the sticky colour menu both list
-     them. `colourName`/`COLOURS` in notes.js are where the four live.
-  6. Bottom bar stays a drop place.
-- Passing: notes, panel, sticky, links, recent, tour, offline, firefox,
-  contents, display.
+- **Kat's Next list, built 20 October (`4a0cdd3`), not pushed:**
+  1. **Default places** (`DEFAULT_PLACES`): Highlighting and Sticky top left,
+     Text formatting top middle. Double-click a ⋯ now sends a piece back
+     there, not to the panel. Display ▾ *Across the top / bottom* uses the
+     same arrangement (`homePlace`).
+  2. **Order per place** (`settings.order`, `mimick-order-<place>`): while
+     dragging, `makeRoom` puts a `.piece-spacer` where the piece will land
+     (before the first piece whose middle is past the pointer); `keepOrder`
+     saves it on drop. The dragged piece is out of its host meanwhile.
+  3. **Only Save a copy counts as saved**: Export notes no longer calls
+     `savedToFile()`. check_notes asserts the warning stays after export.
+  4. **⚙ is gone**; Note appearance… is in Display ▾ only (not Notes ▾).
+  5. **Document colours** (`palette()` in notes.js): colours in the file that
+     are not exactly Mimick's, merged within 0.06, a dot each, named by
+     family (`familyOf`, 0.4) or hue (`hueName`); Mimick's fill to four,
+     skipping families present, and one of Mimick's used in the file is
+     always kept. Sorted yellow, green, blue, pink, then by hue. `colourName`
+     is the nearest dot; `usable()` maps the chosen highlight / sticky colour
+     onto the palette, so new highlights on test-paper.pdf are Acrobat's
+     yellow now. "Other" is gone. Exports still name only Mimick's four
+     (`py/notes_export.py`), untouched. check_panel §4 makes a purple copy of
+     test-paper.pdf by byte edit (same length).
+  - **Asked of Kat in the doc**: double-click goes to the top now; should the
+    status-bar sentence say "Save a copy" rather than "Export your work"; two
+    file yellows show as "Yellow" and "Yellow 2".
+  - check_notes needs a Python with PyMuPDF while the desktop venv is broken:
+    `MIMICK_PYTHON=<venv>/bin/python` (a scratch venv with PyMuPDF 1.28.2).
+- Passing (after `4a0cdd3`): notes, panel, sticky, links, recent, tour,
+  offline, contents, display, firefox (its known flake once, then clean).
 
 ## Latest: Kat's list of 16 October (19 October)
 
