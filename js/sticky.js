@@ -669,7 +669,7 @@
         { label: "Copy its words", enabled: !!flat(item.text), run: () => ctx.copyText(item.text, "Copied the sticky note") },
         "-",
         { label: "Colour", enabled: false },
-        ...ctx.COLOURS.map(([name, value]) => ({
+        ...ctx.palette().map(({ name, value }) => ({
           label: name, indent: true, swatch: css(value),
           checked: value.every((v, i) => Math.abs(v - item.colour[i]) < 0.02),
           run: () => { ctx.pick(item); recolourItem(item, value); },

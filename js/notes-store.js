@@ -1,8 +1,8 @@
 /* A recovery copy of highlights and notes not yet saved to a file (IndexedDB).
  *
  * The file is what counts (Kat, 20 October): a PDF opens with the notes in it,
- * the same on any computer, and Save a copy or Export notes is how work is
- * kept. Until then js/notes.js keeps a copy here, against a hash of the PDF's
+ * the same on any computer, and Save a copy is how work is kept (Export
+ * notes makes a separate document, and does not count). Until then js/notes.js keeps a copy here, against a hash of the PDF's
  * bytes, so a crash or a browser that quits unexpectedly loses nothing: opening
  * that PDF again asks whether to recover it. Saving to a file deletes it, and
  * so does closing the tab on purpose, Discard, or seven days unopened.

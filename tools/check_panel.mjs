@@ -7,10 +7,14 @@
  *      sticky note can be linked to several highlights.
  *   3. Find in notes, beside the heading; show by colour; no All notes; the
  *      previous / next arrows big enough to hit.
+ *   4. A document's own colours (Kat, 20 October): a purple highlight from
+ *      another program gets a dot, and Mimick's fill to four; every dot can
+ *      highlight and make a sticky.
  *
  * Needs serve.py on 8731. `node tools/check_panel.mjs`
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { CTRL, root, startReader } from "./cdp.mjs";
 
@@ -187,8 +191,8 @@ check("all four colours are always there, the ones in use lit", p.chips.length >
       && p.chips.some(([, on]) => on === "true"), p.chips);
 check("…a colour with nothing in it is off", await ev(`[...document.querySelectorAll("#filter-colours .colour-chip")]
   .every((c) => !c.disabled || c.getAttribute("aria-pressed") === "false")`));
-check("the colours share a row with ‹ › ⚙, inside the panel", await ev(`(() => { const row = document.getElementById("colour-row"), n = document.getElementById("notes").getBoundingClientRect();
-  return ["filter-colours", "prev-note", "next-note", "note-style"].every((id) => row.contains(document.getElementById(id))
+check("the colours share a row with ‹ ›, inside the panel, and ⚙ is gone", await ev(`!document.getElementById("note-style")`) && await ev(`(() => { const row = document.getElementById("colour-row"), n = document.getElementById("notes").getBoundingClientRect();
+  return ["filter-colours", "prev-note", "next-note"].every((id) => row.contains(document.getElementById(id))
     && document.getElementById(id).getBoundingClientRect().right <= n.right); })()`));
 const [first] = p.chips[0];
 await r.click(await r.centre("#filter-colours .colour-chip")); await sleep(400);
@@ -199,5 +203,42 @@ check("…but not from the page", await ev(`document.querySelectorAll(".page .hl
 await r.click(await r.centre("#filter-colours .colour-chip")); await sleep(400);
 p = await panel();
 check("tapping it again shows them", p.cards.length === before && p.chips[0][1] === "true", p);
+
+
+// --- 4. A document's own colours --------------------------------------------------
+// test-paper.pdf's highlight from elsewhere, made purple. The number is cut by
+// one digit so the file keeps its length, and its cross-reference table holds.
+{
+  const bytes = fs.readFileSync(SAMPLE, "latin1");
+  const purple = bytes.replace("/C[1 1 0]", "/C[.5 0 1]").replace("591.53506 271", "591.5351 271");
+  if (purple.length !== bytes.length) throw new Error("the purple copy changed length");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "check-panel-"));
+  const file = path.join(dir, "purple-paper.pdf");
+  fs.writeFileSync(file, purple, "latin1");
+  await r.crashReload();
+  await r.openPdf(file);
+  await wait(`!document.getElementById("markup-highlight").disabled`); await sleep(1200);
+  p = await panel();
+  check("a purple from elsewhere gets a dot, and Mimick's fill to four, skipping pink",
+        JSON.stringify(p.chips.map(([n]) => n)) === JSON.stringify(["Yellow", "Green", "Blue", "Purple"]) && p.chips[3][1] === "true", p.chips);
+  check("…and nothing is called Other", !p.chips.some(([n]) => n === "Other"));
+  await r.click(await r.centre("#markup-colour"));
+  const offered = await r.menuLabels();
+  check("the highlight colour menu lists the same four", JSON.stringify(offered) === JSON.stringify(["Yellow", "Green", "Blue", "Purple"]), offered);
+  await r.menu("Purple");
+  check("…and Purple can be picked", /rgba\(128, 0, 255/.test(await ev(`document.getElementById("markup-colour").style.getPropertyValue("--swatch")`)),
+        await ev(`document.getElementById("markup-colour").style.getPropertyValue("--swatch")`));
+  await r.drag(await r.at(243, 260), await r.at(330, 260));
+  await r.key("h", CTRL); await sleep(900);
+  const onPage = await cards();
+  await r.click(await r.centre('#filter-colours .colour-chip[aria-label="Purple"]')); await sleep(400);
+  check("a highlight made in it counts as Purple", await cards() === onPage - 1, [onPage, await cards()]);
+  await r.click(await r.centre('#filter-colours .colour-chip[aria-label="Purple"]')); await sleep(400);
+  await r.click(await r.centre("#sticky-colour"));
+  const stickyOffered = await r.menuLabels();
+  check("the sticky colour menu lists them too", JSON.stringify(stickyOffered) === JSON.stringify(["Yellow", "Green", "Blue", "Purple"]), stickyOffered);
+  await r.key("Escape");
+  fs.rmSync(dir, { recursive: true, force: true });
+}
 
 r.finish();

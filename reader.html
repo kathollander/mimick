@@ -234,17 +234,18 @@
   #notes .panel-title h2 { flex: none; }
   #notes-find { flex: 1; width: 0; min-width: 0; font-size: 12px; padding: 3px 7px; }
   /* Show by colour: a round toggle for each colour, lit while shown, sharing
-     a row with ‹ › ⚙ (Kat, 19 October). */
+     a row with ‹ › (Kat, 19 October; ⚙ went to Display ▾ on 20 October). */
   #colour-row { gap: 4px; }
-  #filter-colours { display: flex; gap: 4px; min-width: 0; }
-  .colour-chip { flex: 0 1 26px; min-width: 20px; height: 22px; padding: 0; border-radius: 11px; display: grid; place-items: center;
+  /* A document with colours of its own can have more than four: they wrap
+     (Kat, 20 October). */
+  #filter-colours { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; flex: 0 1 auto; }
+  .colour-chip { flex: none; width: 26px; height: 22px; padding: 0; border-radius: 11px; display: grid; place-items: center;
                  background: transparent; font-size: 10px; color: var(--dim); }
   .colour-chip::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--swatch);
                          opacity: .35; }
   .colour-chip[aria-pressed="true"] { border-color: var(--accent); }
   .colour-chip[aria-pressed="true"]::before { opacity: 1; }
   .colour-chip:disabled::before { opacity: .2; }
-  #colour-row #note-style { width: 32px; }
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   #cards { overflow-y: auto; padding: 8px 18px; display: flex; flex-direction: column; gap: 8px; line-height: 1.3; }
   .note-card { position: relative; background: var(--panel); border-radius: 7px; padding: 10px 10px 10px 13px;
@@ -289,6 +290,7 @@
   .piece.dragging:not([data-shape="float"]) { opacity: 1; box-sizing: border-box; padding: 6px 10px;
     background: var(--panel); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px;
     box-shadow: 0 4px 16px var(--shadow); }
+  .piece-spacer { flex: none; }
   #markup-ghost { position: fixed; z-index: 6; pointer-events: none; transform: translateX(-50%);
                   padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #fff;
                   font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 2px 8px var(--shadow); }
@@ -657,11 +659,10 @@
       <span class="grow"></span>
       <button id="prev-note" class="square note-step" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
       <button id="next-note" class="square note-step" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
-      <button id="note-style" class="square" aria-label="Note appearance" title="How notes look — typeface and size">⚙</button>
     </div>
     <div id="markup-panel" class="dock">
       <div id="piece-mark" class="piece" data-piece="mark">
-        <span class="grip" id="grip-mark" title="Drag to move Highlight and Add note — the top or bottom of the page, either side column, or loose over the page. Double-click to put them back in the notes panel">⋯</span>
+        <span class="grip" id="grip-mark" title="Drag to move Highlight and Add note — the top or bottom of the page, either side column, or loose over the page. Double-click to put them back where they started">⋯</span>
         <button id="markup-note" title="Highlight the selected text and write a note  (Ctrl+M)" disabled>+  Add note</button>
         <div class="pair">
           <button id="markup-highlight" title="Highlight the selected text  (Ctrl+H)" disabled>Highlight</button>
@@ -669,14 +670,14 @@
         </div>
       </div>
       <div id="piece-sticky" class="piece" data-piece="sticky">
-        <span class="grip" id="grip-sticky" title="Drag to move Add sticky — the top or bottom of the page, either side column, or loose over the page. Double-click to put it back in the notes panel">⋯</span>
+        <span class="grip" id="grip-sticky" title="Drag to move Add sticky — the top or bottom of the page, either side column, or loose over the page. Double-click to put it back where it started">⋯</span>
         <div class="pair" id="markup-sticky-pair">
           <button id="markup-sticky" title="Add a sticky note to the page on screen, then drag it by its top edge to where it goes  (Ctrl+Alt+M)" disabled>+  Add sticky</button>
           <button id="sticky-colour" title="Sticky note colour — the one you are in, or the next one you add" aria-label="Sticky note colour" disabled></button>
         </div>
       </div>
       <div id="piece-format" class="piece" data-piece="format">
-        <span class="grip" id="grip-format" title="Drag to move the text formatting buttons — the top or bottom of the page, either side column, or loose over the page. Double-click to put them back in the notes panel">⋯</span>
+        <span class="grip" id="grip-format" title="Drag to move the text formatting buttons — the top or bottom of the page, either side column, or loose over the page. Double-click to put them back where they started">⋯</span>
         <div id="markup-format" role="toolbar" aria-label="Sticky note text" title="Formats the sticky note you are typing in">
           <select id="fmt-size" title="Text size, in points  (Ctrl+] bigger, Ctrl+[ smaller)" aria-label="Text size" disabled></select>
           <button id="fmt-bold" class="square" aria-pressed="false" title="Bold  (Ctrl+B)" aria-label="Bold" disabled><b>B</b></button>
@@ -1099,7 +1100,7 @@
 <div id="menu" role="menu" hidden></div>
 
 <footer class="bar">
-  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="unsaved" hidden title="Save a copy (Ctrl+S) or Export notes to keep your highlights and notes">Not saved to a file. Export your work before closing this tab, or your changes will be lost.</span><span id="status" class="dim">Starting Mimick…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
+  <div class="left"><span class="brand">Mimick</span><span id="reading-time" hidden></span><span id="unsaved" hidden title="Save a copy (Ctrl+S) to keep your highlights and notes in the PDF — Export notes makes a separate document and does not count">Not saved to a file. Export your work before closing this tab, or your changes will be lost.</span><span id="status" class="dim">Starting Mimick…</span><a id="status-file" hidden></a><button id="status-do" type="button" aria-label="Suggested action" hidden></button></div>
   <div class="centre">
     <button id="prev" class="square" aria-label="Previous page" title="Previous page  (Page Up)" disabled>‹</button>
     <input id="page" type="number" aria-label="Page number" min="1" value="1" title="Jump to page" disabled>

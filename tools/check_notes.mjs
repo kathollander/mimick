@@ -245,7 +245,15 @@ await r.click(await r.centre("#filter-quotes")); await r.click(await r.centre("#
 const home = (name = "mark") => ev(`(() => { const p = document.getElementById("piece-${name}");
   return JSON.stringify([p.dataset.home, p.parentElement.closest(".strip, .dock, #main").id,
   document.getElementById("markup-top").hidden, document.getElementById("markup-bottom").hidden, document.getElementById("notes").hidden]); })()`).then(JSON.parse);
-check("the pieces start in the notes panel", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false])
+// They start across the top: highlighting and sticky notes on the left, text
+// formatting in the middle (Kat, 20 October).
+check("the pieces start across the top", JSON.stringify(await home()) === JSON.stringify(["top-left", "markup-top", false, true, false])
+      && (await home("sticky"))[0] === "top-left" && (await home("format"))[0] === "top-middle"
+      && await ev(`document.getElementById("piece-mark").nextElementSibling === document.getElementById("piece-sticky")`),
+      [await home(), await home("sticky"), await home("format")]);
+await r.click(await r.centre("#display-menu"));
+await r.menu("In the notes panel"); await sleep(400);
+check("Display ▾ puts them all in the notes panel", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false])
       && (await home("sticky"))[0] === "panel" && (await home("format"))[0] === "panel", await home());
 await r.key("b", CTRL); await sleep(400);
 check("Ctrl+B hides the panel, and the pieces go with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, true]), await home());
@@ -297,7 +305,7 @@ await r.drag(await r.centre("#grip-sticky"), [600, 450], 8);
 check("dragged off again, the empty top bar goes away", (await home("sticky"))[2] === true, await home("sticky"));
 await r.click(await r.centre("#grip-sticky"), 2); await sleep(300);
 await r.click(await r.centre("#grip-format"), 2); await sleep(300);
-check("double-clicking a ⋯ puts that piece back in the panel", (await home("sticky"))[0] === "panel" && (await home("format"))[0] === "panel",
+check("double-clicking a ⋯ puts that piece back where it started", (await home("sticky"))[0] === "top-left" && (await home("format"))[0] === "top-middle",
       [await home("sticky"), await home("format")]);
 {
   // Kat, 1 October: it was unclear that the right-hand side docks it. While
@@ -317,6 +325,23 @@ check("double-clicking a ⋯ puts that piece back in the panel", (await home("st
         && shown[3] === "Drag and drop here.", shown);
   await r.mouse("mouseReleased", [right, 760]); await sleep(400);
   check("…and let go there, it goes back in", (await home())[0] === "panel" && !(await ghost())[0], await home());
+}
+// The order within a place is the reader's: dropped short of the middle of
+// the one there, a piece goes first (Kat, 20 October).
+{
+  const sticky = await ev(`JSON.stringify((({ left, top, height }) => [left, top + height / 2])(document.getElementById("piece-sticky").getBoundingClientRect()))`).then(JSON.parse);
+  await r.drag(await r.centre("#grip-format"), [Math.max(2, sticky[0] - 4), sticky[1]], 8);
+  const order = () => ev(`JSON.stringify([...document.querySelector('#markup-top [data-slot="left"]').children].map((p) => p.dataset.piece))`).then(JSON.parse);
+  check("a piece dropped before another in the same place goes first", JSON.stringify(await order()) === JSON.stringify(["format", "sticky"])
+        && (await home("format"))[0] === "top-left", [await order(), await home("format")]);
+  check("…and the order is kept", /^\["format","sticky"/.test(await ev(`localStorage.getItem("mimick-order-top-left")`)),
+        await ev(`localStorage.getItem("mimick-order-top-left")`));
+  // Picked up, format leaves the slot, so sticky moves to its start: aim just past where its end will be.
+  const past = await ev(`document.querySelector('#markup-top [data-slot="left"]').getBoundingClientRect().left
+    + document.getElementById("piece-sticky").getBoundingClientRect().width + 10`);
+  await r.drag(await r.centre("#grip-format"), [past, sticky[1]], 8);
+  check("…and dropped past it, it goes after", JSON.stringify(await order()) === JSON.stringify(["sticky", "format"]), await order());
+  await r.click(await r.centre("#grip-format"), 2); await sleep(300);
 }
 await r.key("h", CTRL | SHIFT); await sleep(300);
 check("Ctrl+Shift+H hides them", await ev(`["mark", "sticky", "format"].every((n) => document.getElementById("piece-" + n).hidden)`));
@@ -340,13 +365,15 @@ await r.key("z", CTRL); await sleep(500);
 await r.click(await r.centre("#display-menu"));
 const display = await r.menuLabels();
 check("Display lists the panel, its filters, and where the buttons go",
-      ["Notes panel", "Show highlights in the panel", "Highlight and note buttons", "Loose over the page"].every((l) => display?.includes(l)), display);
+      ["Notes panel", "Show highlights in the panel", "Note appearance…", "Highlight and note buttons", "Loose over the page"].every((l) => display?.includes(l)), display);
 await r.key("Escape");
 await r.click(await r.centre("#notes-menu"));
 const notesMenu = await r.menuLabels();
 check("Notes lists highlighting, stepping, undo and download",
-      ["Highlight selection", "Go to next note", "Undo the last highlight or note", "Save a copy with your notes (PDF)…", "Export notes…", "Note appearance…"]
+      ["Highlight selection", "Go to next note", "Undo the last highlight or note", "Save a copy with your notes (PDF)…", "Export notes…"]
         .every((l) => notesMenu?.some((m) => m.endsWith(l))), notesMenu);
+await r.key("Escape");
+await r.click(await r.centre("#display-menu"));
 await r.menu("Note appearance…");
 await r.click(await r.centre("#style-size"));
 await ev(`(() => { const i = document.getElementById("style-size"); i.value = 14; i.dispatchEvent(new Event("input")); })()`);
@@ -415,9 +442,10 @@ const exported = await ev(`document.getElementById("status-file").href`).then((h
 const firstQuoted = (exported.match(/^> “(.+)$/m) || [])[1] ?? "";
 check("…and the export follows it", (firstQuoted.match(/\(p\. (\d+)\)$/) || [])[1] === (reordered[0].match(/^p\. (\d+)/) || [])[1],
       [firstQuoted, reordered[0]]);
-// Exported, so the work counts as saved and no recovery copy is left: a redo
-// (of the highlight 10b undid) and an undo make it unsaved again, with the same
-// notes, to come back after a crash.
+// Only Save a copy counts as saved (Kat, 20 October): after an export the
+// warning stays, and so does the recovery copy, to come back after a crash.
+check("exporting notes leaves the work unsaved", await ev(`!document.getElementById("unsaved").hidden`)
+      && /^Not saved to a file/.test(await ev(`document.getElementById("notes-kept").textContent`)));
 await ev(`document.getElementById("view").focus()`);
 await r.key("y", CTRL); await sleep(600); await r.key("z", CTRL); await sleep(1500);
 await r.crashReload();

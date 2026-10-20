@@ -59,9 +59,14 @@
                    "top-right": "at the top, on the right", "bottom-left": "at the bottom, on the left",
                    "bottom-middle": "at the bottom, in the middle", "bottom-right": "at the bottom, on the right",
                    float: "loose over the page" };
-  // Display ▾ puts all three in one place at once.
-  const HOMES = { panel: "In the notes panel", "top-left": "Across the top", "bottom-left": "Across the bottom",
+  // Where they start: across the top, highlighting and sticky notes on the
+  // left, text formatting in the middle (Kat, 20 October, from her screenshot).
+  const DEFAULT_PLACES = { mark: "top-left", sticky: "top-left", format: "top-middle" };
+  // Display ▾ puts all three in one place at once; across the top or the
+  // bottom, as they start.
+  const HOMES = { panel: "In the notes panel", top: "Across the top", bottom: "Across the bottom",
                   float: "Loose over the page" };
+  const homePlace = (home, name) => (home === "top" || home === "bottom" ? DEFAULT_PLACES[name].replace("top", home) : home);
 
   const css = ([r, g, b], alpha = 1) =>
     `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${alpha})`;
@@ -132,7 +137,15 @@
       place(name) {
         const place = ctx.recall(`mimick-place-${name}`);
         if (place in PLACES) return place;
-        return { top: "top-left", bottom: "bottom-left", float: "float" }[ctx.recall("mimick-markup-place")] ?? "panel";
+        return { top: "top-left", bottom: "bottom-left", float: "float" }[ctx.recall("mimick-markup-place")] ?? DEFAULT_PLACES[name];
+      },
+      // The order of the pieces in a place: the reader's, where they have
+      // dropped one before or after another (Kat, 20 October).
+      order(place) {
+        let kept = [];
+        try { kept = JSON.parse(ctx.recall(`mimick-order-${place}`) || "[]"); } catch {}
+        const names = Object.keys(PIECES);
+        return [...(Array.isArray(kept) ? kept : []).filter((n) => names.includes(n)), ...names].filter((n, i, all) => all.indexOf(n) === i);
       },
       get font() { return ctx.recall("mimick-note-font") || ""; },
       get size() { const s = Number(ctx.recall("mimick-note-size")); return s >= 6 && s <= 24 ? s : 9; },
@@ -165,17 +178,77 @@
     /* Highlights and sticky notes together, in page order, as the panel lists
      * them -- except that a sticky linked to a highlight comes straight after it. */
     const byPlace = (a, b) => a.page - b.page || a.top - b.top;
-    /* The name of the colour it is in: Mimick's own, or "Other" for one made
-     * elsewhere in a colour of its own. */
-    function colourName(item) {
-      // Loose enough that another program's yellow (Acrobat's is purer) counts as yellow.
-      let best = "Other", near = 0.4;
-      for (const [name, value] of COLOURS) {
-        const d = Math.max(...value.map((v, i) => Math.abs(v - (item.colour?.[i] ?? 0))));
+    // --- the document's colours ----------------------------------------------------
+    // A plain PDF has Mimick's four. One with highlight colours of its own
+    // uses those, a dot each, even one Mimick lacks, such as purple; with fewer
+    // than four, Mimick's fill it to four, skipping any whose family is there
+    // already -- any yellow counts as yellow (Kat, 20 October). One of Mimick's
+    // used in the file is always there. Worked out afresh from what is in the
+    // document, so a colour goes when the last thing in it does.
+    const distance = (a, b) => Math.max(...a.map((v, i) => Math.abs(v - (b?.[i] ?? 0))));
+    /* Which of Mimick's four it is a shade of -- loose enough that another
+     * program's yellow (Acrobat's is purer) counts as yellow -- or null. */
+    function familyOf(value) {
+      let best = null, near = 0.4;
+      for (const [name, ours] of COLOURS) {
+        const d = distance(ours, value);
         if (d < near) { best = name; near = d; }
       }
       return best;
     }
+    /* A colour's hue in degrees; 400 for a grey, which has none. */
+    function hueOf([r, g, b]) {
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      if (max - min < 0.12) return 400;
+      return (max === r ? ((g - b) / (max - min) + 6) % 6 : max === g ? (b - r) / (max - min) + 2 : (r - g) / (max - min) + 4) * 60;
+    }
+    /* A name for a colour that is none of Mimick's, from its hue. */
+    function hueName(value) {
+      const h = hueOf(value), max = Math.max(...value);
+      if (h === 400) return max > 0.8 ? "White" : max < 0.25 ? "Black" : "Grey";
+      return h < 15 ? "Red" : h < 45 ? "Orange" : h < 70 ? "Yellow" : h < 160 ? "Green" : h < 200 ? "Teal"
+        : h < 255 ? "Blue" : h < 290 ? "Purple" : h < 330 ? "Magenta" : h < 345 ? "Pink" : "Red";
+    }
+    let paletteKey = null, paletteNow = COLOURS.map(([name, value]) => ({ name, value }));
+    /* The colours to show, highlight and make sticky notes in: [{ name, value }],
+     * Mimick's family order first (yellow, green, blue, pink), then by hue. */
+    function palette() {
+      const used = [...items, ...sticky.list].map((i) => i.colour).filter((c) => Array.isArray(c) && c.length >= 3);
+      const key = used.map((c) => c.slice(0, 3).map((v) => v.toFixed(3)).join(",")).join(";");
+      if (key === paletteKey) return paletteNow;
+      const theirs = [];
+      for (const c of used) {
+        if (COLOURS.some(([, ours]) => sameColour(ours, c))) continue;
+        if (!theirs.some((t) => distance(t, c) < 0.06)) theirs.push(c.slice(0, 3));
+      }
+      const families = new Set(theirs.map(familyOf));
+      const entries = theirs.map((value) => ({ value, family: familyOf(value) }));
+      for (const [name, value] of COLOURS) {
+        const inFile = used.some((c) => sameColour(value, c));
+        if (!families.has(name) && (entries.length < 4 || inFile)) entries.push({ value, family: name, ours: true });
+      }
+      const rank = (e) => { const k = COLOURS.findIndex(([n]) => n === e.family); return k >= 0 ? k * 1000 + (e.ours ? 0 : 1) : 4000 + hueOf(e.value); };
+      entries.sort((a, b) => rank(a) - rank(b));
+      const taken = new Map();
+      paletteNow = entries.map(({ value, family }) => {
+        const base = family ?? hueName(value), n = (taken.get(base) ?? 0) + 1;
+        taken.set(base, n);
+        return { name: n === 1 ? base : `${base} ${n}`, value };
+      });
+      paletteKey = key;
+      return paletteNow;
+    }
+    /* The dot a colour belongs to: the nearest in the palette. */
+    function dotOf(value) {
+      let best = palette()[0];
+      for (const p of palette()) if (distance(p.value, value) < distance(best.value, value)) best = p;
+      return best;
+    }
+    /* The name of the colour it is in, as its dot is called. */
+    const colourName = (item) => dotOf(item.colour).name;
+    /* A colour to work in that is in the palette: the dot of its family, or the first. */
+    const usable = (value) => (palette().some((p) => sameColour(p.value, value)) ? value
+      : (palette().find((p) => familyOf(p.value) === familyOf(value) && familyOf(value)) ?? palette()[0]).value);
     function everything() {
       const loose = [...items, ...sticky.list.filter((s) => !homeOf(s))].sort(byPlace);
       const out = [];
@@ -207,7 +280,7 @@
     /* Yellow, green, blue, pink, then any other, each in page order; a sticky
      * linked to a highlight stays after it. */
     function inColourOrder() {
-      const rank = (item) => { const k = COLOURS.findIndex(([name]) => name === colourName(item)); return k < 0 ? COLOURS.length : k; };
+      const rank = (item) => palette().findIndex((p) => p.name === colourName(item));
       const groups = [];
       for (const item of everything()) {
         if (isSticky(item) && homeOf(item) && groups.length) groups.at(-1).push(item);
@@ -378,7 +451,7 @@
     });
 
     // --- the reminder to save to a file -------------------------------------------
-    // From the first change after the last Save a copy or Export notes: every
+    // From the first change after the last Save a copy: every
     // fifteen minutes while it stays unsaved, a line in the status bar and a
     // button that saves. Notes ▾ → Remind me to save turns it off.
     let changedAt = null, remindedAt = null;
@@ -437,7 +510,7 @@
       label.textContent = text ?? (!open ? (savedAt ? `Saved to a file · ${time(savedAt)}` : "")
         : keepFailed ? "Not saved to a file, and no recovery copy"
         : `Not saved to a file${keptAt ? ` · recovery copy ${time(keptAt)}` : ""}`);
-      label.title = "Your work counts once it is in a file: Save a copy (Ctrl+S) or Export notes. Until then this "
+      label.title = "Your work counts once it is in the PDF: Save a copy (Ctrl+S). Until then this "
                   + "browser keeps a recovery copy, in case it closes unexpectedly.";
       // In the status bar, while there is work not in a file (Kat, 20 October).
       $("unsaved").hidden = !open;
@@ -544,8 +617,9 @@
           if (mine !== ctx.generation()) throw new Error("that document is closed now");
           return bytes;
         });
+        // A notes document is not the PDF: only Save a copy counts as saved
+        // (Kat, 20 October), so the warning and the recovery copy stay.
         if (saved) {
-          savedToFile();
           ctx.status(`${saved.picked ? "Saved" : "Sent"} ${saved.name}${saved.picked ? "" : " to your downloads"}: ${plural(items.length, "highlight")} and their notes, as a ${description}`);
         }
       } catch (err) {
@@ -827,7 +901,8 @@
       caretSpot: () => ctx.caretSpot(),
       viewSpot: () => ctx.viewSpot(),
       download: () => download(),
-      colour: () => settings.stickyColour,
+      colour: () => usable(settings.stickyColour),
+      palette: () => palette(),
       active: () => active,
       activeSticky,
       pick: (item) => { if (item && active !== item.xref) { active = item.xref; refreshAll(); } },
@@ -851,7 +926,7 @@
       // does, keys belong to it, not the page: Enter there would start reading.
       if (withNote) opening = true;
       change(async () => {
-        const item = await add(span[0], span[1], { colour });
+        const item = await add(span[0], span[1], { colour: usable(colour) });
         if (!item) { ctx.status("That selection could not be highlighted"); return; }
         active = item.xref;
         if (withNote) {
@@ -1074,7 +1149,7 @@
     function paintSwatches() {
       const row = $("note-colours");
       row.replaceChildren();
-      for (const [name, value] of COLOURS) {
+      for (const { name, value } of palette()) {
         const button = el("button", { type: "button", className: "swatch", title: name });
         button.style.setProperty("--swatch", css(value));
         button.setAttribute("aria-pressed", sameColour(value, drafting.colour));
@@ -1335,7 +1410,7 @@
       $("markup-sticky").disabled = !has;
       showFormat();
       for (const id of ["markup-highlight", "markup-colour", "markup-note"]) $(id).disabled = !has;
-      $("markup-colour").style.setProperty("--swatch", css(colour));
+      $("markup-colour").style.setProperty("--swatch", css(usable(colour)));
     }
 
     function refreshAll() {
@@ -1349,15 +1424,14 @@
     $("filter-notes").onclick = () => { ctx.remember("mimick-panel-notes", settings.written ? "0" : "1"); refreshAll(); };
     $("filter-sticky").onclick = () => { ctx.remember("mimick-panel-sticky", settings.stickies ? "0" : "1"); refreshAll(); };
 
-    /* Show by colour: a toggle for each of Mimick's colours, always there
+    /* Show by colour: a toggle for each colour of the palette, always there
      * (Kat, 19 October), lit while shown, as the chips above it are. One with
-     * nothing in it is off until something is; "Other" -- a colour from
-     * another program -- shows only when there is one. */
+     * nothing in it is off until something is. */
     let chipsShown = "";
     function showColourChips() {
       const box = $("filter-colours");
       const used = new Set([...items, ...sticky.list].map(colourName));
-      const names = [...COLOURS.map(([name]) => name), ...(used.has("Other") ? ["Other"] : [])];
+      const names = palette().map((p) => p.name);
       const hidden = settings.hiddenColours;
       // Kept when nothing changed, so a chip keeps the focus it was clicked with.
       const now = names.map((n) => n + (!used.has(n) ? "0" : hidden.includes(n) ? "-" : "+")).join();
@@ -1365,7 +1439,7 @@
       chipsShown = now;
       box.replaceChildren(...names.map((name) => {
         const inUse = used.has(name), shownNow = inUse && !hidden.includes(name);
-        const value = COLOURS.find(([n]) => n === name)?.[1];
+        const value = palette().find((p) => p.name === name)?.value;
         const chip = el("button", { type: "button", className: "colour-chip", disabled: !inUse,
                                     title: `${name}: ${!inUse ? "nothing in this colour yet" : shownNow ? "shown — click to hide" : "hidden — click to show"}` });
         chip.setAttribute("aria-label", name);
@@ -1398,7 +1472,6 @@
     });
     $("prev-note").onclick = () => step(-1);
     $("next-note").onclick = () => step(1);
-    $("note-style").onclick = () => chooseStyle();
     $("notes-download").onclick = () => download();
 
     function setPanel(on) {
@@ -1458,8 +1531,8 @@
     $("markup-note").onclick = () => { highlight(true); };
     $("markup-colour").onclick = (e) => {
       const box = e.currentTarget.getBoundingClientRect();
-      ctx.showMenu(box.left, box.bottom + 4, COLOURS.map(([name, value]) => ({
-        label: name, swatch: css(value), checked: sameColour(value, colour),
+      ctx.showMenu(box.left, box.bottom + 4, palette().map(({ name, value }) => ({
+        label: name, swatch: css(value), checked: sameColour(value, usable(colour)),
         run: () => { colour = value; refreshControls(); },
       })));
     };
@@ -1483,8 +1556,8 @@
     $("sticky-colour").onclick = (e) => {
       const box = e.currentTarget.getBoundingClientRect();
       const item = activeSticky();
-      const now = item?.colour ?? settings.stickyColour;
-      ctx.showMenu(box.left, box.bottom + 4, COLOURS.map(([name, value]) => ({
+      const now = item?.colour ?? usable(settings.stickyColour);
+      ctx.showMenu(box.left, box.bottom + 4, palette().map(({ name, value }) => ({
         label: name, swatch: css(value), checked: sameColour(value, now),
         run: () => {
           ctx.remember("mimick-sticky-colour", JSON.stringify(value));
@@ -1506,7 +1579,7 @@
         const near = sticky.SIZES.reduce((a, b) => (Math.abs(b - state.size) < Math.abs(a - state.size) ? b : a));
         sizeBox.value = near;
       }
-      $("sticky-colour").style.setProperty("--swatch", css(state.colour ?? activeSticky()?.colour ?? settings.stickyColour));
+      $("sticky-colour").style.setProperty("--swatch", css(state.colour ?? activeSticky()?.colour ?? usable(settings.stickyColour)));
       $("sticky-colour").disabled = !ready;
     }
 
@@ -1534,9 +1607,9 @@
     }
 
     /* Put a piece in a place; keep = remember it there. In a shared place the
-     * pieces keep one order: highlighting, sticky notes, formatting. */
+     * pieces keep the reader's order (settings.order). */
     function mount(name, place, point = null, keep = false) {
-      const el = piece(name), host = hostOf(place), names = Object.keys(PIECES);
+      const el = piece(name), host = hostOf(place), names = settings.order(place);
       const next = names.slice(names.indexOf(name) + 1).map(piece).find((p) => p.parentElement === host);
       if (el.parentElement !== host || (next && el.nextElementSibling !== next)) host.insertBefore(el, next ?? null);
       el.dataset.home = place;
@@ -1586,9 +1659,9 @@
 
     function placeAll(home) {
       if (home === "panel" && !settings.panel) setPanel(true);
-      Object.keys(PIECES).forEach((name, i) => mount(name, home, home === "float" ? [24, 24 + 52 * i] : null, true));
+      Object.keys(PIECES).forEach((name, i) => mount(name, homePlace(home, name), home === "float" ? [24, 24 + 52 * i] : null, true));
       showPieces();
-      ctx.status(`The editing buttons are ${PLACES[home]}`);
+      ctx.status(`The editing buttons are ${{ top: "across the top", bottom: "across the bottom" }[home] ?? PLACES[home]}`);
       ctx.relayout();
       connect();
     }
@@ -1650,9 +1723,36 @@
     // words hers, 20 October). Off it again, it follows the pointer, loose.
     const label = el("div", { id: "markup-ghost", hidden: true });
     document.body.append(label);
-    function snap(it, place) {
+    // Over a place that has pieces already, the others make room where it
+    // would go -- before the first one whose middle is past the pointer -- so
+    // a piece can be put first, last or between (Kat, 20 October).
+    const spacer = el("div", { className: "piece-spacer" });
+    function makeRoom(it, place, x, y) {
+      spacer.remove();
+      const host = hostOf(place), row = shapeOf(place) === "row";
+      if (host.closest(".strip, .dock").hidden) return null;
+      const others = [...host.children].filter((p) => p.classList.contains("piece") && !p.hidden && p !== it);
+      if (!others.length) return null;
+      const before = others.find((p) => {
+        const b = p.getBoundingClientRect();
+        return row ? x < b.left + b.width / 2 : y < b.top + b.height / 2;
+      });
+      spacer.style.width = row ? it.offsetWidth + "px" : "";
+      spacer.style.height = row ? "1px" : it.offsetHeight + "px";
+      host.insertBefore(spacer, before ?? null);
+      return spacer.getBoundingClientRect();
+    }
+    /* Dropped where the room was made: that is its place in the order there. */
+    function keepOrder(name, place) {
+      const host = hostOf(place);
+      if (spacer.parentElement !== host) return;
+      // The piece being dragged is out of its place meanwhile (pointerdown).
+      const list = [...host.children].map((p) => (p === spacer ? name : p.dataset.piece)).filter(Boolean);
+      ctx.remember(`mimick-order-${place}`, JSON.stringify([...list, ...settings.order(place).filter((n) => !list.includes(n))]));
+    }
+    function snap(it, place, x, y) {
       it.dataset.shape = shapeOf(place);
-      if (place === "float") { it.style.width = ""; label.hidden = true; return false; }
+      if (place === "float") { it.style.width = ""; label.hidden = true; spacer.remove(); return false; }
       const main = $("main").getBoundingClientRect();
       let left, top;
       if (place === "panel" || place === "contents") {
@@ -1660,11 +1760,15 @@
         it.style.width = column.width + "px";
         left = column.left - main.left;
         // Where its dock begins, whether or not anything is in it yet.
-        top = hostOf(place).previousElementSibling.getBoundingClientRect().bottom + (place === "panel" ? 6 : 0) - main.top;
+        const room = makeRoom(it, place, x, y);
+        top = room ? room.top - main.top
+          : hostOf(place).previousElementSibling.getBoundingClientRect().bottom + (place === "panel" ? 6 : 0) - main.top;
       } else {
         const [edge, slot] = place.split("-");
         it.style.width = "";
-        left = slot === "left" ? 14 : slot === "middle" ? (main.width - it.offsetWidth) / 2 : main.width - it.offsetWidth - 14;
+        const room = makeRoom(it, place, x, y);
+        left = room ? room.left - main.left
+          : slot === "left" ? 14 : slot === "middle" ? (main.width - it.offsetWidth) / 2 : main.width - it.offsetWidth - 14;
         top = edge === "top" ? 0 : main.height - it.offsetHeight;
       }
       Object.assign(it.style, { left: left + "px", top: top + "px" });
@@ -1699,7 +1803,7 @@
         dragging.moved ||= Math.hypot(e.clientX - dragging.x, e.clientY - dragging.y) > 4;
         if (!dragging.moved) return;
         it.dataset.aim = aim(e.clientX, e.clientY);
-        if (snap(it, it.dataset.aim)) return;
+        if (snap(it, it.dataset.aim, e.clientX, e.clientY)) return;
         const main = $("main").getBoundingClientRect();
         const [x, y] = inside(it, e.clientX - dragging.dx - main.left, e.clientY - dragging.dy - main.top);
         Object.assign(it.style, { left: x + "px", top: y + "px" });
@@ -1712,16 +1816,19 @@
         delete it.dataset.aim;
         label.hidden = true;
         if (!moved) {
+          spacer.remove();
           // A press, not a drag: it stays where it was. A second one soon
-          // after puts it back in the notes panel.
+          // after puts it back where it started.
           const again = lastTap?.name === name && e.timeStamp - lastTap.at < 450;
           lastTap = again ? null : { name, at: e.timeStamp };
-          if (again) placePiece(name, "panel", null, true);
+          if (again) placePiece(name, DEFAULT_PLACES[name], null, true);
           else { mount(name, from); showPieces(); ctx.relayout(); }
           return;
         }
         lastTap = null;
         const place = aim(e.clientX, e.clientY);
+        if (place !== "float") keepOrder(name, place);
+        spacer.remove();
         placePiece(name, place, place === "float" ? [parseFloat(it.style.left), parseFloat(it.style.top)] : null, true);
       };
       grip.addEventListener("pointerup", endDrag);
@@ -1752,7 +1859,6 @@
         "-",
         { label: "Save a copy with your notes (PDF)…", keys: "Ctrl+S", enabled: ready, run: download },
         { label: "Export notes…", enabled: ready && items.length + sticky.list.length > 0, run: exportNotes },
-        { label: "Note appearance…", run: chooseStyle },
         { label: `Remind me to save every ${REMIND_MINUTES} minutes`, checked: remindOn(), run: () => {
           ctx.remember("mimick-save-reminder", remindOn() ? "0" : "1");
           if (!remindOn()) ctx.unask("save");
@@ -1768,11 +1874,13 @@
         { label: "Show highlights in the panel", checked: settings.quotes, run: () => $("filter-quotes").click() },
         { label: "Show notes in the panel", checked: settings.written, run: () => $("filter-notes").click() },
         { label: "Show sticky notes in the panel", checked: settings.stickies, run: () => $("filter-sticky").click() },
+        // Here rather than as ⚙ in the panel, to give its colours room (Kat, 20 October).
+        { label: "Note appearance…", run: chooseStyle },
         "-",
         { label: "Sticky notes", checked: settings.sticky, run: () => setSticky(!settings.sticky) },
         { label: "Highlight and note buttons", keys: "Ctrl+Shift+H", checked: settings.bar, run: () => setBar(!settings.bar) },
         ...Object.entries(HOMES).map(([home, label]) => ({
-          label, indent: true, checked: Object.keys(PIECES).every((name) => settings.place(name) === home),
+          label, indent: true, checked: Object.keys(PIECES).every((name) => settings.place(name) === homePlace(home, name)),
           run: () => placeAll(home),
         })),
       ];

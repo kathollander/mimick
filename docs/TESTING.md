@@ -12,6 +12,22 @@ python3 serve.py
 Tick what works, and write down anything that doesn't -- what you did, what you
 expected, what happened.
 
+## Kat's critiques of 19 October — http://localhost:8731/reader.html
+
+Built 20 October, not pushed. Open a PDF with some text; for the colours, one
+highlighted in another program too.
+
+- [ ] In a new browser (or after clearing the site's data), the editing pieces start **across the top**: Highlighting and Sticky at the left, Text formatting in the middle, as in your screenshot
+- [ ] Drag a piece by its ⋯ onto a place that has one already: the other moves aside to show where it will go. Drop it before or after; the order stays after a reload
+- [ ] Double-click a ⋯: that piece goes back where it started
+- [ ] Each piece also docks in the contents column and the notes panel (while open), and at the bottom bar's left, middle and right
+- [ ] The notes panel: **✕** closes it; **‹** on the right edge opens it again (Contents: ✕ and ›)
+- [ ] A highlight not in a file: the status bar says *Not saved to a file. Export your work before closing this tab…*. **Save a copy** clears it; **Export notes** does not (the notes document is a separate thing)
+- [ ] Close the tab normally, then open the same PDF: no notes from the browser, and nothing asked. Kill the browser instead (or let it crash): opening the PDF asks to recover, naming what isn't in the file
+- [ ] ⚙ is gone from the panel; **Display ▾ → Note appearance…** does its job
+- [ ] A plain PDF: the colour dots are your four. A PDF with its own colours: a dot for each (a purple gets its own), with yours filling to four, skipping any colour already there; the row wraps when long
+- [ ] Every dot can be picked for a highlight (the colour button beside Highlight), a note's colour, and a sticky (its colour button, and its right-click menu)
+
 ## Kat's list of 16 October — http://localhost:8731/reader.html
 
 Built 19 October, not pushed. Open any PDF with some text.
@@ -263,7 +279,7 @@ only the sample.
 **The panel**
 - [ ] It shows the notes for the page you're looking at, and changes as you scroll
 - [ ] **Highlights** and **Notes** at the top switch each kind on and off; their numbers are right
-- [ ] ⚙ lets you change the typeface, the size and your name; the cards change as you choose
+- [ ] **Display ▾ → Note appearance…** (no longer ⚙ in the panel) lets you change the typeface, the size and your name; the cards change as you choose
 - [ ] Notes get bigger and smaller as you zoom
 - [ ] `Ctrl`+`B` hides and shows the panel
 

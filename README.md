@@ -49,8 +49,12 @@ progress.
    hides them), and are kept in this browser as you work. **Find in notes**,
    beside the panel's heading, shows the notes with those words from the whole
    document. The **Highlights**, **Notes** and **Sticky** buttons, and a round
-   button for each colour in use, choose what the panel shows: lit is shown,
-   tap to hide. The buttons over a
+   button for each colour, choose what the panel shows: lit is shown, tap to
+   hide. A PDF with highlight colours of its own uses those, with Mimick's
+   filling up to four. The editing buttons start across the top, in three
+   pieces; drag a piece by its ⋯ to the top or bottom (left, middle or
+   right), either side column, or loose over the page, before or after
+   another. The buttons over a
    note make words **bold**, *italic*, underlined, ~~struck out~~ or a bullet
    list (`Ctrl`+`B`, `I`, `U`, `Ctrl`+`Shift`+`X`, `Ctrl`+`Shift`+`8`); a
    saved copy keeps the formatting for Acrobat, and other readers show the
