@@ -97,8 +97,11 @@ question only for work not yet in a file; a Reopen button on a new tab.
   `Mimick-linux/.venv` was built on 3.13, which is gone, so `import pymupdf`
   fails -- the desktop app likely does not start, and the web checks that
   read a saved copy with it failed. They take `MIMICK_PYTHON` now; any Python
-  with PyMuPDF 1.28.2 will do (a scratch venv was used). Rebuilding the venv
-  (`./install.sh` in `Mimick-linux`) is Kat's call.
+  with PyMuPDF 1.28.2 will do (a scratch venv was used). Kat's system
+  update (20 October, she confirmed) is the cause. Fix, in `Mimick-linux`:
+  `mv .venv .venv-old && ./install.sh`, then `rm -rf .venv-old` once the app
+  opens -- plain `./install.sh` keeps the broken `.venv` because
+  `.venv/bin/python` still exists. Details: `Mimick-linux/docs/ROADMAP.md`.
 - **Desktop:** only the shared code. Its UI for all of this is in PARITY.md.
 
 ## Latest: formatted notes, sticky titles, stickies linked to highlights (15 October)
