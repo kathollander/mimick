@@ -149,7 +149,14 @@ await r.key("Escape"); await sleep(300);
 p = await panel();
 check("Esc clears it, and the panel is as it was", p.cards.length === before && await ev(`document.getElementById("notes-find").value === ""`), p);
 
-check("a toggle for each colour in use, all lit", p.chips.length >= 1 && p.chips.every(([, on]) => on === "true"), p.chips);
+check("all four colours are always there, the ones in use lit", p.chips.length >= 4
+      && ["Yellow", "Green", "Blue", "Pink"].every((n, i) => p.chips[i][0] === n)
+      && p.chips.some(([, on]) => on === "true"), p.chips);
+check("…a colour with nothing in it is off", await ev(`[...document.querySelectorAll("#filter-colours .colour-chip")]
+  .every((c) => !c.disabled || c.getAttribute("aria-pressed") === "false")`));
+check("the colours share a row with ‹ › ⚙, inside the panel", await ev(`(() => { const row = document.getElementById("colour-row"), n = document.getElementById("notes").getBoundingClientRect();
+  return ["filter-colours", "prev-note", "next-note", "note-style"].every((id) => row.contains(document.getElementById(id))
+    && document.getElementById(id).getBoundingClientRect().right <= n.right); })()`));
 const [first] = p.chips[0];
 await r.click(await r.centre("#filter-colours .colour-chip")); await sleep(400);
 const hiddenOne = await panel();

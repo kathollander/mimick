@@ -189,13 +189,13 @@
   .page .remove:hover { background: #fff; color: #000; }
 
   /* The table of contents, on the left; js/contents.js. */
-  #contents { width: 260px; display: grid; grid-template-rows: auto 1fr; min-height: 0;
+  #contents { width: 260px; display: grid; grid-template-rows: auto auto 1fr; min-height: 0;
               background: var(--side); border-right: 1px solid var(--border); }
   .panel-title { display: flex; align-items: center; gap: 6px; }
   .panel-title h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
   .contents-head { padding: 8px 10px; border-bottom: 1px solid var(--border); }
   @media (max-width: 1200px) { #contents { width: 220px; } }
-  #contents-list { position: relative; overflow-y: auto; padding: 6px 4px 12px; }
+  #contents-list { grid-row: 3; position: relative; overflow-y: auto; padding: 6px 4px 12px; }
   .toc-row { display: flex; align-items: baseline; gap: 2px; padding-left: calc(var(--depth) * 14px); border-radius: 5px; }
   .toc-row:hover { background: var(--hover); }
   .toc-row.current { background: var(--panel-hi); box-shadow: inset 3px 0 0 var(--accent); }
@@ -230,15 +230,18 @@
   /* Find in notes, beside the heading (Kat, 16 October). */
   #notes .panel-title h2 { flex: none; }
   #notes-find { flex: 1; width: 0; min-width: 0; font-size: 12px; padding: 3px 7px; }
-  /* Show by colour: one round toggle a colour in use, lit while shown. */
-  #filter-colours { flex-wrap: wrap; gap: 5px; }
-  #filter-colours:empty { display: none; }
-  .colour-chip { width: 26px; height: 22px; padding: 0; border-radius: 11px; display: grid; place-items: center;
+  /* Show by colour: a round toggle for each colour, lit while shown, sharing
+     a row with ‹ › ⚙ (Kat, 19 October). */
+  #colour-row { gap: 4px; }
+  #filter-colours { display: flex; gap: 4px; min-width: 0; }
+  .colour-chip { flex: 0 1 26px; min-width: 20px; height: 22px; padding: 0; border-radius: 11px; display: grid; place-items: center;
                  background: transparent; font-size: 10px; color: var(--dim); }
   .colour-chip::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--swatch);
                          opacity: .35; }
   .colour-chip[aria-pressed="true"] { border-color: var(--accent); }
   .colour-chip[aria-pressed="true"]::before { opacity: 1; }
+  .colour-chip:disabled::before { opacity: .2; }
+  #colour-row #note-style { width: 32px; }
   .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   #cards { overflow-y: auto; padding: 8px 18px; display: flex; flex-direction: column; gap: 8px; line-height: 1.3; }
   .note-card { position: relative; background: var(--panel); border-radius: 7px; padding: 10px 10px 10px 13px;
@@ -259,29 +262,39 @@
   #connectors { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
   #connectors line { stroke-width: 1.2; }
 
-  /* Highlight and Add note: one strip, in one of four places. */
-  .strip { display: flex; padding: 4px 14px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  /* The editing tools, in three pieces -- highlighting, sticky notes, text
+     formatting -- each with its own ⋯ to move it (Kat, 19 October). A piece
+     goes down a side column (data-shape "column"), into the top or bottom
+     bar's left, middle or right ("row"), or loose over the page ("float"). */
+  .strip { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+           padding: 4px 14px; background: var(--panel); border-bottom: 1px solid var(--border); }
   #markup-bottom { border-bottom: 0; border-top: 1px solid var(--border); }
-  #markup { display: flex; align-items: center; gap: 6px; }
-  #markup[data-home="panel"] { flex-direction: column; align-items: stretch; }
-  #markup[data-home="float"] { position: absolute; z-index: 5; padding: 6px 8px; background: var(--panel);
+  .strip .slot { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .strip .slot[data-slot="middle"] { justify-content: center; }
+  .strip .slot[data-slot="right"] { justify-content: flex-end; }
+  .dock { display: flex; flex-direction: column; gap: 6px; }
+  .dock[hidden] { display: none; }
+  #markup-contents { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .piece { display: flex; align-items: center; gap: 6px; }
+  .piece[hidden] { display: none; }
+  .piece[data-shape="column"] { flex-direction: column; align-items: stretch; }
+  .piece[data-shape="float"] { position: absolute; z-index: 5; padding: 6px 8px; background: var(--panel);
                                border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 16px var(--shadow); }
-  #markup.dragging { opacity: .9; }
-  /* Dragged over a place it docks, the strip snaps there in that place's shape,
+  /* Dragged over a place it docks, a piece snaps there in that place's shape,
      outlined, with a label under it (js/notes.js, snap). */
-  #markup.dragging { position: absolute; z-index: 5; }
-  #markup.dragging:not([data-home="float"]) { opacity: 1; box-sizing: border-box; padding: 6px 10px;
+  .piece.dragging { position: absolute; z-index: 5; opacity: .9; }
+  .piece.dragging:not([data-shape="float"]) { opacity: 1; box-sizing: border-box; padding: 6px 10px;
     background: var(--panel); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: 6px;
     box-shadow: 0 4px 16px var(--shadow); }
   #markup-ghost { position: fixed; z-index: 6; pointer-events: none; transform: translateX(-50%);
                   padding: 3px 10px; border-radius: 999px; background: var(--accent); color: #fff;
                   font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 2px 8px var(--shadow); }
-  #markup-ghost[data-home="bottom"] { transform: translate(-50%, -100%); }
+  #markup-ghost[data-edge="bottom"] { transform: translate(-50%, -100%); }
   #markup-ghost[hidden] { display: none; }
-  #markup-grip { color: var(--dim); font-size: 15px; cursor: grab; user-select: none; padding: 0 4px; text-align: center;
+  .piece .grip { color: var(--dim); font-size: 15px; cursor: grab; user-select: none; padding: 0 4px; text-align: center;
                  touch-action: none; }
-  #markup[data-home="panel"] #markup-grip { line-height: .6; }
-  #markup.dragging #markup-grip { cursor: grabbing; }
+  .piece[data-shape="column"] .grip { line-height: .6; }
+  .piece.dragging .grip { cursor: grabbing; }
   .pair { display: flex; gap: 4px; }
   .pair #markup-highlight, .pair #markup-sticky { flex: 1; }
   #markup-colour, #sticky-colour, .swatch { width: 44px; }
@@ -290,13 +303,12 @@
   #sticky-colour::after { border-radius: 3px; border: 1px solid rgba(0,0,0,.35); }   /* a note's shape, not a highlight's */
   .swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   #markup-format { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
-  #markup[data-home="panel"] #markup-format { padding-top: 4px; border-top: 1px dashed var(--border); }
   #markup-format:not(.live) { opacity: .55; }
   #markup-format .square { width: 34px; padding: 3px 0; }
-  /* In the panel the row has the column's width to itself: its buttons share it. */
-  #markup[data-home="panel"] #markup-format { flex-wrap: nowrap; gap: 4px; }
-  #markup[data-home="panel"] #markup-format > * { flex: 1; min-width: 0; }
-  #markup[data-home="panel"] #fmt-size { flex: 1.4; }
+  /* In a column the row has the column's width to itself: its buttons share it. */
+  .piece[data-shape="column"] #markup-format { flex-wrap: nowrap; gap: 4px; }
+  .piece[data-shape="column"] #markup-format > * { flex: 1; min-width: 0; }
+  .piece[data-shape="column"] #fmt-size { flex: 1.4; }
   #markup-format [aria-pressed="true"] { border-color: var(--accent); background: var(--pressed); }
   #fmt-size { width: 58px; padding: 3px 4px; }
 
@@ -590,7 +602,7 @@
     <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2.5h11v7l-4 4h-7z"/><path d="M9.5 13.5v-4h4"/></svg><span>Sticky notes</span></button>
 </div>
 
-<div id="markup-top" class="strip" hidden></div>
+<div id="markup-top" class="strip" hidden><div class="slot" data-slot="left"></div><div class="slot" data-slot="middle"></div><div class="slot" data-slot="right"></div></div>
 
 <div id="main">
 <aside id="contents" aria-label="Table of contents" hidden>
@@ -598,6 +610,7 @@
     <h2>Contents</h2>
     <button id="contents-hide" class="square panel-hide" title="Hide the contents  (F9)" aria-label="Hide the contents">‹</button>
   </div>
+  <div id="markup-contents" class="dock"></div>
   <div id="contents-list" role="tree" aria-label="Table of contents"></div>
 </aside>
 <button id="contents-tab" class="edge-tab" hidden>Contents</button>
@@ -636,19 +649,31 @@
       <button id="filter-notes" class="chip" aria-pressed="true" title="Show the ones you wrote a note on">Notes</button>
       <button id="filter-sticky" class="chip" aria-pressed="true" title="Show your sticky notes">Sticky</button>
     </div>
-    <div id="filter-colours" class="row" role="group" aria-label="Show by colour"></div>
-    <div id="markup-panel">
-      <div id="markup" data-home="panel">
-        <span id="markup-grip" title="Drag to move these buttons — the top or bottom of the page, the notes panel, or loose over the page">⋯</span>
+    <div class="row" id="colour-row">
+      <div id="filter-colours" role="group" aria-label="Show by colour"></div>
+      <span class="grow"></span>
+      <button id="prev-note" class="square note-step" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
+      <button id="next-note" class="square note-step" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
+      <button id="note-style" class="square" aria-label="Note appearance" title="How notes look — typeface and size">⚙</button>
+    </div>
+    <div id="markup-panel" class="dock">
+      <div id="piece-mark" class="piece" data-piece="mark">
+        <span class="grip" id="grip-mark" title="Drag to move Highlight and Add note — the top or bottom of the page, either side column, or loose over the page. Double-click to put them back in the notes panel">⋯</span>
         <button id="markup-note" title="Highlight the selected text and write a note  (Ctrl+M)" disabled>+  Add note</button>
         <div class="pair">
           <button id="markup-highlight" title="Highlight the selected text  (Ctrl+H)" disabled>Highlight</button>
           <button id="markup-colour" title="Highlight colour" aria-label="Highlight colour" disabled></button>
         </div>
+      </div>
+      <div id="piece-sticky" class="piece" data-piece="sticky">
+        <span class="grip" id="grip-sticky" title="Drag to move Add sticky — the top or bottom of the page, either side column, or loose over the page. Double-click to put it back in the notes panel">⋯</span>
         <div class="pair" id="markup-sticky-pair">
           <button id="markup-sticky" title="Add a sticky note to the page on screen, then drag it by its top edge to where it goes  (Ctrl+Alt+M)" disabled>+  Add sticky</button>
           <button id="sticky-colour" title="Sticky note colour — the one you are in, or the next one you add" aria-label="Sticky note colour" disabled></button>
         </div>
+      </div>
+      <div id="piece-format" class="piece" data-piece="format">
+        <span class="grip" id="grip-format" title="Drag to move the text formatting buttons — the top or bottom of the page, either side column, or loose over the page. Double-click to put them back in the notes panel">⋯</span>
         <div id="markup-format" role="toolbar" aria-label="Sticky note text" title="Formats the sticky note you are typing in">
           <select id="fmt-size" title="Text size, in points  (Ctrl+] bigger, Ctrl+[ smaller)" aria-label="Text size" disabled></select>
           <button id="fmt-bold" class="square" aria-pressed="false" title="Bold  (Ctrl+B)" aria-label="Bold" disabled><b>B</b></button>
@@ -658,12 +683,6 @@
           <button id="fmt-list" class="square" aria-pressed="false" title="Bullet list  (Ctrl+Shift+8)" aria-label="Bullet list" disabled>•≡</button>
         </div>
       </div>
-    </div>
-    <div class="row">
-      <span class="grow"></span>
-      <button id="prev-note" class="square note-step" aria-label="Previous note" title="Previous note  (Ctrl+K)" disabled>‹</button>
-      <button id="next-note" class="square note-step" aria-label="Next note" title="Next note  (Ctrl+J)" disabled>›</button>
-      <button id="note-style" class="square" aria-label="Note appearance" title="How notes look — typeface and size">⚙</button>
     </div>
   </div>
   <div id="cards"></div>
@@ -684,7 +703,7 @@
 </div>
 </div>
 
-<div id="markup-bottom" class="strip" hidden></div>
+<div id="markup-bottom" class="strip" hidden><div class="slot" data-slot="left"></div><div class="slot" data-slot="middle"></div><div class="slot" data-slot="right"></div></div>
 
 <!-- The guided tour: js/tour.js places every piece of this and fills the card in. -->
 <div id="tour" hidden>

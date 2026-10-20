@@ -47,9 +47,18 @@
   // Mimick says so (Kat, 23 September). They are kept in the browser as they
   // are made, but a browser's storage can be cleared; a file cannot.
   const REMIND_MINUTES = 15;
-  const SNAP_MARGIN = 56;        // how near an edge a dropped strip counts as aimed at it
+  const SNAP_MARGIN = 56;        // how near an edge a dropped piece counts as aimed at it
   const REMOVE_SIZE = 18;        // the little x, in pixels
-  const HOMES = { panel: "In the notes panel", top: "Across the top", bottom: "Across the bottom",
+  // The editing tools come in three pieces, each moved by its own ⋯ (Kat, 19
+  // October), and each kept where it was put.
+  const PIECES = { mark: "Highlight and Add note", sticky: "Add sticky", format: "Text formatting" };
+  const PLACES = { panel: "in the notes panel", contents: "in the contents column",
+                   "top-left": "at the top, on the left", "top-middle": "at the top, in the middle",
+                   "top-right": "at the top, on the right", "bottom-left": "at the bottom, on the left",
+                   "bottom-middle": "at the bottom, in the middle", "bottom-right": "at the bottom, on the right",
+                   float: "loose over the page" };
+  // Display ▾ puts all three in one place at once.
+  const HOMES = { panel: "In the notes panel", "top-left": "Across the top", "bottom-left": "Across the bottom",
                   float: "Loose over the page" };
 
   const css = ([r, g, b], alpha = 1) =>
@@ -116,10 +125,13 @@
       get quotes() { return ctx.recall("mimick-panel-quotes") !== "0"; },
       get written() { return ctx.recall("mimick-panel-notes") !== "0"; },
       get bar() { return ctx.recall("mimick-markup-shown") !== "0"; },
-      // A new key on 1 October: until then hiding the notes panel moved the
-      // strip to the top and saved that, so browsers remembered a "top" nobody
-      // chose. Everyone starts back in the panel once (Kat, 1 October).
-      get home() { const h = ctx.recall("mimick-markup-place"); return h in HOMES ? h : "panel"; },
+      // Where a piece was put. Until 20 October the three moved as one strip,
+      // kept as mimick-markup-place; a browser that had moved it keeps that.
+      place(name) {
+        const place = ctx.recall(`mimick-place-${name}`);
+        if (place in PLACES) return place;
+        return { top: "top-left", bottom: "bottom-left", float: "float" }[ctx.recall("mimick-markup-place")] ?? "panel";
+      },
       get font() { return ctx.recall("mimick-note-font") || ""; },
       get size() { const s = Number(ctx.recall("mimick-note-size")); return s >= 6 && s <= 24 ? s : 9; },
       get author() { return ctx.recall("mimick-author") || ""; },
@@ -1231,7 +1243,7 @@
       $("note-count").textContent = [items.length ? plural(items.length, "note") : "", stuck ? plural(stuck, "sticky") : ""]
         .filter(Boolean).join(" · ");
       $("notes-foot").hidden = !(has && (items.length || stuck));
-      $("markup-sticky-pair").hidden = $("markup-format").hidden = !settings.sticky;
+      showPieces();
       $("markup-sticky").disabled = !has;
       showFormat();
       for (const id of ["markup-highlight", "markup-colour", "markup-note"]) $(id).disabled = !has;
@@ -1249,23 +1261,25 @@
     $("filter-notes").onclick = () => { ctx.remember("mimick-panel-notes", settings.written ? "0" : "1"); refreshAll(); };
     $("filter-sticky").onclick = () => { ctx.remember("mimick-panel-sticky", settings.stickies ? "0" : "1"); refreshAll(); };
 
-    /* Show by colour: a toggle for each colour that has a highlight or sticky
-     * in it, lit while shown, as the chips beside it are. */
+    /* Show by colour: a toggle for each of Mimick's colours, always there
+     * (Kat, 19 October), lit while shown, as the chips above it are. One with
+     * nothing in it is off until something is; "Other" -- a colour from
+     * another program -- shows only when there is one. */
     let chipsShown = "";
     function showColourChips() {
       const box = $("filter-colours");
       const used = new Set([...items, ...sticky.list].map(colourName));
-      const names = [...COLOURS.map(([name]) => name), "Other"].filter((n) => used.has(n));
+      const names = [...COLOURS.map(([name]) => name), ...(used.has("Other") ? ["Other"] : [])];
       const hidden = settings.hiddenColours;
       // Kept when nothing changed, so a chip keeps the focus it was clicked with.
-      const now = names.map((n) => n + (hidden.includes(n) ? "-" : "+")).join();
+      const now = names.map((n) => n + (!used.has(n) ? "0" : hidden.includes(n) ? "-" : "+")).join();
       if (now === chipsShown) return;
       chipsShown = now;
       box.replaceChildren(...names.map((name) => {
-        const shownNow = !hidden.includes(name);
+        const inUse = used.has(name), shownNow = inUse && !hidden.includes(name);
         const value = COLOURS.find(([n]) => n === name)?.[1];
-        const chip = el("button", { type: "button", className: "colour-chip",
-                                    title: `${name}: ${shownNow ? "shown — click to hide" : "hidden — click to show"}` });
+        const chip = el("button", { type: "button", className: "colour-chip", disabled: !inUse,
+                                    title: `${name}: ${!inUse ? "nothing in this colour yet" : shownNow ? "shown — click to hide" : "hidden — click to show"}` });
         chip.setAttribute("aria-label", name);
         chip.setAttribute("aria-pressed", shownNow);
         chip.style.setProperty("--swatch", value ? css(value) : "var(--dim)");
@@ -1352,7 +1366,6 @@
     // --- the Highlight and Add note strip ----------------------------------------
     // markup_bar.py: one strip with four homes, dragged by its grip.
 
-    const bar = $("markup");
     $("markup-highlight").onclick = () => { highlight(false); ctx.focusPage(); };
     $("markup-note").onclick = () => { highlight(true); };
     $("markup-colour").onclick = (e) => {
@@ -1416,133 +1429,222 @@
                     : "+ Add sticky is off the strip — the sticky notes on the page stay where they are");
     }
 
-    function placeBar(home, point = null, announce = false) {
-      if (home === "panel" && !settings.panel && announce) { setPanel(true); return placeBar(home, point, announce); }
-      const hosts = { panel: $("markup-panel"), top: $("markup-top"), bottom: $("markup-bottom"), float: $("main") };
-      hosts[home].append(bar);
-      bar.dataset.home = home;
-      $("markup-top").hidden = !(home === "top" && settings.bar);
-      $("markup-bottom").hidden = !(home === "bottom" && settings.bar);
-      bar.hidden = !settings.bar;
-      if (home === "float") {
-        const [x, y] = inside(...(point ?? JSON.parse(ctx.recall("mimick-markup-point") || "[24, 24]")));
-        ctx.remember("mimick-markup-point", JSON.stringify([x, y]));
-        keepInside();
+    const piece = (name) => $(`piece-${name}`);
+    const hostOf = (place) => place === "panel" ? $("markup-panel") : place === "contents" ? $("markup-contents")
+      : place === "float" ? $("main") : $(`markup-${place.split("-")[0]}`).querySelector(`[data-slot="${place.split("-")[1]}"]`);
+    const shapeOf = (place) => (place === "panel" || place === "contents" ? "column" : place === "float" ? "float" : "row");
+    const contentsShown = () => !$("contents").hidden;
+
+    /* Where a piece is shown just now. One in the contents column goes away
+     * with it and comes back with it, as one in the notes panel does; but a
+     * document with no contents has no column to bring back, so there it
+     * stands in at the top left. */
+    function where(name) {
+      const place = settings.place(name);
+      if (place === "contents" && !contentsShown() && !$("contents-tab").hidden && $("contents-tab").disabled) return "top-left";
+      return place;
+    }
+
+    /* Put a piece in a place; keep = remember it there. In a shared place the
+     * pieces keep one order: highlighting, sticky notes, formatting. */
+    function mount(name, place, point = null, keep = false) {
+      const el = piece(name), host = hostOf(place), names = Object.keys(PIECES);
+      const next = names.slice(names.indexOf(name) + 1).map(piece).find((p) => p.parentElement === host);
+      if (el.parentElement !== host || (next && el.nextElementSibling !== next)) host.insertBefore(el, next ?? null);
+      el.dataset.home = place;
+      el.dataset.shape = shapeOf(place);
+      el.style.width = "";
+      if (place === "float") {
+        const [x, y] = inside(el, ...(point ?? floatPoint(name)));
+        if (keep) ctx.remember(`mimick-point-${name}`, JSON.stringify([x, y]));
+        Object.assign(el.style, { left: x + "px", top: y + "px" });
       } else {
-        bar.style.left = bar.style.top = "";
+        el.style.left = el.style.top = "";
       }
-      ctx.remember("mimick-markup-place", home);
+      if (keep) ctx.remember(`mimick-place-${name}`, place);
+    }
+    function floatPoint(name) {
+      try {
+        const kept = JSON.parse(ctx.recall(`mimick-point-${name}`) || "null");
+        if (Array.isArray(kept)) return kept;
+        const [x, y] = JSON.parse(ctx.recall("mimick-markup-point") || "[24, 24]");
+        return [x, y + 52 * Object.keys(PIECES).indexOf(name)];
+      } catch { return [24, 24]; }
+    }
+
+    /* Which pieces show, and which bars and docks have anything in them. */
+    function showPieces() {
+      for (const name of Object.keys(PIECES)) piece(name).hidden = !settings.bar || (name !== "mark" && !settings.sticky);
+      const filled = (box) => [...box.querySelectorAll(".piece")].some((p) => !p.hidden);
+      for (const id of ["markup-top", "markup-bottom", "markup-contents", "markup-panel"]) $(id).hidden = !filled($(id));
+    }
+
+    function arrange() {
+      for (const name of Object.keys(PIECES)) if (!piece(name).classList.contains("dragging")) mount(name, where(name));
+      showPieces();
+    }
+
+    function placePiece(name, place, point = null, announce = false) {
+      if (place === "panel" && !settings.panel && announce) setPanel(true);
+      mount(name, place, point, true);
+      showPieces();
       if (announce) {
-        ctx.status({ panel: "Highlight and Add note are in the notes panel",
-                     top: "Highlight and Add note are across the top",
-                     bottom: "Highlight and Add note are across the bottom",
-                     float: "Highlight and Add note are loose over the page — drag the handle to put them back" }[home]);
+        ctx.status(`${PIECES[name]} ${name === "mark" || name === "format" ? "are" : "is"} ${PLACES[place]}`
+                   + (place === "float" ? " — drag its ⋯ to put it back" : ""));
       }
       ctx.relayout();
       connect();
     }
 
-    /* A point for the loose strip's corner, moved as little as will keep all
-     * of it inside the reading area. */
-    function inside(x, y) {
-      const main = $("main");
-      return [Math.max(0, Math.min(x, main.clientWidth - bar.offsetWidth)),
-              Math.max(0, Math.min(y, main.clientHeight - bar.offsetHeight))];
+    function placeAll(home) {
+      if (home === "panel" && !settings.panel) setPanel(true);
+      Object.keys(PIECES).forEach((name, i) => mount(name, home, home === "float" ? [24, 24 + 52 * i] : null, true));
+      showPieces();
+      ctx.status(`The editing buttons are ${PLACES[home]}`);
+      ctx.relayout();
+      connect();
     }
 
-    /* Put the loose strip where it was left, or as near as the window now
-     * allows. What is remembered is where it was left, so a window made small
-     * for a moment does not move it for good. */
+    /* A point for a loose piece's corner, moved as little as will keep all
+     * of it inside the reading area. */
+    function inside(el, x, y) {
+      const main = $("main");
+      return [Math.max(0, Math.min(x, main.clientWidth - el.offsetWidth)),
+              Math.max(0, Math.min(y, main.clientHeight - el.offsetHeight))];
+    }
+
+    /* Put the loose pieces where they were left, or as near as the window now
+     * allows. What is remembered is where they were left, so a window made
+     * small for a moment does not move them for good. */
     function keepInside() {
-      if (bar.dataset.home !== "float" || dragging) return;
-      const [x, y] = inside(...JSON.parse(ctx.recall("mimick-markup-point") || "[24, 24]"));
-      Object.assign(bar.style, { left: x + "px", top: y + "px" });
+      for (const name of Object.keys(PIECES)) {
+        const el = piece(name);
+        if (el.dataset.home !== "float" || el.classList.contains("dragging")) continue;
+        const [x, y] = inside(el, ...floatPoint(name));
+        Object.assign(el.style, { left: x + "px", top: y + "px" });
+      }
     }
 
     function setBar(on) {
-      // Asked for while it is in a closed panel: the panel opens to show it.
-      if (settings.bar && settings.home === "panel" && !settings.panel) { setPanel(true); return; }
+      // Asked for while they are all in a closed panel: the panel opens to show them.
+      if (settings.bar && !settings.panel && Object.keys(PIECES).every((n) => where(n) === "panel")) { setPanel(true); return; }
       ctx.remember("mimick-markup-shown", on ? "1" : "0");
-      placeBar(settings.home);
+      arrange();
+      ctx.relayout();
       ctx.status(on ? "Highlight and Add note shown" : "Highlight and Add note hidden — Ctrl+H and Ctrl+M still work");
     }
 
-    // Dragging. The strip comes loose where it already is, so it does not jump
-    // under the pointer, and follows it; where it is let go decides its home.
-    const grip = $("markup-grip");
-    let dragging = null;
-    // Anywhere over the notes column, or just short of it, is the panel: it is
-    // the whole right-hand side, not a target to hit exactly (Kat, 1 October).
+    // Dragging. A piece comes loose where it already is, so it does not jump
+    // under the pointer, and follows it; where it is let go decides its place.
+    let dragging = null;         // { name, dx, dy, from, x, y, moved }
+    // A piece is taken out and put back as it is pressed, so the browser never
+    // sees a click on its ⋯, or a double-click: two presses that do not move
+    // it are counted here instead.
+    let lastTap = null;          // { name, at }
+    // The top and bottom edges are split in three: left, middle, right (Kat,
+    // 19 October). Below and above them, anywhere over a side column, or just
+    // short of it, is that column -- the whole side, not a target to hit
+    // exactly (Kat, 1 October) -- but only while it is open.
     const aim = (x, y) => {
-      const main = $("main").getBoundingClientRect(), notesBox = panel.getBoundingClientRect();
-      if (settings.panel && x >= notesBox.left - SNAP_MARGIN / 2 && y >= main.top && y <= main.bottom) return "panel";
-      if (y - main.top <= SNAP_MARGIN) return "top";
-      if (main.bottom - y <= SNAP_MARGIN) return "bottom";
-      return "float";
+      const main = $("main").getBoundingClientRect();
+      const third = x < main.left + main.width / 3 ? "left" : x < main.left + main.width * 2 / 3 ? "middle" : "right";
+      const column = settings.panel && !panel.hidden && x >= panel.getBoundingClientRect().left - SNAP_MARGIN / 2 ? "panel"
+        : contentsShown() && x <= $("contents").getBoundingClientRect().right + SNAP_MARGIN / 2 ? "contents" : null;
+      // Over a column only its very ends are the bars, so the column still
+      // reaches down to its foot.
+      const edge = column ? SNAP_MARGIN / 2 : SNAP_MARGIN;
+      if (y - main.top <= edge) return "top-" + third;
+      if (main.bottom - y <= edge) return "bottom-" + third;
+      return column ?? "float";
     };
-    // While dragging over a place it docks, the strip snaps there in the shape
-    // it will have -- down the top of the notes column, or across the top or
-    // foot of the page -- outlined, with a label saying so (Kat, 1 October).
-    // Off it again, it follows the pointer as a loose strip.
+    // While dragging over a place it docks, the piece snaps there in the shape
+    // it will have, outlined, with a label saying so (Kat, 1 October; the
+    // words hers, 20 October). Off it again, it follows the pointer, loose.
     const label = el("div", { id: "markup-ghost", hidden: true });
     document.body.append(label);
-    function snap(home) {
+    function snap(it, place) {
+      it.dataset.shape = shapeOf(place);
+      if (place === "float") { it.style.width = ""; label.hidden = true; return false; }
       const main = $("main").getBoundingClientRect();
-      bar.dataset.home = home;
-      if (home === "float") { bar.style.width = ""; label.hidden = true; return false; }
-      const notesBox = panel.getBoundingClientRect();
-      const width = home === "panel" ? notesBox.width : main.width;
-      bar.style.width = width + "px";
-      const left = home === "panel" ? notesBox.left - main.left : 0;
-      const top = home === "panel" ? $("markup-panel").getBoundingClientRect().top - main.top
-                : home === "top" ? 0 : main.height - bar.offsetHeight;
-      Object.assign(bar.style, { left: left + "px", top: top + "px" });
-      const box = bar.getBoundingClientRect();
-      label.textContent = { panel: "Let go to put it in the notes panel", top: "Let go to put it across the top",
-                            bottom: "Let go to put it across the bottom" }[home];
+      let left, top;
+      if (place === "panel" || place === "contents") {
+        const column = (place === "panel" ? panel : $("contents")).getBoundingClientRect();
+        it.style.width = column.width + "px";
+        left = column.left - main.left;
+        // Where its dock begins, whether or not anything is in it yet.
+        top = hostOf(place).previousElementSibling.getBoundingClientRect().bottom + (place === "panel" ? 6 : 0) - main.top;
+      } else {
+        const [edge, slot] = place.split("-");
+        it.style.width = "";
+        left = slot === "left" ? 14 : slot === "middle" ? (main.width - it.offsetWidth) / 2 : main.width - it.offsetWidth - 14;
+        top = edge === "top" ? 0 : main.height - it.offsetHeight;
+      }
+      Object.assign(it.style, { left: left + "px", top: top + "px" });
+      const box = it.getBoundingClientRect(), low = place.startsWith("bottom");
+      label.textContent = "Drag and drop here.";
       label.hidden = false;
-      label.dataset.home = home;
-      Object.assign(label.style, { left: box.left + box.width / 2 + "px",
-                                   top: (home === "bottom" ? box.top - 6 : box.bottom + 6) + "px" });
+      label.dataset.home = place;
+      label.dataset.edge = low ? "bottom" : "top";
+      Object.assign(label.style, { left: box.left + box.width / 2 + "px", top: (low ? box.top - 6 : box.bottom + 6) + "px" });
       return true;
     }
-    grip.addEventListener("pointerdown", (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      const box = bar.getBoundingClientRect(), main = $("main").getBoundingClientRect();
-      dragging = { dx: e.clientX - box.left, dy: e.clientY - box.top };
-      if (bar.dataset.home !== "float") {
-        $("main").append(bar);
-        bar.dataset.home = "float";
-        $("markup-top").hidden = $("markup-bottom").hidden = true;
-        ctx.relayout();
-      }
-      Object.assign(bar.style, { left: box.left - main.left + "px", top: box.top - main.top + "px" });
-      bar.classList.add("dragging");
-      grip.setPointerCapture(e.pointerId);
-    });
-    grip.addEventListener("pointermove", (e) => {
-      if (!dragging) return;
-      bar.dataset.aim = aim(e.clientX, e.clientY);
-      if (snap(bar.dataset.aim)) return;
-      const main = $("main").getBoundingClientRect();
-      const [x, y] = inside(e.clientX - dragging.dx - main.left, e.clientY - dragging.dy - main.top);
-      Object.assign(bar.style, { left: x + "px", top: y + "px" });
-    });
-    const endDrag = (e) => {
-      if (!dragging) return;
-      dragging = null;
-      bar.classList.remove("dragging");
-      delete bar.dataset.aim;
-      label.hidden = true;
-      bar.style.width = "";
-      const home = aim(e.clientX, e.clientY);
-      placeBar(home, home === "float" ? [parseFloat(bar.style.left), parseFloat(bar.style.top)] : null, true);
-    };
-    grip.addEventListener("pointerup", endDrag);
-    grip.addEventListener("pointercancel", endDrag);
-    grip.addEventListener("dblclick", () => placeBar("panel", null, true));
+    for (const name of Object.keys(PIECES)) {
+      const it = piece(name), grip = $(`grip-${name}`);
+      grip.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const box = it.getBoundingClientRect(), main = $("main").getBoundingClientRect();
+        dragging = { name, dx: e.clientX - box.left, dy: e.clientY - box.top, from: it.dataset.home,
+                     x: e.clientX, y: e.clientY, moved: false };
+        it.classList.add("dragging");
+        if (it.dataset.home !== "float") {
+          $("main").append(it);
+          it.dataset.home = it.dataset.shape = "float";
+          showPieces();
+          ctx.relayout();
+        }
+        Object.assign(it.style, { left: box.left - main.left + "px", top: box.top - main.top + "px" });
+        grip.setPointerCapture(e.pointerId);
+      });
+      grip.addEventListener("pointermove", (e) => {
+        if (dragging?.name !== name) return;
+        dragging.moved ||= Math.hypot(e.clientX - dragging.x, e.clientY - dragging.y) > 4;
+        if (!dragging.moved) return;
+        it.dataset.aim = aim(e.clientX, e.clientY);
+        if (snap(it, it.dataset.aim)) return;
+        const main = $("main").getBoundingClientRect();
+        const [x, y] = inside(it, e.clientX - dragging.dx - main.left, e.clientY - dragging.dy - main.top);
+        Object.assign(it.style, { left: x + "px", top: y + "px" });
+      });
+      const endDrag = (e) => {
+        if (dragging?.name !== name) return;
+        const { from, moved } = dragging;
+        dragging = null;
+        it.classList.remove("dragging");
+        delete it.dataset.aim;
+        label.hidden = true;
+        if (!moved) {
+          // A press, not a drag: it stays where it was. A second one soon
+          // after puts it back in the notes panel.
+          const again = lastTap?.name === name && e.timeStamp - lastTap.at < 450;
+          lastTap = again ? null : { name, at: e.timeStamp };
+          if (again) placePiece(name, "panel", null, true);
+          else { mount(name, from); showPieces(); ctx.relayout(); }
+          return;
+        }
+        lastTap = null;
+        const place = aim(e.clientX, e.clientY);
+        placePiece(name, place, place === "float" ? [parseFloat(it.style.left), parseFloat(it.style.top)] : null, true);
+      };
+      grip.addEventListener("pointerup", endDrag);
+      grip.addEventListener("pointercancel", endDrag);
+    }
     new ResizeObserver(keepInside).observe($("main"));
+    // The contents column opening or closing, or a document with none, moves
+    // what was put in it.
+    const contentsMoved = new MutationObserver(() => { if (!dragging) { arrange(); ctx.relayout(); } });
+    contentsMoved.observe($("contents"), { attributes: true, attributeFilter: ["hidden"] });
+    contentsMoved.observe($("contents-tab"), { attributes: true, attributeFilter: ["hidden", "disabled"] });
 
     // --- menus -------------------------------------------------------------------
 
@@ -1582,8 +1684,8 @@
         { label: "Sticky notes", checked: settings.sticky, run: () => setSticky(!settings.sticky) },
         { label: "Highlight and note buttons", keys: "Ctrl+Shift+H", checked: settings.bar, run: () => setBar(!settings.bar) },
         ...Object.entries(HOMES).map(([home, label]) => ({
-          label, indent: true, checked: settings.home === home,
-          run: () => placeBar(home, null, true),
+          label, indent: true, checked: Object.keys(PIECES).every((name) => settings.place(name) === home),
+          run: () => placeAll(home),
         })),
       ];
     }
@@ -1595,7 +1697,7 @@
     // The panel's own › puts it away; the tab on the page's right edge brings it back.
     $("notes-hide").onclick = () => { setPanel(false); ctx.focusPage(); };
     $("notes-tab").onclick = () => setPanel(true);
-    placeBar(settings.home);
+    arrange();
     refreshControls();
 
     return {

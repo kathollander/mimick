@@ -236,7 +236,7 @@ await r.click(await r.centre("#display-menu")); await sleep(300);
 await r.menu("Sticky notes"); await sleep(400);
 s = await state();
 check("Display ▾ → Sticky notes off hides + Add sticky and the row", await ev(`document.getElementById("markup-sticky").offsetParent === null
-      && document.getElementById("markup-format").hidden`));
+      && document.getElementById("markup-format").offsetParent === null`));
 check("…and the sticky notes stay on the page", s.boxes.length === 1, s.boxes.length);
 await r.click(await r.centre("#switches-toggle")); await sleep(300);
 check("the quick switch says it is off", await ev(`document.getElementById("sw-sticky").getAttribute("aria-pressed")`) === "false");

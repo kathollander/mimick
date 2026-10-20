@@ -240,25 +240,30 @@ check("…and clicking it downloads it again", again === "test-paper (notes).md"
 await r.click(await r.centre("#filter-quotes")); await r.click(await r.centre("#filter-notes")); await sleep(300);
 check("switching both filters off empties the panel", (await state()).cards.length === 0);
 await r.click(await r.centre("#filter-quotes")); await r.click(await r.centre("#filter-notes")); await sleep(300);
-const home = () => ev(`JSON.stringify([document.getElementById("markup").dataset.home, document.getElementById("markup").parentElement.id,
-  document.getElementById("markup-top").hidden, document.getElementById("markup-bottom").hidden, document.getElementById("notes").hidden])`).then(JSON.parse);
-check("the strip starts in the notes panel", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false]), await home());
+// The editing tools are three pieces, each with its own ⋯ (Kat, 19 October).
+const home = (name = "mark") => ev(`(() => { const p = document.getElementById("piece-${name}");
+  return JSON.stringify([p.dataset.home, p.parentElement.closest(".strip, .dock, #main").id,
+  document.getElementById("markup-top").hidden, document.getElementById("markup-bottom").hidden, document.getElementById("notes").hidden]); })()`).then(JSON.parse);
+check("the pieces start in the notes panel", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false])
+      && (await home("sticky"))[0] === "panel" && (await home("format"))[0] === "panel", await home());
 await r.key("b", CTRL); await sleep(400);
-check("Ctrl+B hides the panel, and the strip goes with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, true]), await home());
+check("Ctrl+B hides the panel, and the pieces go with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, true]), await home());
 await r.key("b", CTRL); await sleep(400);
-check("…and comes back with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false]), await home());
-const grip = await r.centre("#markup-grip");
+check("…and come back with it", JSON.stringify(await home()) === JSON.stringify(["panel", "markup-panel", true, true, false]), await home());
+const grip = await r.centre("#grip-mark");
 await r.drag(grip, [600, 450], 8);
-check("dragged over the page, it floats there", (await home())[0] === "float");
+check("dragged over the page, a piece floats there", (await home())[0] === "float");
+check("…and the others stay in the panel", (await home("sticky"))[0] === "panel" && (await home("format"))[0] === "panel",
+      [await home("sticky"), await home("format")]);
 await r.key("b", CTRL); await sleep(400);
-check("a loose strip stays loose when the panel is hidden", JSON.stringify(await home()) === JSON.stringify(["float", "main", true, true, true])
-      && await ev(`document.getElementById("markup").offsetParent !== null`), await home());
+check("a loose piece stays loose when the panel is hidden", JSON.stringify(await home()) === JSON.stringify(["float", "main", true, true, true])
+      && await ev(`document.getElementById("piece-mark").offsetParent !== null`), await home());
 // It cannot be lost: dragged past the window's edge it stops at it, and a
 // smaller window keeps it in view.
-const barBox = () => ev(`(() => { const b = document.getElementById("markup").getBoundingClientRect(), m = document.getElementById("main").getBoundingClientRect();
+const barBox = () => ev(`(() => { const b = document.getElementById("piece-mark").getBoundingClientRect(), m = document.getElementById("main").getBoundingClientRect();
   return JSON.stringify([b.left >= m.left - 0.5 && b.right <= m.right + 0.5 && b.top >= m.top - 0.5 && b.bottom <= m.bottom + 0.5, Math.round(b.right), Math.round(m.right)]); })()`).then(JSON.parse);
 {
-  const from = await r.centre("#markup-grip");
+  const from = await r.centre("#grip-mark");
   await r.mouse("mousePressed", from); await sleep(100);
   for (const x of [900, 1200, 1500, 2000]) { await r.mouse("mouseMoved", [x, 450]); await sleep(60); }
   check("dragged past the right edge, it stops at the edge", (await barBox())[0], await barBox());
@@ -272,30 +277,48 @@ const barBox = () => ev(`(() => { const b = document.getElementById("markup").ge
   const [, right, edge] = await barBox();
   check("…and a bigger one puts it back where it was left", Math.abs(right - edge) <= 2, [right, edge]);
 }
-await r.drag(await r.centre("#markup-grip"), [600, 830], 8);
-check("dragged to the foot, it goes across the bottom", JSON.stringify((await home()).slice(0, 4)) === JSON.stringify(["bottom", "markup-bottom", true, false]), await home());
+// The top and bottom are split in three (Kat, 19 October).
+const slotted = (name) => ev(`(() => { const p = document.getElementById("piece-${name}").getBoundingClientRect(),
+  s = document.getElementById("piece-${name}").parentElement.closest(".strip")?.getBoundingClientRect();
+  if (!s) return "[null, null]";
+  return JSON.stringify([Math.round(p.left - s.left), Math.round(s.right - p.right)]); })()`).then(JSON.parse);
+await r.drag(await r.centre("#grip-mark"), [650, 830], 8);
+check("dragged to the foot's middle, it goes there", JSON.stringify((await home()).slice(0, 4)) === JSON.stringify(["bottom-middle", "markup-bottom", true, false]), await home());
+{ const [l, rt] = await slotted("mark"); check("…centred in the bar", Math.abs(l - rt) <= 4, [l, rt]); }
 await r.key("b", CTRL); await sleep(400);
+await r.drag(await r.centre("#grip-format"), [1000, 830], 8);
+check("another piece dragged to the foot's right sits on the right", (await home("format"))[0] === "bottom-right"
+      && (await slotted("format"))[1] <= 20, [await home("format"), await slotted("format")]);
+await r.drag(await r.centre("#grip-sticky"), [200, await ev(`document.getElementById("main").getBoundingClientRect().top + 10`)], 8);
+check("one dragged to the top's left goes there, and the top bar shows", JSON.stringify((await home("sticky")).slice(0, 3)) === JSON.stringify(["top-left", "markup-top", false]),
+      await home("sticky"));
+await r.drag(await r.centre("#grip-sticky"), [600, 450], 8);
+check("dragged off again, the empty top bar goes away", (await home("sticky"))[2] === true, await home("sticky"));
+await r.click(await r.centre("#grip-sticky"), 2); await sleep(300);
+await r.click(await r.centre("#grip-format"), 2); await sleep(300);
+check("double-clicking a ⋯ puts that piece back in the panel", (await home("sticky"))[0] === "panel" && (await home("format"))[0] === "panel",
+      [await home("sticky"), await home("format")]);
 {
   // Kat, 1 October: it was unclear that the right-hand side docks it. While
-  // dragging, the place it will go is outlined and named; the whole column
+  // dragging, the place it will go is outlined and labelled; the whole column
   // counts, down to its foot and out to the window's edge.
-  const from = await r.centre("#markup-grip");
+  const from = await r.centre("#grip-mark");
   const ghost = () => ev(`(() => { const g = document.getElementById("markup-ghost"), n = document.getElementById("notes").getBoundingClientRect(),
-    b = document.getElementById("markup").getBoundingClientRect();
+    b = document.getElementById("piece-mark").getBoundingClientRect();
     return JSON.stringify([!g.hidden, g.dataset.home, Math.abs(b.left - n.left) < 2 && Math.abs(b.width - n.width) < 2, g.textContent]); })()`).then(JSON.parse);
   await r.mouse("mousePressed", from); await sleep(100);
   for (const y of [700, 600, 450]) { await r.mouse("mouseMoved", [600, y]); await sleep(60); }
   check("dragged over the page, no outline shows", !(await ghost())[0], await ghost());
   const right = await ev(`Math.round(innerWidth - 3)`);
-  for (const x of [900, 1100, right]) { await r.mouse("mouseMoved", [x, 800]); await sleep(60); }
+  for (const x of [900, 1100, right]) { await r.mouse("mouseMoved", [x, 760]); await sleep(60); }
   const shown = await ghost();
   check("at the far right, low down, it snaps into the notes column's shape, labelled", shown[0] && shown[1] === "panel" && shown[2]
-        && /notes panel/.test(shown[3]), shown);
-  await r.mouse("mouseReleased", [right, 800]); await sleep(400);
+        && shown[3] === "Drag and drop here.", shown);
+  await r.mouse("mouseReleased", [right, 760]); await sleep(400);
   check("…and let go there, it goes back in", (await home())[0] === "panel" && !(await ghost())[0], await home());
 }
 await r.key("h", CTRL | SHIFT); await sleep(300);
-check("Ctrl+Shift+H hides it", await ev(`document.getElementById("markup").hidden`));
+check("Ctrl+Shift+H hides them", await ev(`["mark", "sticky", "format"].every((n) => document.getElementById("piece-" + n).hidden)`));
 await r.key("h", CTRL | SHIFT); await sleep(300);
 
 // 10b. Keys pressed while the note editor is still on its way belong to it:

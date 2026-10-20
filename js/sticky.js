@@ -388,11 +388,11 @@
     function leftBox(box) {
       if (!editing || editing.box !== box) return;
       const now = document.activeElement;
-      if (box.text.contains(now) || now?.closest?.("#markup, #menu")) return;
+      if (box.text.contains(now) || now?.closest?.(".piece, #menu")) return;
       finish();
     }
     document.addEventListener("focusin", (e) => {
-      if (editing && !editing.box.text.contains(e.target) && !e.target.closest?.("#markup, #menu")) finish();
+      if (editing && !editing.box.text.contains(e.target) && !e.target.closest?.(".piece, #menu")) finish();
     });
 
     const richOf = (box) => kept(box.text.innerHTML);
