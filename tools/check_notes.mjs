@@ -390,6 +390,16 @@ const sizes = await ev(`JSON.stringify(["cards", "style-sample"].map((id) => get
 check("Note appearance's sample is the size of the cards", sizes[0] === sizes[1], [sizes, leftOpen]);
 await r.key("Escape"); await sleep(200);
 await ev(`document.getElementById("zoom-out").click()`); await sleep(500);
+// Display ▾ → Lines to the panel: off takes the lines away, on brings them back.
+const lines = () => ev(`document.getElementById("connectors").children.length`);
+const linesBefore = await lines();
+await r.click(await r.centre("#display-menu")); await sleep(300);
+await r.menu("Lines to the panel"); await sleep(300);
+const linesOff = await lines();
+await r.click(await r.centre("#display-menu")); await sleep(300);
+await r.menu("Lines to the panel"); await sleep(300);
+check("Lines to the panel turns the lines off and on again", linesBefore > 0 && linesOff === 0 && (await lines()) === linesBefore,
+      [linesBefore, linesOff]);
 
 // 12. A reminder to save to a file, and the switch that stops it. The wait is
 // made three seconds here; a reader's is fifteen minutes.

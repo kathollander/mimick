@@ -156,6 +156,8 @@
         catch { return []; }
       },
       get stickies() { return ctx.recall("mimick-panel-sticky") !== "0"; },
+      // The lines from each highlight out to its card (Kat, 21 October).
+      get lines() { return ctx.recall("mimick-panel-lines") !== "0"; },
       // Display ▾ → Sticky notes: + Add sticky and its formatting row on the strip.
       get sticky() { return ctx.recall("mimick-sticky") !== "0"; },
       get stickyColour() {
@@ -1365,7 +1367,7 @@
     function connect() {
       const svg = $("connectors");
       svg.replaceChildren();
-      if (!doc || !settings.panel || searching()) return;
+      if (!doc || !settings.panel || !settings.lines || searching()) return;
       const main = svg.getBoundingClientRect(), cards = $("cards").getBoundingClientRect();
       const viewBox = ctx.view.getBoundingClientRect();
       for (const node of $("cards").children) {
@@ -1876,6 +1878,8 @@
         { label: "Show highlights in the panel", checked: settings.quotes, run: () => $("filter-quotes").click() },
         { label: "Show notes in the panel", checked: settings.written, run: () => $("filter-notes").click() },
         { label: "Show sticky notes in the panel", checked: settings.stickies, run: () => $("filter-sticky").click() },
+        { label: "Lines to the panel", checked: settings.lines,
+          run: () => { ctx.remember("mimick-panel-lines", settings.lines ? "0" : "1"); connect(); } },
         // Here rather than as ⚙ in the panel, to give its colours room (Kat, 20 October).
         { label: "Note appearance…", run: chooseStyle },
         "-",

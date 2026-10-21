@@ -18,6 +18,9 @@ own (`c308a22`, at Kat's word: "the settings in the menu bar are reflective of
 what's on the app screen"). One `shownSize` gives both, in pixels = PDF points
 × zoom, as the page text and the stickies (`--pt`). check_notes asserts the
 sample and the cards match after zooming in. The desktop app is not changed.
+Display ▾ *Lines to the panel* (localStorage `mimick-panel-lines`, on unless
+"0") turns off the lines from highlights to their cards; `connect()` draws
+none while it is off. Asked by Kat the same day; check_notes covers it.
 
 The paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
