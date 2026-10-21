@@ -11,6 +11,14 @@ you": read it
 with `sinceRev` 1205 first. `MIMICK ADD NOTES.txt` and the screenshot in this
 folder are Kat's, untracked: never commit them.
 
+**21 October, also not pushed:** Note appearance now shows what the screen
+does. Its sample was sized at the first zoom (×1.25) whatever the zoom was
+(`61e2165`), and the cards were in CSS points, a third bigger than the page's
+own (`c308a22`, at Kat's word: "the settings in the menu bar are reflective of
+what's on the app screen"). One `shownSize` gives both, in pixels = PDF points
+× zoom, as the page text and the stickies (`--pt`). check_notes asserts the
+sample and the cards match after zooming in. The desktop app is not changed.
+
 The paragraph that follows was
 written the evening of 19 September, after the launch, the first Firefox
 report from someone else's computer, the guided tour, and the stalled first
