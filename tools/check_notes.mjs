@@ -380,6 +380,16 @@ await ev(`(() => { const i = document.getElementById("style-size"); i.value = 14
 await r.key("Enter"); await sleep(300);
 const size = await ev(`document.getElementById("cards").style.fontSize`);
 check("Note appearance changes the size of the cards", size === `${14 * 1.25}pt`, size);
+// Its sample is the cards' size at any zoom, not only at the first one.
+await ev(`document.getElementById("zoom-in").click()`); await sleep(500);
+const leftOpen = await ev(`JSON.stringify([...document.querySelectorAll("dialog[open]")].map((d) => d.id))`).then(JSON.parse);
+for (const d of leftOpen) await ev(`document.getElementById(${JSON.stringify(d)}).close()`);
+await r.click(await r.centre("#display-menu")); await sleep(300);
+await r.menu("Note appearance…");
+const sizes = await ev(`JSON.stringify(["cards", "style-sample"].map((id) => getComputedStyle(document.getElementById(id)).fontSize))`).then(JSON.parse);
+check("Note appearance's sample is the size of the cards", sizes[0] === sizes[1] && sizes[0] !== `${14 * 1.25 * 4 / 3}px`, [sizes, leftOpen]);
+await r.key("Escape"); await sleep(200);
+await ev(`document.getElementById("zoom-out").click()`); await sleep(500);
 
 // 12. A reminder to save to a file, and the switch that stops it. The wait is
 // made three seconds here; a reader's is fifteen minutes.

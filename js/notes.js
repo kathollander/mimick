@@ -1225,14 +1225,15 @@
     let panelPages = "";
     const panel = $("notes");
 
+    // A note's size at this zoom: the cards and Note appearance's sample alike.
+    const shownSize = (size) => Math.max(6, Math.min(40, size * ctx.zoom()));
     function renderCards() {
       const cards = $("cards");
       const pages = ctx.pagesShown();
       panelPages = pages.join();
       const scroll = cards.scrollTop;
       cards.replaceChildren();
-      const size = Math.max(6, Math.min(40, settings.size * ctx.zoom()));
-      cards.style.fontSize = size + "pt";
+      cards.style.fontSize = shownSize(settings.size) + "pt";
       cards.style.fontFamily = settings.font ? `"${settings.font}", system-ui, sans-serif` : "";
       const hidden = settings.hiddenColours;
       const wanted = (i) => drafting?.xref === i.xref
@@ -1502,8 +1503,8 @@
       ctx.remember("mimick-note-font", $("style-font").value.trim());
       const size = Number($("style-size").value);
       if (size >= 6 && size <= 24) ctx.remember("mimick-note-size", size);
-      $("style-sample").style.fontFamily = $("style-font").value.trim() ? `"${$("style-font").value.trim()}", system-ui` : "";
-      $("style-sample").style.fontSize = (size >= 6 && size <= 24 ? size : 9) * 1.25 + "pt";
+      $("style-sample").style.fontFamily = $("style-font").value.trim() ? `"${$("style-font").value.trim()}", system-ui, sans-serif` : "";
+      $("style-sample").style.fontSize = shownSize(size >= 6 && size <= 24 ? size : 9) + "pt";
       renderCards();
     };
     $("style-font").addEventListener("input", previewStyle);
