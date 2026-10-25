@@ -7,7 +7,7 @@ last updated 20 October, end of day.
 are all built (`4a0cdd3`), every check passing, **nothing pushed** -- the list
 of 16 October isn't pushed either; push only on her word. Next is her answers
 to three small questions at the end of the Claude Doc ("Three small things for
-you": read it
+you"): read it
 with `sinceRev` 1205 first. `MIMICK ADD NOTES.txt` and the screenshot in this
 folder are Kat's, untracked: never commit them.
 
@@ -59,7 +59,7 @@ its real size; `js/voices.js` allows for that.
 ## Latest: Kat's critiques of 19 October (20 October)
 
 Worked out with her in a Claude Doc first ("Mimick: Kat's 19 Oct critiques,
-v2", then
+v2"), then
 built. **Not pushed** -- push only on her word. The list of 16 October below is
 not pushed either.
 
